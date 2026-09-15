@@ -1,0 +1,2 @@
+-define(INCLUDED(X), case X of ?MAGIC -> included; _ -> other end).
+-record(item, {value = 0, tag = default}).

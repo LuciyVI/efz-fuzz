@@ -1,0 +1,10 @@
+#{status => completed,
+  stats =>
+      #{started_at => -576460751031,timeouts => 0,crashes => 0,
+        calibrations => 2,discoveries => 0,executions => 0,
+        infrastructure_failures => 0,rejections => 0,unique_crashes => 0},
+  corpus =>
+      [#{id => 1,input => <<"noop">>,metadata => #{},
+         added_at => 1789226409302},
+       #{id => 2,input => <<"noop">>,metadata => #{},
+         added_at => 1789226409302}]}.

@@ -1,0 +1,167 @@
+EARLY_EXHAUSTION valid_corpus=256 candidates=0 visits=256 available_bitflip=true
+EARLY_EXHAUSTION_CAMPAIGN #{status => {mutation_exhausted,mutation_exhausted},
+                            stats =>
+                                #{started_at => -576460751261,timeouts => 0,
+                                  calibrations => 256,executions => 0,
+                                  infrastructure_failures => 0,crashes => 0,
+                                  discoveries => 0,rejections => 0,
+                                  unique_crashes => 0},
+                            mutation_stats =>
+                                #{generated_candidates => 0,visits => 256,
+                                  skipped_candidates => 256,
+                                  mutation_attempts => 0,
+                                  operation_attempts => 0,skip_reasons => #{},
+                                  skipped_operations => 0}}
+=INFO REPORT==== 12-Sep-2026::18:21:52.611474 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+IGNORED_CONFIG #{arity => 99,function => absent,max_input_bytes => 0,
+                 corpus_dir => "unused"}
+=ERROR REPORT==== 12-Sep-2026::18:21:52.622275 ===
+** Generic server <0.617.0> terminating 
+** Last message in was iterate
+** When Server state == #{timeout => 100,workers => 1,target => audit_faults,
+                          seeds => [<<"crash">>],
+                          mutation_mode => random,max_iterations => 0,
+                          coverage => manual,
+                          crash_dir => "/dev/null/efz-audit",
+                          phase => calibration,coordinator => <0.613.0>,
+                          coverage_backend => ets,
+                          coverage_validation => prepared,
+                          mutator => efz_mutator_random,manifests => [],
+                          crashes => [],
+                          calibration_started_at => -576460751215317,
+                          crash_ids =>
+                           {set,0,16,16,8,80,48,
+                            {[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]},
+                            {{[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],
+                              []}}},
+                          decisions => [],
+                          executor_options =>
+                           #{coverage => manual,coverage_backend => ets,
+                             coverage_plan =>
+                              {efz_cov_plan,1,
+                               #Ref<0.650338154.4214620161.143724>,#{}}},
+                          feedback =>
+                           #{global =>
+                              {set,0,16,16,8,80,48,
+                               {[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],
+                                []},
+                               {{[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],
+                                 []}}},
+                             builds => #{}},
+                          iteration => 0,mutation_state => undefined,
+                          mutation_trace => [],
+                          pending_seeds =>
+                           [#{id => 1,input => <<"crash">>,metadata => #{},
+                              added_at => 1789226512616}],
+                          trace_count => 0}
+** Reason for termination ==
+** {{badmatch,{error,enotdir}},
+    [{efz_crash,save,4,
+                [{file,"/home/fbogoslavskii/erl:fuzz/efz/src/efz_crash.erl"},
+                 {line,17}]},
+     {efz_worker,record_failure,4,
+                 [{file,"/home/fbogoslavskii/erl:fuzz/efz/src/efz_worker.erl"},
+                  {line,99}]},
+     {efz_worker,execute,4,
+                 [{file,"/home/fbogoslavskii/erl:fuzz/efz/src/efz_worker.erl"},
+                  {line,74}]},
+     {gen_server,try_handle_info,3,[{file,"gen_server.erl"},{line,2173}]},
+     {gen_server,handle_msg,6,[{file,"gen_server.erl"},{line,2261}]},
+     {proc_lib,init_p_do_apply,3,[{file,"proc_lib.erl"},{line,329}]}]}
+
+=CRASH REPORT==== 12-Sep-2026::18:21:52.623009 ===
+  crasher:
+    initial call: efz_worker:init/1
+    pid: <0.617.0>
+    registered_name: []
+    exception error: no match of right hand side value {error,enotdir}
+      in function  efz_crash:save/4 (/home/fbogoslavskii/erl:fuzz/efz/src/efz_crash.erl, line 17)
+      in call from efz_worker:record_failure/4 (/home/fbogoslavskii/erl:fuzz/efz/src/efz_worker.erl, line 99)
+      in call from efz_worker:execute/4 (/home/fbogoslavskii/erl:fuzz/efz/src/efz_worker.erl, line 74)
+      in call from gen_server:try_handle_info/3 (gen_server.erl, line 2173)
+      in call from gen_server:handle_msg/6 (gen_server.erl, line 2261)
+    ancestors: [efz_worker_sup,efz_fuzzer,efz_sup,<0.611.0>]
+    message_queue_len: 0
+    messages: []
+    links: [<0.616.0>]
+    dictionary: []
+    trap_exit: false
+    status: running
+    heap_size: 987
+    stack_size: 29
+    reductions: 19248
+  neighbours:
+
+=SUPERVISOR REPORT==== 12-Sep-2026::18:21:52.627905 ===
+    supervisor: {local,efz_worker_sup}
+    errorContext: child_terminated
+    reason: {{badmatch,{error,enotdir}},
+             [{efz_crash,save,4,
+                         [{file,"/home/fbogoslavskii/erl:fuzz/efz/src/efz_crash.erl"},
+                          {line,17}]},
+              {efz_worker,record_failure,4,
+                          [{file,"/home/fbogoslavskii/erl:fuzz/efz/src/efz_worker.erl"},
+                           {line,99}]},
+              {efz_worker,execute,4,
+                          [{file,"/home/fbogoslavskii/erl:fuzz/efz/src/efz_worker.erl"},
+                           {line,74}]},
+              {gen_server,try_handle_info,3,
+                          [{file,"gen_server.erl"},{line,2173}]},
+              {gen_server,handle_msg,6,[{file,"gen_server.erl"},{line,2261}]},
+              {proc_lib,init_p_do_apply,3,
+                        [{file,"proc_lib.erl"},{line,329}]}]}
+    offender: [{pid,<0.617.0>},
+               {id,efz_worker},
+               {mfargs,{efz_worker,start_link,
+                                   [#{timeout => 100,workers => 1,
+                                      target => audit_faults,
+                                      seeds => [<<"crash">>],
+                                      mutation_mode => random,
+                                      max_iterations => 0,coverage => manual,
+                                      crash_dir => "/dev/null/efz-audit",
+                                      coordinator => <0.613.0>,
+                                      coverage_backend => ets,
+                                      coverage_validation => prepared,
+                                      mutator => efz_mutator_random,
+                                      manifests => []}]}},
+               {restart_type,temporary},
+               {significant,false},
+               {shutdown,5000},
+               {child_type,worker}]
+
+STORAGE_FAILURE #{status =>
+                   {infrastructure_failure,
+                    {worker_down,
+                     {{badmatch,{error,enotdir}},
+                      [{efz_crash,save,4,
+                        [{file,
+                          "/home/fbogoslavskii/erl:fuzz/efz/src/efz_crash.erl"},
+                         {line,17}]},
+                       {efz_worker,record_failure,4,
+                        [{file,
+                          "/home/fbogoslavskii/erl:fuzz/efz/src/efz_worker.erl"},
+                         {line,99}]},
+                       {efz_worker,execute,4,
+                        [{file,
+                          "/home/fbogoslavskii/erl:fuzz/efz/src/efz_worker.erl"},
+                         {line,74}]},
+                       {gen_server,try_handle_info,3,
+                        [{file,"gen_server.erl"},{line,2173}]},
+                       {gen_server,handle_msg,6,
+                        [{file,"gen_server.erl"},{line,2261}]},
+                       {proc_lib,init_p_do_apply,3,
+                        [{file,"proc_lib.erl"},{line,329}]}]}}},
+                  stats =>
+                   #{started_at => -576460751216,timeouts => 0,
+                     calibrations => 1,executions => 0,
+                     infrastructure_failures => 0,crashes => 1,
+                     discoveries => 0,rejections => 0,unique_crashes => 0}}
+=INFO REPORT==== 12-Sep-2026::18:21:52.631930 ===
+    application: efz
+    exited: stopped
+    type: temporary
+

@@ -1,0 +1,25 @@
+#!/usr/bin/env escript
+-mode(compile).
+main(_)->
+    true=code:add_patha("_build/default/lib/efz/ebin"),
+    {ok,A}=efz_instrument:compile("examples/staged/efz_staged_parser.erl",
+        #{modules=>[efz_staged_parser],source_root=>".",outdir=>"_build/staged-targets"}),
+    {ok,_}=efz:start(#{target=>efz_staged_parser,artifacts=>[A],seeds=>[<<0>>],
+        mutation_mode=>staged,max_iterations=>200,crash_dir=>"_build/staged-crashes-bounded",
+        max_input_bytes => 64, mutation => #{seed=>{17,23,41},dictionary_file=>"examples/staged/tokens.hex",
+            stages=>[dictionary_insert,boundary,arithmetic,havoc,splice],
+            max_block_bytes=>16,max_token_bytes=>16,havoc_depth=>4}}),
+    Report=efz:await(30000),ok=efz:stop(),
+    #{status:=completed,crashes:=[Crash|_],stats:=Stats}=Report,
+    Recipe=maps:get(mutation,maps:get(metadata,Crash)),
+    {ok,Input}=efz_recipe:regenerate(Recipe),Input=maps:get(input,Crash),
+    {ok,E}=efz_replay:load(maps:get(path,Crash)++".replay"),
+    {ok,Replay}=efz_recipe:execute_file(maps:get(path,Crash)++".input",efz_staged_parser,[A],
+        maps:get(target_builds,Recipe),#{expected_harness=>maps:get(harness,E)}),
+    {crash,error,artificial_staged_exception,_}=maps:get(outcome,Replay),
+    ok=file:write_file("_build/staged-report.term",term_to_binary(Report)),
+    ok=efz_recipe:save("_build/staged-example.recipe",Recipe),
+    ok=file:write_file("_build/staged-example.input",Input),
+    {ok,_}=file:copy(maps:get(path,Crash)++".replay","_build/staged-example.replay"),
+    io:format("~tp~nMutation: ~tp~nCrash recipe: _build/staged-example.recipe~nReplay: ~tp~n",
+        [Stats,maps:get(mutation_stats,Report),maps:with([outcome,coverage_status,coverage],Replay)]).

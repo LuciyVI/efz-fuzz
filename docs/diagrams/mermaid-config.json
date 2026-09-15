@@ -1,0 +1,27 @@
+{
+  "theme": "base",
+  "securityLevel": "strict",
+  "themeVariables": {
+    "fontFamily": "DejaVu Sans, sans-serif",
+    "fontSize": "16px",
+    "primaryColor": "#eef4fb",
+    "primaryBorderColor": "#496b8b",
+    "primaryTextColor": "#172b42",
+    "lineColor": "#496b8b",
+    "secondaryColor": "#f2f7f3",
+    "tertiaryColor": "#fff9e8",
+    "noteBkgColor": "#fff9e8",
+    "noteBorderColor": "#b49b50"
+  },
+  "sequence": {
+    "useMaxWidth": false,
+    "wrap": true,
+    "diagramMarginX": 24,
+    "diagramMarginY": 20,
+    "actorMargin": 35,
+    "width": 175,
+    "messageMargin": 32,
+    "mirrorActors": false
+  },
+  "htmlLabels": false
+}

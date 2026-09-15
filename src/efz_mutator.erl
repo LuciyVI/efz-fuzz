@@ -1,0 +1,2 @@
+-module(efz_mutator).
+-callback mutate(binary(), map()) -> binary().

@@ -1,0 +1,29 @@
+=INFO REPORT==== 12-Sep-2026::18:20:09.033562 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+#{started_at => -576460751344,timeouts => 0,crashes => 7,calibrations => 1,
+  discoveries => 5,executions => 200,infrastructure_failures => 0,
+  rejections => 188,unique_crashes => 1}
+Mutation: #{visits => 243,generated_candidates => 200,
+            skipped_candidates => 43,mutation_attempts => 233,
+            operation_attempts => 320,
+            skip_reasons => #{no_change => 46,insufficient_length => 55},
+            skipped_operations => 72}
+Crash recipe: _build/staged-example.recipe
+Replay: #{outcome =>
+              {crash,error,artificial_staged_exception,
+                  [{efz_staged_parser,run,1,
+                       [{file,"examples/staged/efz_staged_parser.erl"},
+                        {line,5}]},
+                   {efz_executor,'-coordinate/6-fun-0-',5,
+                       [{file,
+                            "/home/fbogoslavskii/erl:fuzz/efz/src/efz_executor.erl"},
+                        {line,34}]}]},
+          coverage_status => ok,
+          coverage =>
+              [{efz_staged_parser,
+                   <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,42,117,
+                     65,155,134,186,143,128,124,195,255,187,93,150,51,158,10,94>>,
+                   2}]}

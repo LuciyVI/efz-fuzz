@@ -1,0 +1,22 @@
+#{status => {mutation_exhausted,mutation_exhausted},
+  stats =>
+      #{started_at => -576460751175,timeouts => 0,crashes => 1,
+        calibrations => 1,discoveries => 3,executions => 40,
+        infrastructure_failures => 0,rejections => 36,unique_crashes => 1},
+  corpus =>
+      [#{id => 1,input => <<>>},
+       #{id => 2,input => <<"A">>},
+       #{id => 3,input => <<"AB">>},
+       #{id => 4,input => <<"ABC">>}],
+  ancestry => [{<<"AB">>,2},{<<"ABC">>,3}],
+  exact_deliveries => 41,recipes_regenerated => 40,restart_corpus_size => 1,
+  crash_base =>
+      "/tmp/efz-audit-20260912/crashes/1a67efbe4ea4f02a050c3fd3f9fa5524ebfe1699d7d3f3e93c0ef9446769c9f9-6f93481fe2c111b1c44176bfa27e6461bf26668e0c6c31fab4a32fa8a4f663e5",
+  replay =>
+      {crash,error,test_crash,
+             [{audit_target,parse,1,
+                            [{file,"/tmp/efz-audit-20260912/audit_target.erl"},
+                             {line,6}]},
+              {efz_executor,'-coordinate/6-fun-0-',5,
+                            [{file,"/home/fbogoslavskii/erl:fuzz/efz/src/efz_executor.erl"},
+                             {line,34}]}]}}.

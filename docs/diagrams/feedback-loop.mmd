@@ -1,0 +1,67 @@
+sequenceDiagram
+    accTitle: EFZ — staged mutation и возврат discovery в active corpus
+    accDescr: Успешный input с новыми probes сохраняется до добавления в active corpus, scheduler получает его в будущем раунде.
+    autonumber
+    participant W as efz_worker
+    participant C as efz_corpus
+    participant P as efz_mutation_plan
+    participant M as efz_mutation
+    participant R as efz_recipe
+    participant E as efz_executor
+    participant F as efz_feedback
+    participant S as efz_corpus_store
+    Note over W,S: Initial и restored seeds уже прошли calibration через executor и feedback
+    loop Пока не достигнут campaign budget и scheduler не завершён
+        W->>C: mutation_entries()
+        C-->>W: Entries: список maps с id и input
+        W->>P: next(PlanState, Entries)
+        P->>P: Выбор entry, stage lane и cursor
+        P->>M: apply_operation(Primary, Op, Limits)
+        M-->>P: {ok, Candidate} либо skip/error
+        alt Candidate найден
+            P-->>W: {candidate, Input, Provenance, NextPlan}
+            W->>R: make(Provenance, Input, MutationConfig, Builds)
+            R-->>W: Recipe: parent, primary, hashes, operations
+            W->>W: efz_input:check(Input, Max, mutation)
+            W->>E: run(Target, Input, Timeout, Options)
+            Note over E: Guardian + coordinator + owned tree, cleanup before result
+            E-->>W: Result: outcome, coverage, observation integrity, pinned identities
+            W->>W: Record observed modules independently of successful global coverage
+            W->>F: evaluate(FeedbackState, Result, mutation)
+            alt Валидный successful outcome и New != empty
+                F-->>W: {ok, F1, Decision}, new_probes = New
+                W->>C: add(Input, Metadata с parent ID и Recipe)
+                alt Новый binary
+                    opt Включён corpus_dir
+                        C->>S: save(Store, Input, NextId, Metadata)
+                        S-->>C: {ok, Record} после rename + fsync
+                    end
+                    C->>C: Append entry, увеличить next ID
+                    C-->>W: {ok, Id}
+                    W->>W: discoveries += 1, принять F1
+                    Note over W,C: Новый Input доступен scheduler как primary и donor в следующем раунде
+                else Binary уже есть
+                    C-->>W: {existing, Input}
+                    W->>W: Принять F1, existing_input без новой entry
+                end
+            else Успех без нового coverage
+                F-->>W: {ok, F1, equivalent_coverage decision}
+                W->>W: Принять F1, rejections += 1
+            else Target exception / exit / timeout
+                F-->>W: {ok, прежний F, target_failure decision}
+                W->>W: efz_crash:identify/3 + save/4, persist selected raw representatives
+                W->>W: durable summary count += 1, bounded disk/report representatives and decisions
+            else Невалидное coverage или infrastructure outcome
+                F-->>W: {error, Reason}
+                W->>W: infrastructure failure, закончить campaign
+            end
+        else Визит не дал candidate
+            P-->>W: {skip, Reason, NextPlan}
+            Note over W,E: Executor не вызывается, progress model сохраняет cursor
+        else Exhaustion / idle guard / ошибка
+            P-->>W: {done, Reason, NextPlan} либо {error, Reason, NextPlan}
+            W->>W: Итоговый report с отдельной причиной остановки
+        end
+    end
+    W->>W: Report unused artifacts, strict policy fails if no probes ever observed
+    Note over W,S: Ошибка corpus/crash storage останавливает campaign, input и причина остаются в failure_context

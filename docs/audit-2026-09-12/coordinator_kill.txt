@@ -1,0 +1,7 @@
+#{result =>
+      #{outcome => {infrastructure,{coordinator_down,killed}},
+        coverage => [],
+        coverage_status => {error,coordinator_down},
+        builds => #{},execution_ref => #Ref<0.970747550.2334654469.164814>,
+        elapsed_us => 0},
+  target_alive_after_return => true}.

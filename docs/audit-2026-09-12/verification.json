@@ -1,0 +1,110 @@
+{
+  "original_files_verified": 83,
+  "changed_original_files": [],
+  "numbered_sections": [
+    [
+      "1",
+      "Executive Summary"
+    ],
+    [
+      "2",
+      "Current Architecture"
+    ],
+    [
+      "3",
+      "Component Inventory"
+    ],
+    [
+      "4",
+      "Actual End-to-End Execution Flow"
+    ],
+    [
+      "5",
+      "Harness and Input Delivery"
+    ],
+    [
+      "6",
+      "Coverage Pipeline"
+    ],
+    [
+      "7",
+      "Corpus and Queue Pipeline"
+    ],
+    [
+      "8",
+      "Mutation Pipeline"
+    ],
+    [
+      "9",
+      "Crash/Timeout Handling"
+    ],
+    [
+      "10",
+      "Component Integration Matrix"
+    ],
+    [
+      "11",
+      "End-to-End Validation Results"
+    ],
+    [
+      "12",
+      "Dead Code / Parallel Implementations"
+    ],
+    [
+      "13",
+      "Bugs and Architectural Gaps"
+    ],
+    [
+      "14",
+      "Maturity Assessment"
+    ],
+    [
+      "15",
+      "Recommended Development Direction"
+    ],
+    [
+      "16",
+      "Prioritized Implementation Plan"
+    ],
+    [
+      "17",
+      "Acceptance Criteria for the Next Phase"
+    ]
+  ],
+  "broken_local_links": [],
+  "source_modules": 24,
+  "new_files": [
+    "docs/audit-2026-09-12/audit_faults.erl",
+    "docs/audit-2026-09-12/audit_harness.erl",
+    "docs/audit-2026-09-12/audit_target.erl",
+    "docs/audit-2026-09-12/before-sha256.json",
+    "docs/audit-2026-09-12/caught_malformed_context.txt",
+    "docs/audit-2026-09-12/child.txt",
+    "docs/audit-2026-09-12/child_timeout.txt",
+    "docs/audit-2026-09-12/coordinator_kill.txt",
+    "docs/audit-2026-09-12/cowboy-check.log",
+    "docs/audit-2026-09-12/cross_case_state.txt",
+    "docs/audit-2026-09-12/ct.log",
+    "docs/audit-2026-09-12/dialyzer.log",
+    "docs/audit-2026-09-12/disconnected_artifacts.txt",
+    "docs/audit-2026-09-12/duplicate_initial_seeds.txt",
+    "docs/audit-2026-09-12/e2e-report.term",
+    "docs/audit-2026-09-12/e2e.txt",
+    "docs/audit-2026-09-12/edge-cases.escript",
+    "docs/audit-2026-09-12/edge-cases.log",
+    "docs/audit-2026-09-12/eunit.log",
+    "docs/audit-2026-09-12/exception_classes.txt",
+    "docs/audit-2026-09-12/fresh-replay.escript",
+    "docs/audit-2026-09-12/fresh-replay.log",
+    "docs/audit-2026-09-12/hot_reload.txt",
+    "docs/audit-2026-09-12/linked_child.txt",
+    "docs/audit-2026-09-12/run.escript",
+    "docs/audit-2026-09-12/staged-example.log",
+    "docs/audit-2026-09-12/status-before.txt",
+    "docs/audit-2026-09-12/xref.log",
+    "docs/technical-audit-2026-09-12.md"
+  ],
+  "report_lines": 898,
+  "artifact_reproduction": "PASS: fresh directory, diagnostic suite, fresh VM replay and edge-cases suite",
+  "added_scope": "Audit report and diagnostic evidence only; no production changes"
+}

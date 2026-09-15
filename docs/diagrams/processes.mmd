@@ -1,0 +1,97 @@
+classDiagram
+    direction TB
+    accTitle: EFZ — процессы и владельцы ETS
+    accDescr: Supervisor children, обычные links и monitors различаются. Feedback и scheduler являются состоянием worker, а не отдельными серверами.
+    class efz_sup {
+        <<supervisor>>
+        one_for_all
+        intensity = 0
+    }
+    class efz_fuzzer {
+        <<gen_server>>
+        waiters
+        final_report
+        worker_monitor
+    }
+    class efz_worker_sup {
+        <<supervisor>>
+        one_for_one
+        intensity = 5
+        period = 10
+    }
+    class efz_worker {
+        <<gen_server>>
+        feedback.global
+        mutation_state
+        decisions / failure_context
+    }
+    class efz_corpus {
+        <<gen_server>>
+        entries / next_id
+        optional store config
+    }
+    class efz_stats {
+        <<gen_server>>
+        campaign counters
+    }
+    class ValidationPlan {
+        <<ETS>>
+        efz_coverage_plan
+        protected set
+        allowed probes / builds
+    }
+    class ExecutionGuardian {
+        <<process>>
+        efz_guardian
+        independent user IO group
+        lifecycle / trace barriers
+    }
+    class ExecutionCoordinator {
+        <<process>>
+        efz_executor coordinate
+        one per input
+        root and guardian monitors
+    }
+    class TargetProcess {
+        <<process>>
+        one per input
+        M run(Input)
+        context in process dictionary
+    }
+    class ExecutionCoverage {
+        <<ETS>>
+        efz_execution_coverage
+        public set
+        observed probe identities
+    }
+    class IntegrityRegistry {
+        <<ETS>>
+        efz_coverage_observers
+        protected named set
+        PID to expected context / pins
+    }
+    class Descendants {
+        <<processes>>
+        controlled spawn API
+        context inherited at start gate
+    }
+    efz_sup *-- efz_fuzzer : temporary child
+    efz_fuzzer -- efz_corpus : start_link / shutdown
+    efz_fuzzer -- efz_stats : start_link / shutdown
+    efz_fuzzer -- efz_worker_sup : start_link / shutdown
+    efz_worker_sup *-- efz_worker : one temporary child
+    efz_fuzzer ..> efz_worker : monitor
+    efz_worker *-- ValidationPlan : owns in prepared mode
+    efz_worker ..> ExecutionGuardian : spawn_monitor
+    ExecutionGuardian ..> efz_worker : monitor caller
+    ExecutionGuardian ..> ExecutionCoordinator : spawn_monitor
+    ExecutionCoordinator ..> TargetProcess : monitor root
+    ExecutionGuardian ..> TargetProcess : gated spawn_monitor
+    ExecutionGuardian ..> Descendants : gated spawn_monitor
+    ExecutionGuardian *-- ExecutionCoverage : owns / deletes after cleanup
+    ExecutionGuardian *-- IntegrityRegistry : owns per execution
+    TargetProcess ..> IntegrityRegistry : hook checks own context
+    Descendants ..> IntegrityRegistry : hook checks own context
+    ExecutionGuardian ..> ValidationPlan : reads allowlist
+    TargetProcess ..> ExecutionCoverage : hooks write probes
+    Descendants ..> ExecutionCoverage : same execution context

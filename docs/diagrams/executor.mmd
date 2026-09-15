@@ -1,0 +1,68 @@
+sequenceDiagram
+    accTitle: EFZ — guardian и controlled descendant lifecycle
+    accDescr: Guardian владеет процессами и coverage независимо от coordinator. Final result возвращается после DOWN, trace barriers и проверки dirty runner.
+    autonumber
+    participant W as Worker / caller
+    participant G as Guardian<br/>efz_guardian
+    participant C as Coordinator<br/>efz_executor
+    participant T as Root target<br/>M:run(Input)
+    participant D as Controlled<br/>descendants
+    participant O as Observation ETS
+    participant I as Integrity helpers<br/>efz_cov_integrity
+    W->>G: spawn_monitor
+    G->>G: Independent IO group, monitor caller
+    G->>I: Check pinned harness and selected builds
+    G->>O: open context, new execution Ref
+    G->>I: Create protected PID registry, enable context/code traces
+    G->>C: spawn_monitor
+    G->>T: spawn_monitor, closed start gate
+    G->>I: Register root expected context before gate
+    G->>C: coordinate root
+    C->>T: monitor
+    C-->>G: coordinator_ready
+    G->>T: start_owned
+    T->>T: attach context, invoke target
+    opt Controlled child creation
+        T->>G: spawn_owned(Capability, Fun)
+        G->>D: gated spawn, monitor, trace, record ownership
+        G->>I: Register child expected context
+        G-->>T: child PID
+        T->>D: start_owned
+        D->>D: attach shared coverage context, execute Fun
+        D->>O: probes, including nested children
+    end
+    T->>O: root probes
+    T-->>G: First published probes / sticky hook failures
+    G->>G: Receive context mutation / code loading traces
+    alt Root completes or crashes
+        T-->>C: target_result + DOWN
+        C-->>G: coordinator_done(Outcome)
+    else Timeout, caller death or coordinator death
+        G->>G: deadline or monitor DOWN wins
+    end
+    G->>G: Stop admissions, begin cleanup
+    G->>T: kill
+    G->>D: kill every owned process
+    G->>C: kill / wait DOWN
+    T-->>G: DOWN
+    D-->>G: DOWN for all descendants
+    G->>G: Per-process trace delivery barriers
+    Note over G,D: Late uncontrolled spawn adds a monitor and barrier, marks run dirty
+    G->>G: Global loader trace delivery barrier
+    G->>I: Recheck code identities, attachment and sticky failures
+    G->>O: snapshot, validate probes and saved observations, close
+    G->>I: Close registry
+    G->>G: Destroy tracing, check shared-state changes
+    alt Processes confirmed and no violations
+        alt Coverage integrity confirmed
+            G-->>W: Observed or valid empty coverage, cleanup confirmed
+        else Context, build or observation invalid
+            G-->>W: Infrastructure failure, broken coverage observation
+        end
+    else Cleanup unconfirmed or contract violated
+        G->>G: Persist dirty VM marker
+        G-->>W: Infrastructure dirty_runner, reusable false
+    end
+    G-->>W: Guardian DOWN
+    W->>W: Return final execution result
+    Note over W,G: If guardian itself dies, caller returns unconfirmed dirty-runner and forbids VM reuse

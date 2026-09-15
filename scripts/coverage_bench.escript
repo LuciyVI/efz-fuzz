@@ -1,0 +1,52 @@
+#!/usr/bin/env escript
+-mode(compile).
+main(_) ->
+    true = code:add_patha("_build/default/lib/efz/ebin"),
+    Iterations = 200000, Repeats = 7,
+    {PlainCompileUs, {ok, efz_bench_fixture, Plain}} = timer:tc(compile, noenv_file,
+        ["fixtures/efz_bench_fixture.erl", [binary, debug_info, warnings_as_errors]]),
+    {InstrumentCompileUs, {ok, A}} = timer:tc(efz_instrument, compile,
+        ["fixtures/efz_bench_fixture.erl", #{modules => [efz_bench_fixture],
+                                          source_root => ".", outdir => "_build/benchmark-target"}]),
+    {module, efz_bench_fixture} = code:load_binary(efz_bench_fixture, "ordinary", Plain),
+    Ordinary = measure(ordinary, Iterations, Repeats),
+    unload(), {ok, Manifest} = efz_instrument:load(A),
+    Inactive = measure(instrumented_inactive, Iterations, Repeats),
+    C = {efz_context, 1, _, Table, _} = efz_cov:open(), ok = efz_cov:attach(C),
+    Active = measure(instrumented_active, Iterations, Repeats),
+    {ok, Hits} = efz_cov:snapshot(C),
+    TableWords = ets:info(Table, memory),
+    ok = efz_cov:detach(), ok = efz_cov:close(C),
+    1 = length([ok || {ok, _} <- [efz_cov_manifest:from_beam(maps:get(beam, A))]]),
+    Base = maps:get(median_us, Ordinary),
+    Rows = [R#{relative => maps:get(median_us, R) / Base} || R <- [Ordinary, Inactive, Active]],
+    Result = #{otp => erlang:system_info(otp_release), erts => erlang:system_info(version),
+        architecture => erlang:system_info(system_architecture), iterations => Iterations,
+        repeats => Repeats, warmup_iterations => 30000, rows => Rows,
+        plain_compile_us => PlainCompileUs, instrumented_compile_us => InstrumentCompileUs,
+        ets_words => TableWords, word_bytes => erlang:system_info(wordsize), unique_hits => length(Hits),
+        manifest_probes => length(maps:get(probes, Manifest))},
+    io:format("~p~n", [Result]),
+    ok = file:write_file("_build/coverage-benchmark.term", term_to_binary(Result)),
+    Header = io_lib:format("OTP ~s / ERTS ~s; ~s. Fixture `efz_bench_fixture`, ~B loop iterations per sample, ~B repeats, 30,000 warmup iterations per mode.\n\n| Mode | Median us | Relative | Samples us | Reductions (last sample) |\n|---|---:|---:|---|---:|\n",
+        [maps:get(otp, Result), maps:get(erts, Result), maps:get(architecture, Result), Iterations, Repeats]),
+    Lines = [io_lib:format("| ~s | ~B | ~.2fx | ~w | ~B |\n", [maps:get(mode, R), maps:get(median_us, R),
+        maps:get(relative, R), maps:get(samples_us, R), maps:get(reductions, R)]) || R <- Rows],
+    Footer = io_lib:format("\nActive table: ~B words (~B bytes/word), ~B unique observed probes of ~B manifest probes. Table deleted after measurement. Compilation: ordinary ~B us; instrumented ~B us (single measurements, includes cold setup). No correctness threshold. Process-memory snapshots are in `_build/coverage-benchmark.term`.\n",
+        [TableWords, erlang:system_info(wordsize), length(Hits), length(maps:get(probes, Manifest)), PlainCompileUs, InstrumentCompileUs]),
+    ok = file:write_file("_build/coverage-benchmark.md", [Header, Lines, Footer]), unload().
+unload() -> code:purge(efz_bench_fixture), code:delete(efz_bench_fixture), code:purge(efz_bench_fixture), ok.
+measure(Mode, N, Repeats) ->
+    [efz_bench_fixture:run(10000) || _ <- lists:seq(1, 3)],
+    Samples = [sample(N) || _ <- lists:seq(1, Repeats)],
+    Times = [T || {T, _, _, _} <- Samples],
+    {_, Reductions, Before, After} = lists:last(Samples),
+    #{mode => Mode, samples_us => Times, median_us => lists:nth((Repeats + 1) div 2, lists:sort(Times)),
+      reductions => Reductions, process_memory_before => Before, process_memory_after => After}.
+sample(N) ->
+    erlang:garbage_collect(),
+    {reductions, R0} = process_info(self(), reductions), {memory, M0} = process_info(self(), memory),
+    {Us, Value} = timer:tc(efz_bench_fixture, run, [N]),
+    true = is_integer(Value),
+    {reductions, R1} = process_info(self(), reductions), {memory, M1} = process_info(self(), memory),
+    {Us, R1 - R0, M0, M1}.

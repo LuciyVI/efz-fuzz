@@ -1,7 +1,7 @@
 {application, efz, [
-    {description, "Erlang-native coverage-guided fuzzing foundation"},
+    {description, "Erlang-native source-instrumented coverage-guided fuzzer"},
     {vsn, "0.1.0"},
-    {registered, []},
+    {registered, [efz_corpus, efz_stats, efz_fuzzer, efz_worker_sup]},
     {mod, {efz_app, []}},
     {applications, [
         kernel,

@@ -1,0 +1,11 @@
+#{status => completed,
+  stats =>
+      #{started_at => -576460751349,timeouts => 0,calibrations => 1,
+        crashes => 2,discoveries => 4,executions => 500,
+        infrastructure_failures => 0,rejections => 494,unique_crashes => 1},
+  corpus_parent_links =>
+      [{1,<<0>>,initial},
+       {2,<<"@">>,1},
+       {3,<<>>,2},
+       {4,<<103,0>>,1},
+       {5,<<0,0>>,1}]}.

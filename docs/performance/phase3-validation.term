@@ -1,0 +1,1950 @@
+#{phase => 3,environment_reference => "phase3-mutations.term",
+  source_hashes =>
+      [{"bench/mutations.escript",
+        <<"851850f7ed12ff5d317f53ad45d2fd012a0ca34f238ca6ef2939c5b8899f549b">>},
+       {"examples/staged/efz_staged_parser.erl",
+        <<"4ac08f64cc85f34b2142c441c55685d62af8b5ff12cd8c558d16a0112fbc1b8f">>},
+       {"examples/staged/run.escript",
+        <<"a382af4be01ba768945a69e3ed3c305bd4f328dc42fe0fbeca26883ffa78c71d">>},
+       {"examples/staged/tokens.hex",
+        <<"33fab8d413e9d89bcbb4035ed6c3ddb8b929abd95ad603cc699963433b91f6d8">>},
+       {"rebar.config",
+        <<"20c67f3f31031f4f7c923353180a8460f276d2adcd6508c76b8a9867ef96e2b8">>},
+       {"scripts/replay.escript",
+        <<"9c5b7e830ab53a4505633e098d8cd2ecd5170780b916d08f578fc925f8f4eabc">>},
+       {"src/efz.app.src",
+        <<"12fc90278bf4bbbb8dfd934c3ec8cd5cba402c099236b7306b03447d4f2cb4c0">>},
+       {"src/efz.erl",
+        <<"b6ea846a228597b59b653d94888c8d8fdfa67be7636db0f205560b41c21a40dd">>},
+       {"src/efz_app.erl",
+        <<"6de2764fc7556915f3a3f1fef4a4d302896e463f402bb373ca5022c8b85a3684">>},
+       {"src/efz_config.erl",
+        <<"d1d40c2789605c796a45e7b4d296743912e3240cc79a257bb9d01e8b26fe8be3">>},
+       {"src/efz_corpus.erl",
+        <<"491b624fd6058045892ab8a70b123a28fde7ef659dc6205a806ca973d78a008f">>},
+       {"src/efz_cov.erl",
+        <<"2d32b0aca9c1641e40ab111e844d020004fb5cb9b743d76c40a46385fa4489d0">>},
+       {"src/efz_cov_manifest.erl",
+        <<"4951ecc1f7104fca08928ee7dfa669cfacc8b27cac856961db06f9ea14451544">>},
+       {"src/efz_cov_rt.erl",
+        <<"47e84c8f84861ff7ec7817fa34b9b1234af571ce3bf316fe3d2867428dcfb466">>},
+       {"src/efz_crash.erl",
+        <<"b0b9dfefb92230d267d114a90088d358f86bb28c0fa8154483580ea2828a71dd">>},
+       {"src/efz_dictionary.erl",
+        <<"8f6e3efb940cf93edc5c866a92576a1f98787e10585058f914f1e7640c8c8ddd">>},
+       {"src/efz_executor.erl",
+        <<"c4a7802a9ac299445b5b6b50fd1ded92ae09e814ad25f4f300054503e6745f47">>},
+       {"src/efz_feedback.erl",
+        <<"0be0ecc64e967b776cc990259d569539e520ba7f603e838c444cdd44e2b30bb6">>},
+       {"src/efz_fuzzer.erl",
+        <<"b6761490ad30f0c27d50d09594aa4c05faa83641d1bb7defaf1492cb8f7bde14">>},
+       {"src/efz_instrument.erl",
+        <<"c4dfbe3b9caadfc4ed60153d1a6573b152f31fc5b95e34a168a6bea730695351">>},
+       {"src/efz_instrument_pt.erl",
+        <<"b781f83981aef57f59a79c42c099a07076002434ceecd2ecef8feb05930766cd">>},
+       {"src/efz_mutation.erl",
+        <<"89fb06e50d5f93e831bcfd429ad8b92d55fc70d18d1b2e99a2ee455289b1a0ec">>},
+       {"src/efz_mutation_plan.erl",
+        <<"295bc6c47f01f189b53229a57877a36c2b3374826fde47dd6690c8fa6900c304">>},
+       {"src/efz_mutator.erl",
+        <<"660afda0f884560fe02c3f1dd94283640dc19f50a82b79cdcad1285084b9f47b">>},
+       {"src/efz_mutator_random.erl",
+        <<"55fda8dad9e946d56f1ff55df17921092df5c9eb4a372acdfa7070d29c4b40d8">>},
+       {"src/efz_recipe.erl",
+        <<"48b3bc8074ae48119f467f05ce43b793626d46e3d6689164bd8fa95a8ea4fd20">>},
+       {"src/efz_stats.erl",
+        <<"472ad18b1efd5ba38e717dec7f8e96fcb4c4f5993c98ed8f9266fd4dd68eb180">>},
+       {"src/efz_sup.erl",
+        <<"df7db26164a61d4a44ab3ad79baa3935b13cf3981340db8be4949bfc88c5ed3a">>},
+       {"src/efz_target.erl",
+        <<"bd6d1d804a535a769d85cde827d39162501becfec1cf1a576e2b172709beb1b7">>},
+       {"src/efz_worker.erl",
+        <<"3e4f4d383f86b0bfe9af2d6a366fda848818dcb33f85652efd69d325a9e3baa4">>},
+       {"src/efz_worker_sup.erl",
+        <<"1a1f574cf4f228ed44ae9e3d8e032092f56c33a2b825cbef049ea757de8c27ea">>},
+       {"test/efz_backend_tests.erl",
+        <<"84708c3cdc0b08ad1e8cb07f4b2bdaa0bf0fdbbe4782915e8087c63d5884dd9e">>},
+       {"test/efz_coverage_SUITE.erl",
+        <<"82d3c4de67827575e54628921a676da158e4426b964e80a20ddef58c31578bd1">>},
+       {"test/efz_executor_tests.erl",
+        <<"a0ae4e09f38f3723e9fc777d5c752bdd3f1b1374870bac807cb4b23d96efe33f">>},
+       {"test/efz_mutation_tests.erl",
+        <<"731231b3a76fa5939dfb651289c296777c6869febf6a3882ab842579ac0cf76e">>},
+       {"test/efz_mutator_tests.erl",
+        <<"f271b07d075065105206b494e9d7741c9d6d20ee4818d480982f554f14aa54fe">>},
+       {"test/efz_phase2_tests.erl",
+        <<"4bb1a4f060ab1ce7a6db724be50b93f1e6288c9e4de3a8821e759bfab5a684c5">>},
+       {"test/efz_phase3_tests.erl",
+        <<"06513c5542d7efe42add0968c9d16fcd65c6a1fb1b5f93b2c82bed3fa15502ad">>},
+       {"test/efz_recipe_tests.erl",
+        <<"9ebec76151c617725e977cda8e47828899d5fc66de26c2b0ac7132eeb97f7a94">>},
+       {"test/efz_scripted_mutator.erl",
+        <<"0ed8e8a5a568e1764a5edc1801145b669035d63b4bfb2b422fead2bb8143b35c">>},
+       {"test/efz_smoke_tests.erl",
+        <<"28836e99685e4078476fc3798cb5d41fbdc9532aed90e6bfd6eb1e13e0321796">>}],
+  phase3_changes =>
+      [#{file => "bench/mutations.escript",
+         final =>
+             <<"851850f7ed12ff5d317f53ad45d2fd012a0ca34f238ca6ef2939c5b8899f549b">>,
+         baseline => new},
+       #{file => "examples/staged/efz_staged_parser.erl",
+         final =>
+             <<"4ac08f64cc85f34b2142c441c55685d62af8b5ff12cd8c558d16a0112fbc1b8f">>,
+         baseline => new},
+       #{file => "examples/staged/run.escript",
+         final =>
+             <<"a382af4be01ba768945a69e3ed3c305bd4f328dc42fe0fbeca26883ffa78c71d">>,
+         baseline => new},
+       #{file => "examples/staged/tokens.hex",
+         final =>
+             <<"33fab8d413e9d89bcbb4035ed6c3ddb8b929abd95ad603cc699963433b91f6d8">>,
+         baseline => new},
+       #{file => "scripts/replay.escript",
+         final =>
+             <<"9c5b7e830ab53a4505633e098d8cd2ecd5170780b916d08f578fc925f8f4eabc">>,
+         baseline => new},
+       #{file => "src/efz_config.erl",
+         final =>
+             <<"d1d40c2789605c796a45e7b4d296743912e3240cc79a257bb9d01e8b26fe8be3">>,
+         baseline =>
+             <<"ca77fa651d9086d1298ec22655bb1c07b5bfcc01ce63ad2cc76192908f9fe893">>},
+       #{file => "src/efz_corpus.erl",
+         final =>
+             <<"491b624fd6058045892ab8a70b123a28fde7ef659dc6205a806ca973d78a008f">>,
+         baseline =>
+             <<"28028e4d96462701afcaef14a21b316666808f7320905415943ff98696244258">>},
+       #{file => "src/efz_crash.erl",
+         final =>
+             <<"b0b9dfefb92230d267d114a90088d358f86bb28c0fa8154483580ea2828a71dd">>,
+         baseline =>
+             <<"4d2aed84e4c4a5dc328c1c9aff33afd52d6f1f79fe1fb1431fa180dd848fbcc8">>},
+       #{file => "src/efz_dictionary.erl",
+         final =>
+             <<"8f6e3efb940cf93edc5c866a92576a1f98787e10585058f914f1e7640c8c8ddd">>,
+         baseline => new},
+       #{file => "src/efz_instrument_pt.erl",
+         final =>
+             <<"b781f83981aef57f59a79c42c099a07076002434ceecd2ecef8feb05930766cd">>,
+         baseline =>
+             <<"d40949e5d67865ce332ce12b073cdc464049c774642a35f13e1795e27f57bb89">>},
+       #{file => "src/efz_mutation.erl",
+         final =>
+             <<"89fb06e50d5f93e831bcfd429ad8b92d55fc70d18d1b2e99a2ee455289b1a0ec">>,
+         baseline => new},
+       #{file => "src/efz_mutation_plan.erl",
+         final =>
+             <<"295bc6c47f01f189b53229a57877a36c2b3374826fde47dd6690c8fa6900c304">>,
+         baseline => new},
+       #{file => "src/efz_recipe.erl",
+         final =>
+             <<"48b3bc8074ae48119f467f05ce43b793626d46e3d6689164bd8fa95a8ea4fd20">>,
+         baseline => new},
+       #{file => "src/efz_worker.erl",
+         final =>
+             <<"3e4f4d383f86b0bfe9af2d6a366fda848818dcb33f85652efd69d325a9e3baa4">>,
+         baseline =>
+             <<"532a203ccd66bc328e3a999c8846ca74a14abbb43f0b49b0ee41e8de0c4b2344">>},
+       #{file => "test/efz_mutation_tests.erl",
+         final =>
+             <<"731231b3a76fa5939dfb651289c296777c6869febf6a3882ab842579ac0cf76e">>,
+         baseline => new},
+       #{file => "test/efz_phase3_tests.erl",
+         final =>
+             <<"06513c5542d7efe42add0968c9d16fcd65c6a1fb1b5f93b2c82bed3fa15502ad">>,
+         baseline => new},
+       #{file => "test/efz_recipe_tests.erl",
+         final =>
+             <<"9ebec76151c617725e977cda8e47828899d5fc66de26c2b0ac7132eeb97f7a94">>,
+         baseline => new}],
+  checks =>
+      [#{command => "rebar3 compile",exit_status => 0,
+         output =>
+             <<"===> Verifying dependencies...\n===> Analyzing applications...\n===> Compiling efz\n">>},
+       #{command => "rebar3 eunit",exit_status => 0,
+         output =>
+             <<"===> Verifying dependencies...\n===> Analyzing applications...\n===> Compiling efz\n===> Performing EUnit tests...\n======================== EUnit ========================\nfile \"efz.app\"\n  application 'efz'\n    module 'efz'\n    module 'efz_app'\n    module 'efz_config'\n    module 'efz_corpus'\n    module 'efz_cov'\n    module 'efz_cov_manifest'\n    module 'efz_cov_rt'\n    module 'efz_crash'\n    module 'efz_dictionary'\n    module 'efz_example_parser'\n    module 'efz_example_target'\n    module 'efz_executor'\n      module 'efz_executor_tests'\n        efz_executor_tests:3: -executor_test_/0-fun-7-...ok\n        efz_executor_tests:3: -executor_test_/0-fun-5-...ok\n        efz_executor_tests:3: -executor_test_/0-fun-3-...ok\n        efz_executor_tests:3: -executor_test_/0-fun-1-...[0.011 s] ok\n        [done in 0.023 s]\n      [done in 0.023 s]\n    module 'efz_feedback'\n    module 'efz_fuzzer'\n    module 'efz_instrument'\n    module 'efz_instrument_pt'\n    module 'efz_mutation'\n      module 'efz_mutation_tests'\n        efz_mutation_tests: operators_test...[0.039 s] ok\n        efz_mutation_tests: limits_test...ok\n        efz_mutation_tests: bit_model_test...[0.013 s] ok\n        efz_mutation_tests: block_model_test...[0.002 s] ok\n        efz_mutation_tests: boundaries_test...ok\n        efz_mutation_tests: dictionary_test...[0.004 s] ok\n        efz_mutation_tests: configuration_test...ok\n        efz_mutation_tests: enumeration_test...ok\n        efz_mutation_tests: fairness_test...ok\n        efz_mutation_tests: finite_test...ok\n        efz_mutation_tests: random_state_test...[0.004 s] ok\n        efz_mutation_tests: noop_stack_test...ok\n        efz_mutation_tests: growing_corpus_test...ok\n        efz_mutation_tests: duplicate_donors_test...ok\n        efz_mutation_tests: internal_selection_test...[0.001 s] ok\n        [done in 0.108 s]\n      [done in 0.108 s]\n    module 'efz_mutation_plan'\n    module 'efz_mutator'\n      module 'efz_mutator_tests'\n        efz_mutator_tests: mutator_test...[0.001 s] ok\n        efz_mutator_tests: empty_test...ok\n        [done in 0.007 s]\n      [done in 0.007 s]\n    module 'efz_mutator_random'\n    module 'efz_recipe'\n      module 'efz_recipe_tests'\n        efz_recipe_tests: all_operations_test...[0.002 s] ok\n        efz_recipe_tests: negative_test...ok\n        efz_recipe_tests: fresh_vm_test...[0.230 s] ok\n        [done in 0.242 s]\n      [done in 0.242 s]\n    module 'efz_stats'\n    module 'efz_sup'\n    module 'efz_target'\n    module 'efz_worker'\n    module 'efz_worker_sup'\n    [done in 0.407 s]\n  [done in 0.407 s]\nmodule 'efz_backend_tests'\n  efz_backend_tests: -backend_test_/0-fun-12- (canonical outcomes, exact probes and novelty)...[0.007 s] ok\n  efz_backend_tests: -backend_test_/0-fun-11- (published coverage survives external kill)...ok\n  efz_backend_tests: -backend_test_/0-fun-10- (published coverage survives timeout)...[4.004 s] ok\n  efz_backend_tests: -backend_test_/0-fun-9- (kill while repeatedly publishing probes)...[0.007 s] ok\n  efz_backend_tests: -backend_test_/0-fun-8- (broken backend cannot hide behind repeated observations)...ok\n  efz_backend_tests: -backend_test_/0-fun-7- (invalid or mismatched validation plans)...[0.001 s] ok\n  efz_backend_tests: -backend_test_/0-fun-6- (prepared capability lifetime and empty-snapshot validation)...=ERROR REPORT==== 9-Sep-2026::11:45:43.785950 ===\nError in process <0.1019.0> with exit value:\n{function_clause,\n    [{efz_cov_manifest,builds,\n         [{efz_cov_plan,99,#Ref<0.2163010730.4288544769.153483>,\n              #{efz_example_parser =>\n                    <<169,254,227,122,64,124,26,86,50,108,192,148,60,14,61,71,\n                      140,115,253,198,197,139,107,193,190,75,219,111,168,66,8,\n                      236>>,\n                efz_fixture =>\n                    <<25,178,232,99,82,115,199,141,152,235,121,215,187,76,43,\n                      17,209,185,78,77,169,96,142,33,125,86,54,134,79,216,0,150>>,\n                efz_fixture_helper =>\n                    <<36,87,81,85,225,241,171,62,21,138,61,97,8,9,137,39,\n                      190,222,30,146,159,214,87,239,54,77,25,168,42,53,156,\n                      25>>}}],\n         [{file,\"/home/fbogoslavskii/erl:fuzz/efz/src/efz_cov_manifest.erl\"},\n          {line,70}]},\n     {efz_executor,coordinate,6,\n         [{file,\"/home/fbogoslavskii/erl:fuzz/efz/src/efz_executor.erl\"},\n          {line,52}]}]}\n\n=ERROR REPORT==== 9-Sep-2026::11:45:43.786223 ===\nError in process <0.1037.0> with exit value:\n{function_clause,\n    [{efz_cov_manifest,builds,\n         [{efz_cov_plan,99,#Ref<0.2163010730.4288544769.153551>,\n              #{efz_example_parser =>\n                    <<169,254,227,122,64,124,26,86,50,108,192,148,60,14,61,71,\n                      140,115,253,198,197,139,107,193,190,75,219,111,168,66,8,\n                      236>>,\n                efz_fixture =>\n                    <<25,178,232,99,82,115,199,141,152,235,121,215,187,76,43,\n                      17,209,185,78,77,169,96,142,33,125,86,54,134,79,216,0,150>>,\n                efz_fixture_helper =>\n                    <<36,87,81,85,225,241,171,62,21,138,61,97,8,9,137,39,\n                      190,222,30,146,159,214,87,239,54,77,25,168,42,53,156,\n                      25>>}}],\n         [{file,\"/home/fbogoslavskii/erl:fuzz/efz/src/efz_cov_manifest.erl\"},\n          {line,70}]},\n     {efz_executor,coordinate,6,\n         [{file,\"/home/fbogoslavskii/erl:fuzz/efz/src/efz_executor.erl\"},\n          {line,52}]}]}\n\n[0.001 s] ok\n  efz_backend_tests: -backend_test_/0-fun-5- (two explicitly separate contexts)...ok\n  efz_backend_tests: -backend_test_/0-fun-4- (caller death releases execution storage)...[0.001 s] ok\n  efz_backend_tests: -backend_test_/0-fun-3- (deadline boundary and repeated resource cleanup)...[0.014 s] ok\n  efz_backend_tests: -backend_test_/0-fun-2- (campaign and application cancellation)...=INFO REPORT==== 9-Sep-2026::11:45:43.819148 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:45:43.821178 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:45:43.824157 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:45:43.826209 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:45:43.827905 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:45:43.829627 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:45:43.832389 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:45:43.835040 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n[0.021 s] ok\n  efz_backend_tests: -backend_test_/0-fun-1- (seeded real and prerecorded corpus decisions)...=INFO REPORT==== 9-Sep-2026::11:45:43.841023 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:45:43.844775 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:45:43.847088 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:45:43.849421 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:45:43.858262 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:45:43.866286 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:45:43.870954 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:45:43.875791 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n[0.038 s] ok\n  efz_backend_tests: -backend_test_/0-fun-0- (invalid config and missing instrumentation)...[0.001 s] ok\n=INFO REPORT==== 9-Sep-2026::11:45:43.883258 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n  [done in 4.135 s]\nmodule 'efz_coverage_SUITE'\nmodule 'efz_phase2_tests'\n  efz_phase2_tests: -phase2_test_/0-fun-13- (plain and instrumented semantics)...[0.001 s] ok\n  efz_phase2_tests: -phase2_test_/0-fun-12- (all required probe kinds and same-line clauses)...ok\n  efz_phase2_tests: -phase2_test_/0-fun-11- (repeatability, empty contexts, inactive runtime)...ok\n  efz_phase2_tests: -phase2_test_/0-fun-10- (separate processes and contexts)...ok\n  efz_phase2_tests: -phase2_test_/0-fun-9- (exceptions retain coverage)...ok\n  efz_phase2_tests: -phase2_test_/0-fun-8- (external kill retains coverage)...ok\n  efz_phase2_tests: -phase2_test_/0-fun-7- (timeout retains coverage)...[1.001 s] ok\n  efz_phase2_tests: -phase2_test_/0-fun-6- (completion deadline boundary and resource lifetime)...[0.004 s] ok\n  efz_phase2_tests: -phase2_test_/0-fun-5- (owner death cleans target and table)...ok\n  efz_phase2_tests: -phase2_test_/0-fun-4- (caught backend failure is infrastructure failure)...ok\n  efz_phase2_tests: -phase2_test_/0-fun-3- (build reproducibility and changed code)...[0.209 s] ok\n  efz_phase2_tests: -phase2_test_/0-fun-2- (build mismatch and uninstrumented preflight)...[0.065 s] ok\n  efz_phase2_tests: sidecar_encoding (sidecar map ordering and preflight in a fresh VM)...[0.127 s] ok\n  efz_phase2_tests: -phase2_test_/0-fun-1- (tail position preserved)...[0.007 s] ok\n  efz_phase2_tests: skipped (skipped syntax, strict mode, unknown AST, double transform)...EFZ incomplete instrumentation efz_skipped: [#{line => 4,\n                                               reason =>\n                                                   preserved_without_internal_probes,\n                                               structural_location =>\n                                                   [{function,run,1},1,body,1],\n                                               source_file =>\n                                                   \"fixtures/efz_skipped.erl\",\n                                               construct => lc},\n                                             #{line => 5,\n                                               reason =>\n                                                   preserved_without_internal_probes,\n                                               structural_location =>\n                                                   [{function,run,1},2,body,1],\n                                               source_file =>\n                                                   \"fixtures/efz_skipped.erl\",\n                                               construct => bc},\n                                             #{line => 6,\n                                               reason =>\n                                                   preserved_without_internal_probes,\n                                               structural_location =>\n                                                   [{function,run,1},3,body,1],\n                                               source_file =>\n                                                   \"fixtures/efz_skipped.erl\",\n                                               construct => mc},\n                                             #{line => 7,\n                                               reason =>\n                                                   preserved_without_internal_probes,\n                                               structural_location =>\n                                                   [{function,run,1},4,body,1],\n                                               source_file =>\n                                                   \"fixtures/efz_skipped.erl\",\n                                               construct => 'maybe'}]\nEFZ incomplete instrumentation efz_record_default: [#{line => 3,\n                                                      reason =>\n                                                          preserved_without_internal_probes,\n                                                      structural_location =>\n                                                          [{record,r}],\n                                                      source_file =>\n                                                          \"fixtures/efz_record_default.erl\",\n                                                      construct =>\n                                                          record_default}]\n[0.058 s] ok\n  efz_phase2_tests: build_options (build facade safety and option handling)...[0.025 s] ok\n  efz_phase2_tests: campaign (automatic campaign decisions and crash continuation)...=INFO REPORT==== 9-Sep-2026::11:45:45.603670 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n[0.016 s] ok\n  efz_phase2_tests: -phase2_test_/0-fun-0- (cancellation and restart)...=INFO REPORT==== 9-Sep-2026::11:45:45.611375 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:45:45.612233 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:45:45.613771 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:45:45.614378 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:45:45.615012 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n[0.006 s] ok\n  [done in 1.575 s]\nmodule 'efz_phase3_tests'\n  efz_phase3_tests: -phase3_test_/0-fun-4- (real deterministic operator discoveries and crash continuation)...=INFO REPORT==== 9-Sep-2026::11:45:45.661830 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n[0.021 s] ok\n  efz_phase3_tests: -phase3_test_/0-fun-3- (bounded trace does not change mutation choices)...=INFO REPORT==== 9-Sep-2026::11:45:45.672581 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:45:45.679585 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:45:45.682347 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:45:45.684780 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n[0.019 s] ok\n  efz_phase3_tests: -phase3_test_/0-fun-2- (fresh VM regeneration and actual crash replay)...[0.153 s] ok\n  efz_phase3_tests: -phase3_test_/0-fun-1- (replay rejects incompatible builds and disposed plan options)...[0.001 s] ok\n  efz_phase3_tests: exhaustion (no candidate is not a target execution)...=INFO REPORT==== 9-Sep-2026::11:45:45.849422 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n[0.002 s] ok\n  efz_phase3_tests: -phase3_test_/0-fun-0- (mutator exceptions are infrastructure failures)...=INFO REPORT==== 9-Sep-2026::11:45:45.853494 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n[0.001 s] ok\n  [done in 0.215 s]\nmodule 'efz_scripted_mutator'\nefz_smoke_tests: smoke_test (module 'efz_smoke_tests')...=INFO REPORT==== 9-Sep-2026::11:45:45.862842 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n[0.002 s] ok\n=======================================================\n  All 62 tests passed.\n">>},
+       #{command => "rebar3 ct",exit_status => 0,
+         output =>
+             <<"===> Verifying dependencies...\n===> Analyzing applications...\n===> Compiling efz\n===> Running Common Test suites...\n%%% efz_coverage_SUITE: ...\nAll 3 tests passed.\n">>},
+       #{command => "rebar3 dialyzer",exit_status => 0,
+         output =>
+             <<"===> Verifying dependencies...\n===> Analyzing applications...\n===> Compiling efz\n===> Dialyzer starting, this may take a while...\n===> Updating plt...\n===> Resolving project files...\n===> Checking 278 files in _build/default/rebar3_27.0_plt...\n===> Doing success typing analysis...\n===> Resolving project warning files...\n===> Analyzing 26 files with _build/default/rebar3_27.0_plt...\n">>},
+       #{command => "rebar3 xref",exit_status => 0,
+         output =>
+             <<"===> Verifying dependencies...\n===> Analyzing applications...\n===> Compiling efz\n===> Running cross reference analysis...\n">>}],
+  baseline_checks =>
+      [#{command => "rebar3 compile",exit_status => 0,
+         output =>
+             <<"===> Verifying dependencies...\n===> Analyzing applications...\n===> Compiling efz\n">>},
+       #{command => "rebar3 eunit",exit_status => 0,
+         output =>
+             <<"===> Verifying dependencies...\n===> Analyzing applications...\n===> Compiling efz\n===> Performing EUnit tests...\n======================== EUnit ========================\nfile \"efz.app\"\n  application 'efz'\n    module 'efz'\n    module 'efz_app'\n    module 'efz_config'\n    module 'efz_corpus'\n    module 'efz_cov'\n    module 'efz_cov_manifest'\n    module 'efz_cov_rt'\n    module 'efz_crash'\n    module 'efz_example_parser'\n    module 'efz_example_target'\n    module 'efz_executor'\n      module 'efz_executor_tests'\n        efz_executor_tests:3: -executor_test_/0-fun-7-...ok\n        efz_executor_tests:3: -executor_test_/0-fun-5-...ok\n        efz_executor_tests:3: -executor_test_/0-fun-3-...ok\n        efz_executor_tests:3: -executor_test_/0-fun-1-...[0.011 s] ok\n        [done in 0.023 s]\n      [done in 0.023 s]\n    module 'efz_feedback'\n    module 'efz_fuzzer'\n    module 'efz_instrument'\n    module 'efz_instrument_pt'\n    module 'efz_mutator'\n      module 'efz_mutator_tests'\n        efz_mutator_tests: mutator_test...[0.001 s] ok\n        efz_mutator_tests: empty_test...ok\n        [done in 0.007 s]\n      [done in 0.007 s]\n    module 'efz_mutator_random'\n    module 'efz_stats'\n    module 'efz_sup'\n    module 'efz_target'\n    module 'efz_worker'\n    module 'efz_worker_sup'\n    [done in 0.054 s]\n  [done in 0.055 s]\nmodule 'efz_backend_tests'\n  efz_backend_tests: -backend_test_/0-fun-12- (canonical outcomes, exact probes and novelty)...[0.003 s] ok\n  efz_backend_tests: -backend_test_/0-fun-11- (published coverage survives external kill)...ok\n  efz_backend_tests: -backend_test_/0-fun-10- (published coverage survives timeout)...[4.004 s] ok\n  efz_backend_tests: -backend_test_/0-fun-9- (kill while repeatedly publishing probes)...[0.010 s] ok\n  efz_backend_tests: -backend_test_/0-fun-8- (broken backend cannot hide behind repeated observations)...ok\n  efz_backend_tests: -backend_test_/0-fun-7- (invalid or mismatched validation plans)...[0.001 s] ok\n  efz_backend_tests: -backend_test_/0-fun-6- (prepared capability lifetime and empty-snapshot validation)...=ERROR REPORT==== 9-Sep-2026::11:13:24.019106 ===\nError in process <0.888.0> with exit value:\n{function_clause,\n    [{efz_cov_manifest,builds,\n         [{efz_cov_plan,99,#Ref<0.559322188.3477995521.77956>,\n              #{efz_example_parser =>\n                    <<169,254,227,122,64,124,26,86,50,108,192,148,60,14,61,71,\n                      140,115,253,198,197,139,107,193,190,75,219,111,168,66,8,\n                      236>>,\n                efz_fixture =>\n                    <<25,178,232,99,82,115,199,141,152,235,121,215,187,76,43,\n                      17,209,185,78,77,169,96,142,33,125,86,54,134,79,216,0,150>>,\n                efz_fixture_helper =>\n                    <<36,87,81,85,225,241,171,62,21,138,61,97,8,9,137,39,\n                      190,222,30,146,159,214,87,239,54,77,25,168,42,53,156,\n                      25>>}}],\n         [{file,\"/home/fbogoslavskii/erl:fuzz/efz/src/efz_cov_manifest.erl\"},\n          {line,70}]},\n     {efz_executor,coordinate,6,\n         [{file,\"/home/fbogoslavskii/erl:fuzz/efz/src/efz_executor.erl\"},\n          {line,52}]}]}\n\n=ERROR REPORT==== 9-Sep-2026::11:13:24.019297 ===\nError in process <0.906.0> with exit value:\n{function_clause,\n    [{efz_cov_manifest,builds,\n         [{efz_cov_plan,99,#Ref<0.559322188.3477995521.78024>,\n              #{efz_example_parser =>\n                    <<169,254,227,122,64,124,26,86,50,108,192,148,60,14,61,71,\n                      140,115,253,198,197,139,107,193,190,75,219,111,168,66,8,\n                      236>>,\n                efz_fixture =>\n                    <<25,178,232,99,82,115,199,141,152,235,121,215,187,76,43,\n                      17,209,185,78,77,169,96,142,33,125,86,54,134,79,216,0,150>>,\n                efz_fixture_helper =>\n                    <<36,87,81,85,225,241,171,62,21,138,61,97,8,9,137,39,\n                      190,222,30,146,159,214,87,239,54,77,25,168,42,53,156,\n                      25>>}}],\n         [{file,\"/home/fbogoslavskii/erl:fuzz/efz/src/efz_cov_manifest.erl\"},\n          {line,70}]},\n     {efz_executor,coordinate,6,\n         [{file,\"/home/fbogoslavskii/erl:fuzz/efz/src/efz_executor.erl\"},\n          {line,52}]}]}\n\n[0.001 s] ok\n  efz_backend_tests: -backend_test_/0-fun-5- (two explicitly separate contexts)...ok\n  efz_backend_tests: -backend_test_/0-fun-4- (caller death releases execution storage)...[0.001 s] ok\n  efz_backend_tests: -backend_test_/0-fun-3- (deadline boundary and repeated resource cleanup)...[0.015 s] ok\n  efz_backend_tests: -backend_test_/0-fun-2- (campaign and application cancellation)...=INFO REPORT==== 9-Sep-2026::11:13:24.053942 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:13:24.057695 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:13:24.060100 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:13:24.062748 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:13:24.064920 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:13:24.067103 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:13:24.069306 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:13:24.071333 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n[0.024 s] ok\n  efz_backend_tests: -backend_test_/0-fun-1- (seeded real and prerecorded corpus decisions)...=INFO REPORT==== 9-Sep-2026::11:13:24.077135 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:13:24.080447 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:13:24.081537 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:13:24.082627 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:13:24.091491 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:13:24.101501 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:13:24.109835 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:13:24.115307 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n[0.041 s] ok\n  efz_backend_tests: -backend_test_/0-fun-0- (invalid config and missing instrumentation)...[0.001 s] ok\n=INFO REPORT==== 9-Sep-2026::11:13:24.123955 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n  [done in 4.141 s]\nmodule 'efz_coverage_SUITE'\nmodule 'efz_phase2_tests'\n  efz_phase2_tests: -phase2_test_/0-fun-13- (plain and instrumented semantics)...[0.002 s] ok\n  efz_phase2_tests: -phase2_test_/0-fun-12- (all required probe kinds and same-line clauses)...ok\n  efz_phase2_tests: -phase2_test_/0-fun-11- (repeatability, empty contexts, inactive runtime)...ok\n  efz_phase2_tests: -phase2_test_/0-fun-10- (separate processes and contexts)...ok\n  efz_phase2_tests: -phase2_test_/0-fun-9- (exceptions retain coverage)...ok\n  efz_phase2_tests: -phase2_test_/0-fun-8- (external kill retains coverage)...ok\n  efz_phase2_tests: -phase2_test_/0-fun-7- (timeout retains coverage)...[1.001 s] ok\n  efz_phase2_tests: -phase2_test_/0-fun-6- (completion deadline boundary and resource lifetime)...[0.009 s] ok\n  efz_phase2_tests: -phase2_test_/0-fun-5- (owner death cleans target and table)...[0.001 s] ok\n  efz_phase2_tests: -phase2_test_/0-fun-4- (caught backend failure is infrastructure failure)...ok\n  efz_phase2_tests: -phase2_test_/0-fun-3- (build reproducibility and changed code)...[0.183 s] ok\n  efz_phase2_tests: -phase2_test_/0-fun-2- (build mismatch and uninstrumented preflight)...[0.062 s] ok\n  efz_phase2_tests: sidecar_encoding (sidecar map ordering and preflight in a fresh VM)...[0.116 s] ok\n  efz_phase2_tests: -phase2_test_/0-fun-1- (tail position preserved)...[0.005 s] ok\n  efz_phase2_tests: skipped (skipped syntax, strict mode, unknown AST, double transform)...EFZ incomplete instrumentation efz_skipped: [#{line => 4,\n                                               reason =>\n                                                   preserved_without_internal_probes,\n                                               structural_location =>\n                                                   [{function,run,1},1,body,1],\n                                               source_file =>\n                                                   \"fixtures/efz_skipped.erl\",\n                                               construct => lc},\n                                             #{line => 5,\n                                               reason =>\n                                                   preserved_without_internal_probes,\n                                               structural_location =>\n                                                   [{function,run,1},2,body,1],\n                                               source_file =>\n                                                   \"fixtures/efz_skipped.erl\",\n                                               construct => bc},\n                                             #{line => 6,\n                                               reason =>\n                                                   preserved_without_internal_probes,\n                                               structural_location =>\n                                                   [{function,run,1},3,body,1],\n                                               source_file =>\n                                                   \"fixtures/efz_skipped.erl\",\n                                               construct => mc},\n                                             #{line => 7,\n                                               reason =>\n                                                   preserved_without_internal_probes,\n                                               structural_location =>\n                                                   [{function,run,1},4,body,1],\n                                               source_file =>\n                                                   \"fixtures/efz_skipped.erl\",\n                                               construct => 'maybe'}]\nEFZ incomplete instrumentation efz_record_default: [#{line => 3,\n                                                      reason =>\n                                                          preserved_without_internal_probes,\n                                                      structural_location =>\n                                                          [{record,r}],\n                                                      source_file =>\n                                                          \"fixtures/efz_record_default.erl\",\n                                                      construct =>\n                                                          record_default}]\n[0.057 s] ok\n  efz_phase2_tests: build_options (build facade safety and option handling)...[0.019 s] ok\n  efz_phase2_tests: campaign (automatic campaign decisions and crash continuation)...=INFO REPORT==== 9-Sep-2026::11:13:25.790944 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n[0.013 s] ok\n  efz_phase2_tests: -phase2_test_/0-fun-0- (cancellation and restart)...=INFO REPORT==== 9-Sep-2026::11:13:25.796285 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:13:25.797015 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:13:25.797604 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:13:25.798125 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n=INFO REPORT==== 9-Sep-2026::11:13:25.798633 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n[0.004 s] ok\n  [done in 1.527 s]\nmodule 'efz_scripted_mutator'\nefz_smoke_tests: smoke_test (module 'efz_smoke_tests')...=INFO REPORT==== 9-Sep-2026::11:13:25.816522 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\n[0.003 s] ok\n=======================================================\n  All 38 tests passed.\n">>},
+       #{command => "rebar3 ct",exit_status => 0,
+         output =>
+             <<"===> Verifying dependencies...\n===> Analyzing applications...\n===> Compiling efz\n===> Running Common Test suites...\n%%% efz_coverage_SUITE: ...\nAll 3 tests passed.\n">>},
+       #{command => "rebar3 dialyzer",exit_status => 0,
+         output =>
+             <<"===> Verifying dependencies...\n===> Analyzing applications...\n===> Compiling efz\n===> Dialyzer starting, this may take a while...\n===> Updating plt...\n===> Resolving project files...\n===> Checking 278 files in _build/default/rebar3_27.0_plt...\n===> Doing success typing analysis...\n===> Resolving project warning files...\n===> Analyzing 22 files with _build/default/rebar3_27.0_plt...\n">>},
+       #{command => "rebar3 xref",exit_status => 0,
+         output =>
+             <<"===> Verifying dependencies...\n===> Analyzing applications...\n===> Compiling efz\n===> Running cross reference analysis...\n">>}],
+  benchmark_sources_match_current => true,
+  git_diff_check => #{command => "git diff --check",exit_status => 0},
+  deterministic_acceptance =>
+      #{status => completed,
+        stats =>
+            #{started_at => -576460744736,timeouts => 0,executions => 200,
+              infrastructure_failures => 0,calibrations => 1,crashes => 5,
+              discoveries => 4,rejections => 191,unique_crashes => 1},
+        trace_entries => 200,
+        mutation =>
+            #{dictionary => [<<"BOOM!">>,<<"TOKEN">>],
+              seed => {17,23,41},
+              stages => [dictionary_insert,boundary,arithmetic],
+              max_input_bytes => 32,max_idle_visits => 256,
+              max_block_bytes => 8,max_token_bytes => 8,havoc_depth => 8,
+              prng => exsplus,
+              dictionary_id =>
+                  <<103,23,188,247,26,102,33,144,85,23,71,45,116,223,174,165,
+                    175,22,13,8,122,181,138,154,56,83,115,59,169,0,63,208>>,
+              engine_version => 1,
+              config_id =>
+                  <<138,42,181,89,56,253,106,71,68,65,164,135,5,182,129,65,220,
+                    164,34,61,58,229,39,235,222,77,25,93,156,55,149,166>>,
+              attempts_per_visit => 8,random_retries => 4,max_delta => 8,
+              max_dictionary_bytes => 16384,max_tokens => 256,
+              trace_limit => 200},
+        crashes =>
+            [#{id =>
+                   <<109,55,185,113,118,152,61,190,178,152,239,1,175,216,66,
+                     160,209,119,151,111,68,249,225,188,52,119,171,141,207,229,
+                     51,114>>,
+               input => <<66,79,79,77,33,0>>,
+               path =>
+                   "_build/phase3-test-crashes/6d37b97176983dbeb298ef01afd842a0d177976f44f9e1bc3477ab8dcfe53372-1732ef36d864988423a5275aec30b90b55e3405cc798c709e318c867797ad64b",
+               metadata =>
+                   #{parent => 1,phase => mutation,
+                     mutation =>
+                         #{parent => 1,
+                           primary => <<0>>,
+                           dictionary_id =>
+                               <<103,23,188,247,26,102,33,144,85,23,71,45,116,
+                                 223,174,165,175,22,13,8,122,181,138,154,56,83,
+                                 115,59,169,0,63,208>>,
+                           engine_version => 1,
+                           config_id =>
+                               <<138,42,181,89,56,253,106,71,68,65,164,135,5,
+                                 182,129,65,220,164,34,61,58,229,39,235,222,77,
+                                 25,93,156,55,149,166>>,
+                           limits =>
+                               #{max_input_bytes => 32,max_block_bytes => 8,
+                                 max_token_bytes => 8,max_delta => 8},
+                           operation_version => 1,
+                           output_hash =>
+                               <<23,50,239,54,216,100,152,132,35,165,39,90,236,
+                                 48,185,11,85,227,64,92,199,152,199,9,227,24,
+                                 200,103,121,122,214,75>>,
+                           output_size => 6,
+                           rng => #{seed => {17,23,41},algorithm => exsplus},
+                           schema_version => 1,
+                           target_builds =>
+                               [{<<"efz_staged_parser">>,
+                                 <<76,83,200,210,3,191,95,202,119,77,120,254,
+                                   226,18,42,117,65,155,134,186,143,128,124,
+                                   195,255,187,93,150,51,158,10,94>>}],
+                           stage => dictionary_insert,
+                           primary_id =>
+                               <<110,52,11,156,255,179,122,152,156,165,68,230,
+                                 187,120,10,44,120,144,29,63,179,55,56,118,133,
+                                 17,163,6,23,175,160,29>>,
+                           operations => [{dictionary_insert,0,<<"BOOM!">>}]},
+                     builds =>
+                         #{efz_staged_parser =>
+                               <<76,83,200,210,3,191,95,202,119,77,120,254,
+                                 226,18,42,117,65,155,134,186,143,128,124,195,
+                                 255,187,93,150,51,158,10,94>>},
+                     outcome =>
+                         {crash,error,artificial_staged_exception,
+                             [{efz_staged_parser,run,1,
+                                  [{file,
+                                       "examples/staged/efz_staged_parser.erl"},
+                                   {line,5}]},
+                              {efz_executor,'-coordinate/6-fun-0-',5,
+                                  [{file,
+                                       "/home/fbogoslavskii/erl:fuzz/efz/src/efz_executor.erl"},
+                                   {line,34}]}]},
+                     execution_ref =>
+                         {runtime_diagnostic,
+                             <<"#Ref<0.2163010730.4288413698.157784>">>},
+                     input_id =>
+                         <<23,50,239,54,216,100,152,132,35,165,39,90,236,48,
+                           185,11,85,227,64,92,199,152,199,9,227,24,200,103,
+                           121,122,214,75>>,
+                     retention_reason => target_failure,new_probes => []},
+               result =>
+                   #{coverage =>
+                         [{efz_staged_parser,
+                              <<76,83,200,210,3,191,95,202,119,77,120,254,226,
+                                18,42,117,65,155,134,186,143,128,124,195,255,
+                                187,93,150,51,158,10,94>>,
+                              2}],
+                     builds =>
+                         #{efz_staged_parser =>
+                               <<76,83,200,210,3,191,95,202,119,77,120,254,
+                                 226,18,42,117,65,155,134,186,143,128,124,195,
+                                 255,187,93,150,51,158,10,94>>},
+                     outcome =>
+                         {crash,error,artificial_staged_exception,
+                             [{efz_staged_parser,run,1,
+                                  [{file,
+                                       "examples/staged/efz_staged_parser.erl"},
+                                   {line,5}]},
+                              {efz_executor,'-coordinate/6-fun-0-',5,
+                                  [{file,
+                                       "/home/fbogoslavskii/erl:fuzz/efz/src/efz_executor.erl"},
+                                   {line,34}]}]},
+                     execution_ref =>
+                         {runtime_diagnostic,
+                             <<"#Ref<0.2163010730.4288413698.157784>">>},
+                     coverage_status => ok,elapsed_us => 20,
+                     target_outcome =>
+                         {crash,error,artificial_staged_exception,
+                             [{efz_staged_parser,run,1,
+                                  [{file,
+                                       "examples/staged/efz_staged_parser.erl"},
+                                   {line,5}]},
+                              {efz_executor,'-coordinate/6-fun-0-',5,
+                                  [{file,
+                                       "/home/fbogoslavskii/erl:fuzz/efz/src/efz_executor.erl"},
+                                   {line,34}]}]}}}],
+        coverage =>
+            [{efz_staged_parser,
+                 <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,42,117,65,
+                   155,134,186,143,128,124,195,255,187,93,150,51,158,10,94>>,
+                 1},
+             {efz_staged_parser,
+                 <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,42,117,65,
+                   155,134,186,143,128,124,195,255,187,93,150,51,158,10,94>>,
+                 3},
+             {efz_staged_parser,
+                 <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,42,117,65,
+                   155,134,186,143,128,124,195,255,187,93,150,51,158,10,94>>,
+                 4},
+             {efz_staged_parser,
+                 <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,42,117,65,
+                   155,134,186,143,128,124,195,255,187,93,150,51,158,10,94>>,
+                 5},
+             {efz_staged_parser,
+                 <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,42,117,65,
+                   155,134,186,143,128,124,195,255,187,93,150,51,158,10,94>>,
+                 7}],
+        mutation_stats =>
+            #{visits => 548,generated_candidates => 200,
+              skipped_candidates => 348,mutation_attempts => 204,
+              operation_attempts => 204,
+              skip_reasons => #{no_change => 4},
+              skipped_operations => 4},
+        timing =>
+            #{calibration_us => 126,
+              calibration_started_at => -576460744735493,mutation_us => 16662},
+        decisions =>
+            [#{parent => 1,phase => calibration,
+               builds =>
+                   #{efz_staged_parser =>
+                         <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,
+                           42,117,65,155,134,186,143,128,124,195,255,187,93,
+                           150,51,158,10,94>>},
+               outcome => {ok,initial_zero},
+               execution_ref =>
+                   {runtime_diagnostic,
+                       <<"#Ref<0.2163010730.4288413698.157771>">>},
+               input_id =>
+                   <<110,52,11,156,255,179,122,152,156,165,68,230,187,120,10,
+                     44,120,144,29,63,179,55,56,118,133,17,163,6,23,175,160,29>>,
+               retention_reason => seed_calibration,
+               new_probes =>
+                   [{efz_staged_parser,
+                        <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,42,
+                          117,65,155,134,186,143,128,124,195,255,187,93,150,51,
+                          158,10,94>>,
+                        5}]},
+             #{parent => 1,phase => mutation,
+               mutation =>
+                   #{config_id =>
+                         <<138,42,181,89,56,253,106,71,68,65,164,135,5,182,129,
+                           65,220,164,34,61,58,229,39,235,222,77,25,93,156,55,
+                           149,166>>,
+                     output_hash =>
+                         <<23,50,239,54,216,100,152,132,35,165,39,90,236,48,
+                           185,11,85,227,64,92,199,152,199,9,227,24,200,103,
+                           121,122,214,75>>,
+                     stage => dictionary_insert,
+                     primary_id =>
+                         <<110,52,11,156,255,179,122,152,156,165,68,230,187,
+                           120,10,44,120,144,29,63,179,55,56,118,133,17,163,6,
+                           23,175,160,29>>},
+               builds =>
+                   #{efz_staged_parser =>
+                         <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,
+                           42,117,65,155,134,186,143,128,124,195,255,187,93,
+                           150,51,158,10,94>>},
+               outcome =>
+                   {crash,error,artificial_staged_exception,
+                       [{efz_staged_parser,run,1,
+                            [{file,"examples/staged/efz_staged_parser.erl"},
+                             {line,5}]},
+                        {efz_executor,'-coordinate/6-fun-0-',5,
+                            [{file,
+                                 "/home/fbogoslavskii/erl:fuzz/efz/src/efz_executor.erl"},
+                             {line,34}]}]},
+               execution_ref =>
+                   {runtime_diagnostic,
+                       <<"#Ref<0.2163010730.4288413698.157784>">>},
+               input_id =>
+                   <<23,50,239,54,216,100,152,132,35,165,39,90,236,48,185,11,
+                     85,227,64,92,199,152,199,9,227,24,200,103,121,122,214,75>>,
+               retention_reason => target_failure,new_probes => []},
+             #{parent => 1,phase => mutation,
+               mutation =>
+                   #{config_id =>
+                         <<138,42,181,89,56,253,106,71,68,65,164,135,5,182,129,
+                           65,220,164,34,61,58,229,39,235,222,77,25,93,156,55,
+                           149,166>>,
+                     output_hash =>
+                         <<75,245,18,47,52,69,84,197,59,222,46,187,140,210,183,
+                           227,209,96,10,214,49,195,133,165,215,204,226,60,119,
+                           133,69,154>>,
+                     stage => boundary,
+                     primary_id =>
+                         <<110,52,11,156,255,179,122,152,156,165,68,230,187,
+                           120,10,44,120,144,29,63,179,55,56,118,133,17,163,6,
+                           23,175,160,29>>},
+               builds =>
+                   #{efz_staged_parser =>
+                         <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,
+                           42,117,65,155,134,186,143,128,124,195,255,187,93,
+                           150,51,158,10,94>>},
+               outcome => {ok,arithmetic_one},
+               execution_ref =>
+                   {runtime_diagnostic,
+                       <<"#Ref<0.2163010730.4288413698.157804>">>},
+               input_id =>
+                   <<75,245,18,47,52,69,84,197,59,222,46,187,140,210,183,227,
+                     209,96,10,214,49,195,133,165,215,204,226,60,119,133,69,154>>,
+               retention_reason => new_coverage,
+               new_probes =>
+                   [{efz_staged_parser,
+                        <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,42,
+                          117,65,155,134,186,143,128,124,195,255,187,93,150,51,
+                          158,10,94>>,
+                        4}],
+               corpus_id => 2},
+             #{parent => 2,phase => mutation,
+               mutation =>
+                   #{config_id =>
+                         <<138,42,181,89,56,253,106,71,68,65,164,135,5,182,129,
+                           65,220,164,34,61,58,229,39,235,222,77,25,93,156,55,
+                           149,166>>,
+                     output_hash =>
+                         <<77,122,167,191,255,187,108,84,150,38,177,216,81,11,
+                           186,249,35,123,201,112,207,243,151,229,186,88,67,
+                           234,63,215,243,125>>,
+                     stage => dictionary_insert,
+                     primary_id =>
+                         <<75,245,18,47,52,69,84,197,59,222,46,187,140,210,
+                           183,227,209,96,10,214,49,195,133,165,215,204,226,
+                           60,119,133,69,154>>},
+               builds =>
+                   #{efz_staged_parser =>
+                         <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,
+                           42,117,65,155,134,186,143,128,124,195,255,187,93,
+                           150,51,158,10,94>>},
+               outcome =>
+                   {crash,error,artificial_staged_exception,
+                       [{efz_staged_parser,run,1,
+                            [{file,"examples/staged/efz_staged_parser.erl"},
+                             {line,5}]},
+                        {efz_executor,'-coordinate/6-fun-0-',5,
+                            [{file,
+                                 "/home/fbogoslavskii/erl:fuzz/efz/src/efz_executor.erl"},
+                             {line,34}]}]},
+               execution_ref =>
+                   {runtime_diagnostic,
+                       <<"#Ref<0.2163010730.4288413698.157827>">>},
+               input_id =>
+                   <<77,122,167,191,255,187,108,84,150,38,177,216,81,11,186,
+                     249,35,123,201,112,207,243,151,229,186,88,67,234,63,215,
+                     243,125>>,
+               retention_reason => target_failure,new_probes => []},
+             #{parent => 1,phase => mutation,
+               mutation =>
+                   #{config_id =>
+                         <<138,42,181,89,56,253,106,71,68,65,164,135,5,182,129,
+                           65,220,164,34,61,58,229,39,235,222,77,25,93,156,55,
+                           149,166>>,
+                     output_hash =>
+                         <<131,44,165,87,52,39,129,131,102,113,85,189,113,138,
+                           249,226,242,116,105,142,189,180,16,214,145,192,247,
+                           115,59,108,142,80>>,
+                     stage => dictionary_insert,
+                     primary_id =>
+                         <<110,52,11,156,255,179,122,152,156,165,68,230,187,
+                           120,10,44,120,144,29,63,179,55,56,118,133,17,163,6,
+                           23,175,160,29>>},
+               builds =>
+                   #{efz_staged_parser =>
+                         <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,
+                           42,117,65,155,134,186,143,128,124,195,255,187,93,
+                           150,51,158,10,94>>},
+               outcome => {ok,dictionary_token},
+               execution_ref =>
+                   {runtime_diagnostic,
+                       <<"#Ref<0.2163010730.4288413698.157846>">>},
+               input_id =>
+                   <<131,44,165,87,52,39,129,131,102,113,85,189,113,138,249,
+                     226,242,116,105,142,189,180,16,214,145,192,247,115,59,108,
+                     142,80>>,
+               retention_reason => new_coverage,
+               new_probes =>
+                   [{efz_staged_parser,
+                        <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,42,
+                          117,65,155,134,186,143,128,124,195,255,187,93,150,51,
+                          158,10,94>>,
+                        1}],
+               corpus_id => 3},
+             #{parent => 1,phase => mutation,
+               mutation =>
+                   #{config_id =>
+                         <<138,42,181,89,56,253,106,71,68,65,164,135,5,182,129,
+                           65,220,164,34,61,58,229,39,235,222,77,25,93,156,55,
+                           149,166>>,
+                     output_hash =>
+                         <<219,193,180,201,0,255,228,141,87,91,93,165,198,56,4,
+                           1,37,246,93,176,254,62,36,73,75,118,234,152,100,87,
+                           217,134>>,
+                     stage => boundary,
+                     primary_id =>
+                         <<110,52,11,156,255,179,122,152,156,165,68,230,187,
+                           120,10,44,120,144,29,63,179,55,56,118,133,17,163,6,
+                           23,175,160,29>>},
+               builds =>
+                   #{efz_staged_parser =>
+                         <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,
+                           42,117,65,155,134,186,143,128,124,195,255,187,93,
+                           150,51,158,10,94>>},
+               outcome => {ok,other},
+               execution_ref =>
+                   {runtime_diagnostic,
+                       <<"#Ref<0.2163010730.4288413698.157869>">>},
+               input_id =>
+                   <<219,193,180,201,0,255,228,141,87,91,93,165,198,56,4,1,37,
+                     246,93,176,254,62,36,73,75,118,234,152,100,87,217,134>>,
+               retention_reason => new_coverage,
+               new_probes =>
+                   [{efz_staged_parser,
+                        <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,42,
+                          117,65,155,134,186,143,128,124,195,255,187,93,150,51,
+                          158,10,94>>,
+                        7}],
+               corpus_id => 4},
+             #{parent => 3,phase => mutation,
+               mutation =>
+                   #{config_id =>
+                         <<138,42,181,89,56,253,106,71,68,65,164,135,5,182,129,
+                           65,220,164,34,61,58,229,39,235,222,77,25,93,156,55,
+                           149,166>>,
+                     output_hash =>
+                         <<251,98,114,35,4,112,198,113,161,154,12,69,232,5,28,
+                           123,169,157,202,156,173,152,128,80,18,107,7,129,128,
+                           60,60,158>>,
+                     stage => dictionary_insert,
+                     primary_id =>
+                         <<131,44,165,87,52,39,129,131,102,113,85,189,113,138,
+                           249,226,242,116,105,142,189,180,16,214,145,192,247,
+                           115,59,108,142,80>>},
+               builds =>
+                   #{efz_staged_parser =>
+                         <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,
+                           42,117,65,155,134,186,143,128,124,195,255,187,93,
+                           150,51,158,10,94>>},
+               outcome =>
+                   {crash,error,artificial_staged_exception,
+                       [{efz_staged_parser,run,1,
+                            [{file,"examples/staged/efz_staged_parser.erl"},
+                             {line,5}]},
+                        {efz_executor,'-coordinate/6-fun-0-',5,
+                            [{file,
+                                 "/home/fbogoslavskii/erl:fuzz/efz/src/efz_executor.erl"},
+                             {line,34}]}]},
+               execution_ref =>
+                   {runtime_diagnostic,
+                       <<"#Ref<0.2163010730.4288413698.157892>">>},
+               input_id =>
+                   <<251,98,114,35,4,112,198,113,161,154,12,69,232,5,28,123,
+                     169,157,202,156,173,152,128,80,18,107,7,129,128,60,60,158>>,
+               retention_reason => target_failure,new_probes => []},
+             #{parent => 4,phase => mutation,
+               mutation =>
+                   #{config_id =>
+                         <<138,42,181,89,56,253,106,71,68,65,164,135,5,182,129,
+                           65,220,164,34,61,58,229,39,235,222,77,25,93,156,55,
+                           149,166>>,
+                     output_hash =>
+                         <<35,51,191,165,169,74,28,69,242,171,133,82,43,27,62,
+                           4,216,60,237,34,3,241,46,63,25,168,142,172,225,246,
+                           150,148>>,
+                     stage => dictionary_insert,
+                     primary_id =>
+                         <<219,193,180,201,0,255,228,141,87,91,93,165,198,56,
+                           4,1,37,246,93,176,254,62,36,73,75,118,234,152,100,
+                           87,217,134>>},
+               builds =>
+                   #{efz_staged_parser =>
+                         <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,
+                           42,117,65,155,134,186,143,128,124,195,255,187,93,
+                           150,51,158,10,94>>},
+               outcome =>
+                   {crash,error,artificial_staged_exception,
+                       [{efz_staged_parser,run,1,
+                            [{file,"examples/staged/efz_staged_parser.erl"},
+                             {line,5}]},
+                        {efz_executor,'-coordinate/6-fun-0-',5,
+                            [{file,
+                                 "/home/fbogoslavskii/erl:fuzz/efz/src/efz_executor.erl"},
+                             {line,34}]}]},
+               execution_ref =>
+                   {runtime_diagnostic,
+                       <<"#Ref<0.2163010730.4288413698.157944>">>},
+               input_id =>
+                   <<35,51,191,165,169,74,28,69,242,171,133,82,43,27,62,4,216,
+                     60,237,34,3,241,46,63,25,168,142,172,225,246,150,148>>,
+               retention_reason => target_failure,new_probes => []},
+             #{parent => 1,phase => mutation,
+               mutation =>
+                   #{config_id =>
+                         <<138,42,181,89,56,253,106,71,68,65,164,135,5,182,129,
+                           65,220,164,34,61,58,229,39,235,222,77,25,93,156,55,
+                           149,166>>,
+                     output_hash =>
+                         <<118,190,139,82,141,0,117,247,170,233,141,111,165,
+                           122,109,60,131,174,72,10,132,105,230,104,215,176,
+                           175,150,137,149,172,113>>,
+                     stage => boundary,
+                     primary_id =>
+                         <<110,52,11,156,255,179,122,152,156,165,68,230,187,
+                           120,10,44,120,144,29,63,179,55,56,118,133,17,163,6,
+                           23,175,160,29>>},
+               builds =>
+                   #{efz_staged_parser =>
+                         <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,
+                           42,117,65,155,134,186,143,128,124,195,255,187,93,
+                           150,51,158,10,94>>},
+               outcome => {ok,signed_boundary},
+               execution_ref =>
+                   {runtime_diagnostic,
+                       <<"#Ref<0.2163010730.4288413698.158260>">>},
+               input_id =>
+                   <<118,190,139,82,141,0,117,247,170,233,141,111,165,122,109,
+                     60,131,174,72,10,132,105,230,104,215,176,175,150,137,149,
+                     172,113>>,
+               retention_reason => new_coverage,
+               new_probes =>
+                   [{efz_staged_parser,
+                        <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,42,
+                          117,65,155,134,186,143,128,124,195,255,187,93,150,51,
+                          158,10,94>>,
+                        3}],
+               corpus_id => 5},
+             #{parent => 5,phase => mutation,
+               mutation =>
+                   #{config_id =>
+                         <<138,42,181,89,56,253,106,71,68,65,164,135,5,182,129,
+                           65,220,164,34,61,58,229,39,235,222,77,25,93,156,55,
+                           149,166>>,
+                     output_hash =>
+                         <<66,96,0,217,177,6,37,89,22,65,6,69,44,228,4,231,48,
+                           61,209,253,127,138,142,116,231,14,8,99,28,147,126,
+                           225>>,
+                     stage => dictionary_insert,
+                     primary_id =>
+                         <<118,190,139,82,141,0,117,247,170,233,141,111,165,
+                           122,109,60,131,174,72,10,132,105,230,104,215,176,
+                           175,150,137,149,172,113>>},
+               builds =>
+                   #{efz_staged_parser =>
+                         <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,
+                           42,117,65,155,134,186,143,128,124,195,255,187,93,
+                           150,51,158,10,94>>},
+               outcome =>
+                   {crash,error,artificial_staged_exception,
+                       [{efz_staged_parser,run,1,
+                            [{file,"examples/staged/efz_staged_parser.erl"},
+                             {line,5}]},
+                        {efz_executor,'-coordinate/6-fun-0-',5,
+                            [{file,
+                                 "/home/fbogoslavskii/erl:fuzz/efz/src/efz_executor.erl"},
+                             {line,34}]}]},
+               execution_ref =>
+                   {runtime_diagnostic,
+                       <<"#Ref<0.2163010730.4288413698.158339>">>},
+               input_id =>
+                   <<66,96,0,217,177,6,37,89,22,65,6,69,44,228,4,231,48,61,209,
+                     253,127,138,142,116,231,14,8,99,28,147,126,225>>,
+               retention_reason => target_failure,new_probes => []}],
+        corpus =>
+            [#{id => 1,
+               input => <<0>>,
+               metadata => #{},added_at => 1788943545642},
+             #{id => 2,
+               input => <<1>>,
+               metadata =>
+                   #{parent => 1,phase => mutation,
+                     mutation =>
+                         #{parent => 1,
+                           primary => <<0>>,
+                           dictionary_id =>
+                               <<103,23,188,247,26,102,33,144,85,23,71,45,116,
+                                 223,174,165,175,22,13,8,122,181,138,154,56,83,
+                                 115,59,169,0,63,208>>,
+                           engine_version => 1,
+                           config_id =>
+                               <<138,42,181,89,56,253,106,71,68,65,164,135,5,
+                                 182,129,65,220,164,34,61,58,229,39,235,222,77,
+                                 25,93,156,55,149,166>>,
+                           limits =>
+                               #{max_input_bytes => 32,max_block_bytes => 8,
+                                 max_token_bytes => 8,max_delta => 8},
+                           operation_version => 1,
+                           output_hash =>
+                               <<75,245,18,47,52,69,84,197,59,222,46,187,140,
+                                 210,183,227,209,96,10,214,49,195,133,165,215,
+                                 204,226,60,119,133,69,154>>,
+                           output_size => 1,
+                           rng => #{seed => {17,23,41},algorithm => exsplus},
+                           schema_version => 1,
+                           target_builds =>
+                               [{<<"efz_staged_parser">>,
+                                 <<76,83,200,210,3,191,95,202,119,77,120,254,
+                                   226,18,42,117,65,155,134,186,143,128,124,
+                                   195,255,187,93,150,51,158,10,94>>}],
+                           stage => boundary,
+                           primary_id =>
+                               <<110,52,11,156,255,179,122,152,156,165,68,230,
+                                 187,120,10,44,120,144,29,63,179,55,56,118,133,
+                                 17,163,6,23,175,160,29>>,
+                           operations => [{set_integer,0,8,big,1}]},
+                     builds =>
+                         #{efz_staged_parser =>
+                               <<76,83,200,210,3,191,95,202,119,77,120,254,
+                                 226,18,42,117,65,155,134,186,143,128,124,195,
+                                 255,187,93,150,51,158,10,94>>},
+                     outcome => {ok,arithmetic_one},
+                     execution_ref =>
+                         {runtime_diagnostic,
+                             <<"#Ref<0.2163010730.4288413698.157804>">>},
+                     input_id =>
+                         <<75,245,18,47,52,69,84,197,59,222,46,187,140,210,183,
+                           227,209,96,10,214,49,195,133,165,215,204,226,60,119,
+                           133,69,154>>,
+                     retention_reason => new_coverage,
+                     new_probes =>
+                         [{efz_staged_parser,
+                              <<76,83,200,210,3,191,95,202,119,77,120,254,226,
+                                18,42,117,65,155,134,186,143,128,124,195,255,
+                                187,93,150,51,158,10,94>>,
+                              4}]},
+               added_at => 1788943545643},
+             #{id => 3,
+               input => <<84,79,75,69,78,0>>,
+               metadata =>
+                   #{parent => 1,phase => mutation,
+                     mutation =>
+                         #{parent => 1,
+                           primary => <<0>>,
+                           dictionary_id =>
+                               <<103,23,188,247,26,102,33,144,85,23,71,45,116,
+                                 223,174,165,175,22,13,8,122,181,138,154,56,83,
+                                 115,59,169,0,63,208>>,
+                           engine_version => 1,
+                           config_id =>
+                               <<138,42,181,89,56,253,106,71,68,65,164,135,5,
+                                 182,129,65,220,164,34,61,58,229,39,235,222,77,
+                                 25,93,156,55,149,166>>,
+                           limits =>
+                               #{max_input_bytes => 32,max_block_bytes => 8,
+                                 max_token_bytes => 8,max_delta => 8},
+                           operation_version => 1,
+                           output_hash =>
+                               <<131,44,165,87,52,39,129,131,102,113,85,189,
+                                 113,138,249,226,242,116,105,142,189,180,16,
+                                 214,145,192,247,115,59,108,142,80>>,
+                           output_size => 6,
+                           rng => #{seed => {17,23,41},algorithm => exsplus},
+                           schema_version => 1,
+                           target_builds =>
+                               [{<<"efz_staged_parser">>,
+                                 <<76,83,200,210,3,191,95,202,119,77,120,254,
+                                   226,18,42,117,65,155,134,186,143,128,124,
+                                   195,255,187,93,150,51,158,10,94>>}],
+                           stage => dictionary_insert,
+                           primary_id =>
+                               <<110,52,11,156,255,179,122,152,156,165,68,230,
+                                 187,120,10,44,120,144,29,63,179,55,56,118,133,
+                                 17,163,6,23,175,160,29>>,
+                           operations => [{dictionary_insert,0,<<"TOKEN">>}]},
+                     builds =>
+                         #{efz_staged_parser =>
+                               <<76,83,200,210,3,191,95,202,119,77,120,254,
+                                 226,18,42,117,65,155,134,186,143,128,124,195,
+                                 255,187,93,150,51,158,10,94>>},
+                     outcome => {ok,dictionary_token},
+                     execution_ref =>
+                         {runtime_diagnostic,
+                             <<"#Ref<0.2163010730.4288413698.157846>">>},
+                     input_id =>
+                         <<131,44,165,87,52,39,129,131,102,113,85,189,113,138,
+                           249,226,242,116,105,142,189,180,16,214,145,192,247,
+                           115,59,108,142,80>>,
+                     retention_reason => new_coverage,
+                     new_probes =>
+                         [{efz_staged_parser,
+                              <<76,83,200,210,3,191,95,202,119,77,120,254,226,
+                                18,42,117,65,155,134,186,143,128,124,195,255,
+                                187,93,150,51,158,10,94>>,
+                              1}]},
+               added_at => 1788943545644},
+             #{id => 4,
+               input => <<2>>,
+               metadata =>
+                   #{parent => 1,phase => mutation,
+                     mutation =>
+                         #{parent => 1,
+                           primary => <<0>>,
+                           dictionary_id =>
+                               <<103,23,188,247,26,102,33,144,85,23,71,45,116,
+                                 223,174,165,175,22,13,8,122,181,138,154,56,83,
+                                 115,59,169,0,63,208>>,
+                           engine_version => 1,
+                           config_id =>
+                               <<138,42,181,89,56,253,106,71,68,65,164,135,5,
+                                 182,129,65,220,164,34,61,58,229,39,235,222,77,
+                                 25,93,156,55,149,166>>,
+                           limits =>
+                               #{max_input_bytes => 32,max_block_bytes => 8,
+                                 max_token_bytes => 8,max_delta => 8},
+                           operation_version => 1,
+                           output_hash =>
+                               <<219,193,180,201,0,255,228,141,87,91,93,165,
+                                 198,56,4,1,37,246,93,176,254,62,36,73,75,118,
+                                 234,152,100,87,217,134>>,
+                           output_size => 1,
+                           rng => #{seed => {17,23,41},algorithm => exsplus},
+                           schema_version => 1,
+                           target_builds =>
+                               [{<<"efz_staged_parser">>,
+                                 <<76,83,200,210,3,191,95,202,119,77,120,254,
+                                   226,18,42,117,65,155,134,186,143,128,124,
+                                   195,255,187,93,150,51,158,10,94>>}],
+                           stage => boundary,
+                           primary_id =>
+                               <<110,52,11,156,255,179,122,152,156,165,68,230,
+                                 187,120,10,44,120,144,29,63,179,55,56,118,133,
+                                 17,163,6,23,175,160,29>>,
+                           operations => [{set_integer,0,8,big,2}]},
+                     builds =>
+                         #{efz_staged_parser =>
+                               <<76,83,200,210,3,191,95,202,119,77,120,254,
+                                 226,18,42,117,65,155,134,186,143,128,124,195,
+                                 255,187,93,150,51,158,10,94>>},
+                     outcome => {ok,other},
+                     execution_ref =>
+                         {runtime_diagnostic,
+                             <<"#Ref<0.2163010730.4288413698.157869>">>},
+                     input_id =>
+                         <<219,193,180,201,0,255,228,141,87,91,93,165,198,56,4,
+                           1,37,246,93,176,254,62,36,73,75,118,234,152,100,87,
+                           217,134>>,
+                     retention_reason => new_coverage,
+                     new_probes =>
+                         [{efz_staged_parser,
+                              <<76,83,200,210,3,191,95,202,119,77,120,254,226,
+                                18,42,117,65,155,134,186,143,128,124,195,255,
+                                187,93,150,51,158,10,94>>,
+                              7}]},
+               added_at => 1788943545644},
+             #{id => 5,
+               input => <<128>>,
+               metadata =>
+                   #{parent => 1,phase => mutation,
+                     mutation =>
+                         #{parent => 1,
+                           primary => <<0>>,
+                           dictionary_id =>
+                               <<103,23,188,247,26,102,33,144,85,23,71,45,116,
+                                 223,174,165,175,22,13,8,122,181,138,154,56,83,
+                                 115,59,169,0,63,208>>,
+                           engine_version => 1,
+                           config_id =>
+                               <<138,42,181,89,56,253,106,71,68,65,164,135,5,
+                                 182,129,65,220,164,34,61,58,229,39,235,222,77,
+                                 25,93,156,55,149,166>>,
+                           limits =>
+                               #{max_input_bytes => 32,max_block_bytes => 8,
+                                 max_token_bytes => 8,max_delta => 8},
+                           operation_version => 1,
+                           output_hash =>
+                               <<118,190,139,82,141,0,117,247,170,233,141,111,
+                                 165,122,109,60,131,174,72,10,132,105,230,104,
+                                 215,176,175,150,137,149,172,113>>,
+                           output_size => 1,
+                           rng => #{seed => {17,23,41},algorithm => exsplus},
+                           schema_version => 1,
+                           target_builds =>
+                               [{<<"efz_staged_parser">>,
+                                 <<76,83,200,210,3,191,95,202,119,77,120,254,
+                                   226,18,42,117,65,155,134,186,143,128,124,
+                                   195,255,187,93,150,51,158,10,94>>}],
+                           stage => boundary,
+                           primary_id =>
+                               <<110,52,11,156,255,179,122,152,156,165,68,230,
+                                 187,120,10,44,120,144,29,63,179,55,56,118,133,
+                                 17,163,6,23,175,160,29>>,
+                           operations => [{set_integer,0,8,big,128}]},
+                     builds =>
+                         #{efz_staged_parser =>
+                               <<76,83,200,210,3,191,95,202,119,77,120,254,
+                                 226,18,42,117,65,155,134,186,143,128,124,195,
+                                 255,187,93,150,51,158,10,94>>},
+                     outcome => {ok,signed_boundary},
+                     execution_ref =>
+                         {runtime_diagnostic,
+                             <<"#Ref<0.2163010730.4288413698.158260>">>},
+                     input_id =>
+                         <<118,190,139,82,141,0,117,247,170,233,141,111,165,
+                           122,109,60,131,174,72,10,132,105,230,104,215,176,
+                           175,150,137,149,172,113>>,
+                     retention_reason => new_coverage,
+                     new_probes =>
+                         [{efz_staged_parser,
+                              <<76,83,200,210,3,191,95,202,119,77,120,254,226,
+                                18,42,117,65,155,134,186,143,128,124,195,255,
+                                187,93,150,51,158,10,94>>,
+                              3}]},
+               added_at => 1788943545646}],
+        mutation_initial_corpus =>
+            [<<110,52,11,156,255,179,122,152,156,165,68,230,187,120,10,44,
+               120,144,29,63,179,55,56,118,133,17,163,6,23,175,160,29>>]},
+  staged_example =>
+      #{status => completed,
+        stats =>
+            #{started_at => -576460751771,timeouts => 0,executions => 200,
+              infrastructure_failures => 0,calibrations => 1,crashes => 7,
+              discoveries => 5,rejections => 188,unique_crashes => 1},
+        trace_entries => 0,
+        mutation =>
+            #{dictionary => [<<"BOOM!">>,<<"TOKEN">>],
+              seed => {17,23,41},
+              stages => [dictionary_insert,boundary,arithmetic,havoc,splice],
+              max_input_bytes => 64,max_idle_visits => 256,
+              max_block_bytes => 16,max_token_bytes => 16,havoc_depth => 4,
+              prng => exsplus,
+              dictionary_id =>
+                  <<103,23,188,247,26,102,33,144,85,23,71,45,116,223,174,165,
+                    175,22,13,8,122,181,138,154,56,83,115,59,169,0,63,208>>,
+              engine_version => 1,
+              config_id =>
+                  <<39,59,183,187,219,100,45,124,88,141,82,13,57,254,95,174,
+                    184,248,50,229,118,107,81,154,78,14,255,199,83,52,109,91>>,
+              attempts_per_visit => 8,random_retries => 4,max_delta => 8,
+              max_dictionary_bytes => 16384,max_tokens => 256,
+              trace_limit => 0},
+        crashes =>
+            [#{id =>
+                   <<109,55,185,113,118,152,61,190,178,152,239,1,175,216,66,
+                     160,209,119,151,111,68,249,225,188,52,119,171,141,207,229,
+                     51,114>>,
+               input => <<66,79,79,77,33,0>>,
+               path =>
+                   "_build/staged-crashes/6d37b97176983dbeb298ef01afd842a0d177976f44f9e1bc3477ab8dcfe53372-1732ef36d864988423a5275aec30b90b55e3405cc798c709e318c867797ad64b",
+               metadata =>
+                   #{parent => 1,phase => mutation,
+                     mutation =>
+                         #{parent => 1,
+                           primary => <<0>>,
+                           dictionary_id =>
+                               <<103,23,188,247,26,102,33,144,85,23,71,45,116,
+                                 223,174,165,175,22,13,8,122,181,138,154,56,83,
+                                 115,59,169,0,63,208>>,
+                           engine_version => 1,
+                           config_id =>
+                               <<39,59,183,187,219,100,45,124,88,141,82,13,57,
+                                 254,95,174,184,248,50,229,118,107,81,154,78,
+                                 14,255,199,83,52,109,91>>,
+                           limits =>
+                               #{max_input_bytes => 64,max_block_bytes => 16,
+                                 max_token_bytes => 16,max_delta => 8},
+                           operation_version => 1,
+                           output_hash =>
+                               <<23,50,239,54,216,100,152,132,35,165,39,90,236,
+                                 48,185,11,85,227,64,92,199,152,199,9,227,24,
+                                 200,103,121,122,214,75>>,
+                           output_size => 6,
+                           rng => #{seed => {17,23,41},algorithm => exsplus},
+                           schema_version => 1,
+                           target_builds =>
+                               [{<<"efz_staged_parser">>,
+                                 <<76,83,200,210,3,191,95,202,119,77,120,254,
+                                   226,18,42,117,65,155,134,186,143,128,124,
+                                   195,255,187,93,150,51,158,10,94>>}],
+                           stage => dictionary_insert,
+                           primary_id =>
+                               <<110,52,11,156,255,179,122,152,156,165,68,230,
+                                 187,120,10,44,120,144,29,63,179,55,56,118,133,
+                                 17,163,6,23,175,160,29>>,
+                           operations => [{dictionary_insert,0,<<"BOOM!">>}]},
+                     builds =>
+                         #{efz_staged_parser =>
+                               <<76,83,200,210,3,191,95,202,119,77,120,254,
+                                 226,18,42,117,65,155,134,186,143,128,124,195,
+                                 255,187,93,150,51,158,10,94>>},
+                     outcome =>
+                         {crash,error,artificial_staged_exception,
+                             [{efz_staged_parser,run,1,
+                                  [{file,
+                                       "examples/staged/efz_staged_parser.erl"},
+                                   {line,5}]},
+                              {efz_executor,'-coordinate/6-fun-0-',5,
+                                  [{file,
+                                       "/home/fbogoslavskii/erl:fuzz/efz/src/efz_executor.erl"},
+                                   {line,34}]}]},
+                     execution_ref =>
+                         {runtime_diagnostic,
+                             <<"#Ref<0.3228935888.1602486273.370>">>},
+                     input_id =>
+                         <<23,50,239,54,216,100,152,132,35,165,39,90,236,48,
+                           185,11,85,227,64,92,199,152,199,9,227,24,200,103,
+                           121,122,214,75>>,
+                     retention_reason => target_failure,new_probes => []},
+               result =>
+                   #{coverage =>
+                         [{efz_staged_parser,
+                              <<76,83,200,210,3,191,95,202,119,77,120,254,226,
+                                18,42,117,65,155,134,186,143,128,124,195,255,
+                                187,93,150,51,158,10,94>>,
+                              2}],
+                     builds =>
+                         #{efz_staged_parser =>
+                               <<76,83,200,210,3,191,95,202,119,77,120,254,
+                                 226,18,42,117,65,155,134,186,143,128,124,195,
+                                 255,187,93,150,51,158,10,94>>},
+                     outcome =>
+                         {crash,error,artificial_staged_exception,
+                             [{efz_staged_parser,run,1,
+                                  [{file,
+                                       "examples/staged/efz_staged_parser.erl"},
+                                   {line,5}]},
+                              {efz_executor,'-coordinate/6-fun-0-',5,
+                                  [{file,
+                                       "/home/fbogoslavskii/erl:fuzz/efz/src/efz_executor.erl"},
+                                   {line,34}]}]},
+                     execution_ref =>
+                         {runtime_diagnostic,
+                             <<"#Ref<0.3228935888.1602486273.370>">>},
+                     coverage_status => ok,elapsed_us => 14,
+                     target_outcome =>
+                         {crash,error,artificial_staged_exception,
+                             [{efz_staged_parser,run,1,
+                                  [{file,
+                                       "examples/staged/efz_staged_parser.erl"},
+                                   {line,5}]},
+                              {efz_executor,'-coordinate/6-fun-0-',5,
+                                  [{file,
+                                       "/home/fbogoslavskii/erl:fuzz/efz/src/efz_executor.erl"},
+                                   {line,34}]}]}}}],
+        coverage =>
+            [{efz_staged_parser,
+                 <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,42,117,65,
+                   155,134,186,143,128,124,195,255,187,93,150,51,158,10,94>>,
+                 1},
+             {efz_staged_parser,
+                 <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,42,117,65,
+                   155,134,186,143,128,124,195,255,187,93,150,51,158,10,94>>,
+                 3},
+             {efz_staged_parser,
+                 <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,42,117,65,
+                   155,134,186,143,128,124,195,255,187,93,150,51,158,10,94>>,
+                 4},
+             {efz_staged_parser,
+                 <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,42,117,65,
+                   155,134,186,143,128,124,195,255,187,93,150,51,158,10,94>>,
+                 5},
+             {efz_staged_parser,
+                 <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,42,117,65,
+                   155,134,186,143,128,124,195,255,187,93,150,51,158,10,94>>,
+                 6},
+             {efz_staged_parser,
+                 <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,42,117,65,
+                   155,134,186,143,128,124,195,255,187,93,150,51,158,10,94>>,
+                 7}],
+        mutation_stats =>
+            #{visits => 243,generated_candidates => 200,
+              skipped_candidates => 43,mutation_attempts => 233,
+              operation_attempts => 320,
+              skip_reasons => #{no_change => 46,insufficient_length => 55},
+              skipped_operations => 72},
+        timing =>
+            #{calibration_us => 985,
+              calibration_started_at => -576460751769121,mutation_us => 6844},
+        decisions =>
+            [#{parent => 1,phase => calibration,
+               builds =>
+                   #{efz_staged_parser =>
+                         <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,
+                           42,117,65,155,134,186,143,128,124,195,255,187,93,
+                           150,51,158,10,94>>},
+               outcome => {ok,initial_zero},
+               execution_ref =>
+                   {runtime_diagnostic,
+                       <<"#Ref<0.3228935888.1602486273.352>">>},
+               input_id =>
+                   <<110,52,11,156,255,179,122,152,156,165,68,230,187,120,10,
+                     44,120,144,29,63,179,55,56,118,133,17,163,6,23,175,160,29>>,
+               retention_reason => seed_calibration,
+               new_probes =>
+                   [{efz_staged_parser,
+                        <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,42,
+                          117,65,155,134,186,143,128,124,195,255,187,93,150,51,
+                          158,10,94>>,
+                        5}]},
+             #{parent => 1,phase => mutation,
+               mutation =>
+                   #{config_id =>
+                         <<39,59,183,187,219,100,45,124,88,141,82,13,57,254,95,
+                           174,184,248,50,229,118,107,81,154,78,14,255,199,83,
+                           52,109,91>>,
+                     output_hash =>
+                         <<23,50,239,54,216,100,152,132,35,165,39,90,236,48,
+                           185,11,85,227,64,92,199,152,199,9,227,24,200,103,
+                           121,122,214,75>>,
+                     stage => dictionary_insert,
+                     primary_id =>
+                         <<110,52,11,156,255,179,122,152,156,165,68,230,187,
+                           120,10,44,120,144,29,63,179,55,56,118,133,17,163,6,
+                           23,175,160,29>>},
+               builds =>
+                   #{efz_staged_parser =>
+                         <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,
+                           42,117,65,155,134,186,143,128,124,195,255,187,93,
+                           150,51,158,10,94>>},
+               outcome =>
+                   {crash,error,artificial_staged_exception,
+                       [{efz_staged_parser,run,1,
+                            [{file,"examples/staged/efz_staged_parser.erl"},
+                             {line,5}]},
+                        {efz_executor,'-coordinate/6-fun-0-',5,
+                            [{file,
+                                 "/home/fbogoslavskii/erl:fuzz/efz/src/efz_executor.erl"},
+                             {line,34}]}]},
+               execution_ref =>
+                   {runtime_diagnostic,
+                       <<"#Ref<0.3228935888.1602486273.370>">>},
+               input_id =>
+                   <<23,50,239,54,216,100,152,132,35,165,39,90,236,48,185,11,
+                     85,227,64,92,199,152,199,9,227,24,200,103,121,122,214,75>>,
+               retention_reason => target_failure,new_probes => []},
+             #{parent => 1,phase => mutation,
+               mutation =>
+                   #{config_id =>
+                         <<39,59,183,187,219,100,45,124,88,141,82,13,57,254,95,
+                           174,184,248,50,229,118,107,81,154,78,14,255,199,83,
+                           52,109,91>>,
+                     output_hash =>
+                         <<75,245,18,47,52,69,84,197,59,222,46,187,140,210,183,
+                           227,209,96,10,214,49,195,133,165,215,204,226,60,119,
+                           133,69,154>>,
+                     stage => boundary,
+                     primary_id =>
+                         <<110,52,11,156,255,179,122,152,156,165,68,230,187,
+                           120,10,44,120,144,29,63,179,55,56,118,133,17,163,6,
+                           23,175,160,29>>},
+               builds =>
+                   #{efz_staged_parser =>
+                         <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,
+                           42,117,65,155,134,186,143,128,124,195,255,187,93,
+                           150,51,158,10,94>>},
+               outcome => {ok,arithmetic_one},
+               execution_ref =>
+                   {runtime_diagnostic,
+                       <<"#Ref<0.3228935888.1602486273.394>">>},
+               input_id =>
+                   <<75,245,18,47,52,69,84,197,59,222,46,187,140,210,183,227,
+                     209,96,10,214,49,195,133,165,215,204,226,60,119,133,69,154>>,
+               retention_reason => new_coverage,
+               new_probes =>
+                   [{efz_staged_parser,
+                        <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,42,
+                          117,65,155,134,186,143,128,124,195,255,187,93,150,51,
+                          158,10,94>>,
+                        4}],
+               corpus_id => 2},
+             #{parent => 2,phase => mutation,
+               mutation =>
+                   #{config_id =>
+                         <<39,59,183,187,219,100,45,124,88,141,82,13,57,254,95,
+                           174,184,248,50,229,118,107,81,154,78,14,255,199,83,
+                           52,109,91>>,
+                     output_hash =>
+                         <<77,122,167,191,255,187,108,84,150,38,177,216,81,11,
+                           186,249,35,123,201,112,207,243,151,229,186,88,67,
+                           234,63,215,243,125>>,
+                     stage => dictionary_insert,
+                     primary_id =>
+                         <<75,245,18,47,52,69,84,197,59,222,46,187,140,210,
+                           183,227,209,96,10,214,49,195,133,165,215,204,226,
+                           60,119,133,69,154>>},
+               builds =>
+                   #{efz_staged_parser =>
+                         <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,
+                           42,117,65,155,134,186,143,128,124,195,255,187,93,
+                           150,51,158,10,94>>},
+               outcome =>
+                   {crash,error,artificial_staged_exception,
+                       [{efz_staged_parser,run,1,
+                            [{file,"examples/staged/efz_staged_parser.erl"},
+                             {line,5}]},
+                        {efz_executor,'-coordinate/6-fun-0-',5,
+                            [{file,
+                                 "/home/fbogoslavskii/erl:fuzz/efz/src/efz_executor.erl"},
+                             {line,34}]}]},
+               execution_ref =>
+                   {runtime_diagnostic,
+                       <<"#Ref<0.3228935888.1602486273.417>">>},
+               input_id =>
+                   <<77,122,167,191,255,187,108,84,150,38,177,216,81,11,186,
+                     249,35,123,201,112,207,243,151,229,186,88,67,234,63,215,
+                     243,125>>,
+               retention_reason => target_failure,new_probes => []},
+             #{parent => 1,phase => mutation,
+               mutation =>
+                   #{config_id =>
+                         <<39,59,183,187,219,100,45,124,88,141,82,13,57,254,95,
+                           174,184,248,50,229,118,107,81,154,78,14,255,199,83,
+                           52,109,91>>,
+                     output_hash =>
+                         <<150,162,150,210,36,242,133,198,123,238,147,195,15,
+                           138,48,145,87,240,218,163,93,197,184,126,65,11,120,
+                           99,10,9,207,199>>,
+                     stage => havoc,
+                     primary_id =>
+                         <<110,52,11,156,255,179,122,152,156,165,68,230,187,
+                           120,10,44,120,144,29,63,179,55,56,118,133,17,163,6,
+                           23,175,160,29>>},
+               builds =>
+                   #{efz_staged_parser =>
+                         <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,
+                           42,117,65,155,134,186,143,128,124,195,255,187,93,
+                           150,51,158,10,94>>},
+               outcome => {ok,other},
+               execution_ref =>
+                   {runtime_diagnostic,
+                       <<"#Ref<0.3228935888.1602486273.436>">>},
+               input_id =>
+                   <<150,162,150,210,36,242,133,198,123,238,147,195,15,138,48,
+                     145,87,240,218,163,93,197,184,126,65,11,120,99,10,9,207,
+                     199>>,
+               retention_reason => new_coverage,
+               new_probes =>
+                   [{efz_staged_parser,
+                        <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,42,
+                          117,65,155,134,186,143,128,124,195,255,187,93,150,51,
+                          158,10,94>>,
+                        7}],
+               corpus_id => 3},
+             #{parent => 1,phase => mutation,
+               mutation =>
+                   #{config_id =>
+                         <<39,59,183,187,219,100,45,124,88,141,82,13,57,254,95,
+                           174,184,248,50,229,118,107,81,154,78,14,255,199,83,
+                           52,109,91>>,
+                     output_hash =>
+                         <<227,176,196,66,152,252,28,20,154,251,244,200,153,
+                           111,185,36,39,174,65,228,100,155,147,76,164,149,153,
+                           27,120,82,184,85>>,
+                     stage => splice,
+                     primary_id =>
+                         <<110,52,11,156,255,179,122,152,156,165,68,230,187,
+                           120,10,44,120,144,29,63,179,55,56,118,133,17,163,6,
+                           23,175,160,29>>},
+               builds =>
+                   #{efz_staged_parser =>
+                         <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,
+                           42,117,65,155,134,186,143,128,124,195,255,187,93,
+                           150,51,158,10,94>>},
+               outcome => {ok,empty},
+               execution_ref =>
+                   {runtime_diagnostic,
+                       <<"#Ref<0.3228935888.1602486273.459>">>},
+               input_id =>
+                   <<227,176,196,66,152,252,28,20,154,251,244,200,153,111,185,
+                     36,39,174,65,228,100,155,147,76,164,149,153,27,120,82,184,
+                     85>>,
+               retention_reason => new_coverage,
+               new_probes =>
+                   [{efz_staged_parser,
+                        <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,42,
+                          117,65,155,134,186,143,128,124,195,255,187,93,150,51,
+                          158,10,94>>,
+                        6}],
+               corpus_id => 4},
+             #{parent => 3,phase => mutation,
+               mutation =>
+                   #{config_id =>
+                         <<39,59,183,187,219,100,45,124,88,141,82,13,57,254,95,
+                           174,184,248,50,229,118,107,81,154,78,14,255,199,83,
+                           52,109,91>>,
+                     output_hash =>
+                         <<25,155,235,254,4,104,112,198,137,89,128,78,110,89,
+                           105,142,129,81,2,113,125,181,113,155,88,150,68,22,
+                           182,232,132,25>>,
+                     stage => dictionary_insert,
+                     primary_id =>
+                         <<150,162,150,210,36,242,133,198,123,238,147,195,15,
+                           138,48,145,87,240,218,163,93,197,184,126,65,11,120,
+                           99,10,9,207,199>>},
+               builds =>
+                   #{efz_staged_parser =>
+                         <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,
+                           42,117,65,155,134,186,143,128,124,195,255,187,93,
+                           150,51,158,10,94>>},
+               outcome =>
+                   {crash,error,artificial_staged_exception,
+                       [{efz_staged_parser,run,1,
+                            [{file,"examples/staged/efz_staged_parser.erl"},
+                             {line,5}]},
+                        {efz_executor,'-coordinate/6-fun-0-',5,
+                            [{file,
+                                 "/home/fbogoslavskii/erl:fuzz/efz/src/efz_executor.erl"},
+                             {line,34}]}]},
+               execution_ref =>
+                   {runtime_diagnostic,
+                       <<"#Ref<0.3228935888.1602486273.482>">>},
+               input_id =>
+                   <<25,155,235,254,4,104,112,198,137,89,128,78,110,89,105,142,
+                     129,81,2,113,125,181,113,155,88,150,68,22,182,232,132,25>>,
+               retention_reason => target_failure,new_probes => []},
+             #{parent => 1,phase => mutation,
+               mutation =>
+                   #{config_id =>
+                         <<39,59,183,187,219,100,45,124,88,141,82,13,57,254,95,
+                           174,184,248,50,229,118,107,81,154,78,14,255,199,83,
+                           52,109,91>>,
+                     output_hash =>
+                         <<131,44,165,87,52,39,129,131,102,113,85,189,113,138,
+                           249,226,242,116,105,142,189,180,16,214,145,192,247,
+                           115,59,108,142,80>>,
+                     stage => dictionary_insert,
+                     primary_id =>
+                         <<110,52,11,156,255,179,122,152,156,165,68,230,187,
+                           120,10,44,120,144,29,63,179,55,56,118,133,17,163,6,
+                           23,175,160,29>>},
+               builds =>
+                   #{efz_staged_parser =>
+                         <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,
+                           42,117,65,155,134,186,143,128,124,195,255,187,93,
+                           150,51,158,10,94>>},
+               outcome => {ok,dictionary_token},
+               execution_ref =>
+                   {runtime_diagnostic,
+                       <<"#Ref<0.3228935888.1602486273.501>">>},
+               input_id =>
+                   <<131,44,165,87,52,39,129,131,102,113,85,189,113,138,249,
+                     226,242,116,105,142,189,180,16,214,145,192,247,115,59,108,
+                     142,80>>,
+               retention_reason => new_coverage,
+               new_probes =>
+                   [{efz_staged_parser,
+                        <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,42,
+                          117,65,155,134,186,143,128,124,195,255,187,93,150,51,
+                          158,10,94>>,
+                        1}],
+               corpus_id => 5},
+             #{parent => 4,phase => mutation,
+               mutation =>
+                   #{config_id =>
+                         <<39,59,183,187,219,100,45,124,88,141,82,13,57,254,95,
+                           174,184,248,50,229,118,107,81,154,78,14,255,199,83,
+                           52,109,91>>,
+                     output_hash =>
+                         <<218,42,168,154,12,130,30,174,246,85,62,65,98,44,33,
+                           5,125,224,232,200,88,52,2,171,87,205,163,127,41,81,
+                           158,32>>,
+                     stage => dictionary_insert,
+                     primary_id =>
+                         <<227,176,196,66,152,252,28,20,154,251,244,200,153,
+                           111,185,36,39,174,65,228,100,155,147,76,164,149,
+                           153,27,120,82,184,85>>},
+               builds =>
+                   #{efz_staged_parser =>
+                         <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,
+                           42,117,65,155,134,186,143,128,124,195,255,187,93,
+                           150,51,158,10,94>>},
+               outcome =>
+                   {crash,error,artificial_staged_exception,
+                       [{efz_staged_parser,run,1,
+                            [{file,"examples/staged/efz_staged_parser.erl"},
+                             {line,5}]},
+                        {efz_executor,'-coordinate/6-fun-0-',5,
+                            [{file,
+                                 "/home/fbogoslavskii/erl:fuzz/efz/src/efz_executor.erl"},
+                             {line,34}]}]},
+               execution_ref =>
+                   {runtime_diagnostic,
+                       <<"#Ref<0.3228935888.1602486273.535>">>},
+               input_id =>
+                   <<218,42,168,154,12,130,30,174,246,85,62,65,98,44,33,5,125,
+                     224,232,200,88,52,2,171,87,205,163,127,41,81,158,32>>,
+               retention_reason => target_failure,new_probes => []},
+             #{parent => 5,phase => mutation,
+               mutation =>
+                   #{config_id =>
+                         <<39,59,183,187,219,100,45,124,88,141,82,13,57,254,95,
+                           174,184,248,50,229,118,107,81,154,78,14,255,199,83,
+                           52,109,91>>,
+                     output_hash =>
+                         <<251,98,114,35,4,112,198,113,161,154,12,69,232,5,28,
+                           123,169,157,202,156,173,152,128,80,18,107,7,129,128,
+                           60,60,158>>,
+                     stage => dictionary_insert,
+                     primary_id =>
+                         <<131,44,165,87,52,39,129,131,102,113,85,189,113,138,
+                           249,226,242,116,105,142,189,180,16,214,145,192,247,
+                           115,59,108,142,80>>},
+               builds =>
+                   #{efz_staged_parser =>
+                         <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,
+                           42,117,65,155,134,186,143,128,124,195,255,187,93,
+                           150,51,158,10,94>>},
+               outcome =>
+                   {crash,error,artificial_staged_exception,
+                       [{efz_staged_parser,run,1,
+                            [{file,"examples/staged/efz_staged_parser.erl"},
+                             {line,5}]},
+                        {efz_executor,'-coordinate/6-fun-0-',5,
+                            [{file,
+                                 "/home/fbogoslavskii/erl:fuzz/efz/src/efz_executor.erl"},
+                             {line,34}]}]},
+               execution_ref =>
+                   {runtime_diagnostic,
+                       <<"#Ref<0.3228935888.1602486273.588>">>},
+               input_id =>
+                   <<251,98,114,35,4,112,198,113,161,154,12,69,232,5,28,123,
+                     169,157,202,156,173,152,128,80,18,107,7,129,128,60,60,158>>,
+               retention_reason => target_failure,new_probes => []},
+             #{parent => 4,phase => mutation,
+               mutation =>
+                   #{config_id =>
+                         <<39,59,183,187,219,100,45,124,88,141,82,13,57,254,95,
+                           174,184,248,50,229,118,107,81,154,78,14,255,199,83,
+                           52,109,91>>,
+                     output_hash =>
+                         <<218,42,168,154,12,130,30,174,246,85,62,65,98,44,33,
+                           5,125,224,232,200,88,52,2,171,87,205,163,127,41,81,
+                           158,32>>,
+                     stage => havoc,
+                     primary_id =>
+                         <<227,176,196,66,152,252,28,20,154,251,244,200,153,
+                           111,185,36,39,174,65,228,100,155,147,76,164,149,
+                           153,27,120,82,184,85>>},
+               builds =>
+                   #{efz_staged_parser =>
+                         <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,
+                           42,117,65,155,134,186,143,128,124,195,255,187,93,
+                           150,51,158,10,94>>},
+               outcome =>
+                   {crash,error,artificial_staged_exception,
+                       [{efz_staged_parser,run,1,
+                            [{file,"examples/staged/efz_staged_parser.erl"},
+                             {line,5}]},
+                        {efz_executor,'-coordinate/6-fun-0-',5,
+                            [{file,
+                                 "/home/fbogoslavskii/erl:fuzz/efz/src/efz_executor.erl"},
+                             {line,34}]}]},
+               execution_ref =>
+                   {runtime_diagnostic,
+                       <<"#Ref<0.3228935888.1602486273.1172>">>},
+               input_id =>
+                   <<218,42,168,154,12,130,30,174,246,85,62,65,98,44,33,5,125,
+                     224,232,200,88,52,2,171,87,205,163,127,41,81,158,32>>,
+               retention_reason => target_failure,new_probes => []},
+             #{parent => 1,phase => mutation,
+               mutation =>
+                   #{config_id =>
+                         <<39,59,183,187,219,100,45,124,88,141,82,13,57,254,95,
+                           174,184,248,50,229,118,107,81,154,78,14,255,199,83,
+                           52,109,91>>,
+                     output_hash =>
+                         <<118,190,139,82,141,0,117,247,170,233,141,111,165,
+                           122,109,60,131,174,72,10,132,105,230,104,215,176,
+                           175,150,137,149,172,113>>,
+                     stage => boundary,
+                     primary_id =>
+                         <<110,52,11,156,255,179,122,152,156,165,68,230,187,
+                           120,10,44,120,144,29,63,179,55,56,118,133,17,163,6,
+                           23,175,160,29>>},
+               builds =>
+                   #{efz_staged_parser =>
+                         <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,
+                           42,117,65,155,134,186,143,128,124,195,255,187,93,
+                           150,51,158,10,94>>},
+               outcome => {ok,signed_boundary},
+               execution_ref =>
+                   {runtime_diagnostic,
+                       <<"#Ref<0.3228935888.1602486273.1292>">>},
+               input_id =>
+                   <<118,190,139,82,141,0,117,247,170,233,141,111,165,122,109,
+                     60,131,174,72,10,132,105,230,104,215,176,175,150,137,149,
+                     172,113>>,
+               retention_reason => new_coverage,
+               new_probes =>
+                   [{efz_staged_parser,
+                        <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,42,
+                          117,65,155,134,186,143,128,124,195,255,187,93,150,51,
+                          158,10,94>>,
+                        3}],
+               corpus_id => 6},
+             #{parent => 6,phase => mutation,
+               mutation =>
+                   #{config_id =>
+                         <<39,59,183,187,219,100,45,124,88,141,82,13,57,254,95,
+                           174,184,248,50,229,118,107,81,154,78,14,255,199,83,
+                           52,109,91>>,
+                     output_hash =>
+                         <<66,96,0,217,177,6,37,89,22,65,6,69,44,228,4,231,48,
+                           61,209,253,127,138,142,116,231,14,8,99,28,147,126,
+                           225>>,
+                     stage => dictionary_insert,
+                     primary_id =>
+                         <<118,190,139,82,141,0,117,247,170,233,141,111,165,
+                           122,109,60,131,174,72,10,132,105,230,104,215,176,
+                           175,150,137,149,172,113>>},
+               builds =>
+                   #{efz_staged_parser =>
+                         <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,
+                           42,117,65,155,134,186,143,128,124,195,255,187,93,
+                           150,51,158,10,94>>},
+               outcome =>
+                   {crash,error,artificial_staged_exception,
+                       [{efz_staged_parser,run,1,
+                            [{file,"examples/staged/efz_staged_parser.erl"},
+                             {line,5}]},
+                        {efz_executor,'-coordinate/6-fun-0-',5,
+                            [{file,
+                                 "/home/fbogoslavskii/erl:fuzz/efz/src/efz_executor.erl"},
+                             {line,34}]}]},
+               execution_ref =>
+                   {runtime_diagnostic,
+                       <<"#Ref<0.3228935888.1602486273.1373>">>},
+               input_id =>
+                   <<66,96,0,217,177,6,37,89,22,65,6,69,44,228,4,231,48,61,209,
+                     253,127,138,142,116,231,14,8,99,28,147,126,225>>,
+               retention_reason => target_failure,new_probes => []}],
+        corpus =>
+            [#{id => 1,
+               input => <<0>>,
+               metadata => #{},added_at => 1788942952397},
+             #{id => 2,
+               input => <<1>>,
+               metadata =>
+                   #{parent => 1,phase => mutation,
+                     mutation =>
+                         #{parent => 1,
+                           primary => <<0>>,
+                           dictionary_id =>
+                               <<103,23,188,247,26,102,33,144,85,23,71,45,116,
+                                 223,174,165,175,22,13,8,122,181,138,154,56,83,
+                                 115,59,169,0,63,208>>,
+                           engine_version => 1,
+                           config_id =>
+                               <<39,59,183,187,219,100,45,124,88,141,82,13,57,
+                                 254,95,174,184,248,50,229,118,107,81,154,78,
+                                 14,255,199,83,52,109,91>>,
+                           limits =>
+                               #{max_input_bytes => 64,max_block_bytes => 16,
+                                 max_token_bytes => 16,max_delta => 8},
+                           operation_version => 1,
+                           output_hash =>
+                               <<75,245,18,47,52,69,84,197,59,222,46,187,140,
+                                 210,183,227,209,96,10,214,49,195,133,165,215,
+                                 204,226,60,119,133,69,154>>,
+                           output_size => 1,
+                           rng => #{seed => {17,23,41},algorithm => exsplus},
+                           schema_version => 1,
+                           target_builds =>
+                               [{<<"efz_staged_parser">>,
+                                 <<76,83,200,210,3,191,95,202,119,77,120,254,
+                                   226,18,42,117,65,155,134,186,143,128,124,
+                                   195,255,187,93,150,51,158,10,94>>}],
+                           stage => boundary,
+                           primary_id =>
+                               <<110,52,11,156,255,179,122,152,156,165,68,230,
+                                 187,120,10,44,120,144,29,63,179,55,56,118,133,
+                                 17,163,6,23,175,160,29>>,
+                           operations => [{set_integer,0,8,big,1}]},
+                     builds =>
+                         #{efz_staged_parser =>
+                               <<76,83,200,210,3,191,95,202,119,77,120,254,
+                                 226,18,42,117,65,155,134,186,143,128,124,195,
+                                 255,187,93,150,51,158,10,94>>},
+                     outcome => {ok,arithmetic_one},
+                     execution_ref =>
+                         {runtime_diagnostic,
+                             <<"#Ref<0.3228935888.1602486273.394>">>},
+                     input_id =>
+                         <<75,245,18,47,52,69,84,197,59,222,46,187,140,210,183,
+                           227,209,96,10,214,49,195,133,165,215,204,226,60,119,
+                           133,69,154>>,
+                     retention_reason => new_coverage,
+                     new_probes =>
+                         [{efz_staged_parser,
+                              <<76,83,200,210,3,191,95,202,119,77,120,254,226,
+                                18,42,117,65,155,134,186,143,128,124,195,255,
+                                187,93,150,51,158,10,94>>,
+                              4}]},
+               added_at => 1788942952400},
+             #{id => 3,
+               input => <<0,0>>,
+               metadata =>
+                   #{parent => 1,phase => mutation,
+                     mutation =>
+                         #{parent => 1,
+                           primary => <<0>>,
+                           dictionary_id =>
+                               <<103,23,188,247,26,102,33,144,85,23,71,45,116,
+                                 223,174,165,175,22,13,8,122,181,138,154,56,83,
+                                 115,59,169,0,63,208>>,
+                           engine_version => 1,
+                           config_id =>
+                               <<39,59,183,187,219,100,45,124,88,141,82,13,57,
+                                 254,95,174,184,248,50,229,118,107,81,154,78,
+                                 14,255,199,83,52,109,91>>,
+                           limits =>
+                               #{max_input_bytes => 64,max_block_bytes => 16,
+                                 max_token_bytes => 16,max_delta => 8},
+                           operation_version => 1,
+                           output_hash =>
+                               <<150,162,150,210,36,242,133,198,123,238,147,
+                                 195,15,138,48,145,87,240,218,163,93,197,184,
+                                 126,65,11,120,99,10,9,207,199>>,
+                           output_size => 2,
+                           rng => #{seed => {17,23,41},algorithm => exsplus},
+                           schema_version => 1,
+                           target_builds =>
+                               [{<<"efz_staged_parser">>,
+                                 <<76,83,200,210,3,191,95,202,119,77,120,254,
+                                   226,18,42,117,65,155,134,186,143,128,124,
+                                   195,255,187,93,150,51,158,10,94>>}],
+                           stage => havoc,
+                           primary_id =>
+                               <<110,52,11,156,255,179,122,152,156,165,68,230,
+                                 187,120,10,44,120,144,29,63,179,55,56,118,133,
+                                 17,163,6,23,175,160,29>>,
+                           operations => [{duplicate,0,1,1}]},
+                     builds =>
+                         #{efz_staged_parser =>
+                               <<76,83,200,210,3,191,95,202,119,77,120,254,
+                                 226,18,42,117,65,155,134,186,143,128,124,195,
+                                 255,187,93,150,51,158,10,94>>},
+                     outcome => {ok,other},
+                     execution_ref =>
+                         {runtime_diagnostic,
+                             <<"#Ref<0.3228935888.1602486273.436>">>},
+                     input_id =>
+                         <<150,162,150,210,36,242,133,198,123,238,147,195,15,
+                           138,48,145,87,240,218,163,93,197,184,126,65,11,120,
+                           99,10,9,207,199>>,
+                     retention_reason => new_coverage,
+                     new_probes =>
+                         [{efz_staged_parser,
+                              <<76,83,200,210,3,191,95,202,119,77,120,254,226,
+                                18,42,117,65,155,134,186,143,128,124,195,255,
+                                187,93,150,51,158,10,94>>,
+                              7}]},
+               added_at => 1788942952400},
+             #{id => 4,input => <<>>,
+               metadata =>
+                   #{parent => 1,phase => mutation,
+                     mutation =>
+                         #{parent => 1,
+                           primary => <<0>>,
+                           dictionary_id =>
+                               <<103,23,188,247,26,102,33,144,85,23,71,45,116,
+                                 223,174,165,175,22,13,8,122,181,138,154,56,83,
+                                 115,59,169,0,63,208>>,
+                           engine_version => 1,
+                           config_id =>
+                               <<39,59,183,187,219,100,45,124,88,141,82,13,57,
+                                 254,95,174,184,248,50,229,118,107,81,154,78,
+                                 14,255,199,83,52,109,91>>,
+                           limits =>
+                               #{max_input_bytes => 64,max_block_bytes => 16,
+                                 max_token_bytes => 16,max_delta => 8},
+                           operation_version => 1,
+                           output_hash =>
+                               <<227,176,196,66,152,252,28,20,154,251,244,200,
+                                 153,111,185,36,39,174,65,228,100,155,147,76,
+                                 164,149,153,27,120,82,184,85>>,
+                           output_size => 0,
+                           rng => #{seed => {17,23,41},algorithm => exsplus},
+                           schema_version => 1,
+                           target_builds =>
+                               [{<<"efz_staged_parser">>,
+                                 <<76,83,200,210,3,191,95,202,119,77,120,254,
+                                   226,18,42,117,65,155,134,186,143,128,124,
+                                   195,255,187,93,150,51,158,10,94>>}],
+                           stage => splice,
+                           primary_id =>
+                               <<110,52,11,156,255,179,122,152,156,165,68,230,
+                                 187,120,10,44,120,144,29,63,179,55,56,118,133,
+                                 17,163,6,23,175,160,29>>,
+                           operations =>
+                               [{splice,0,2,
+                                    <<0,0>>,
+                                    <<150,162,150,210,36,242,133,198,123,
+                                      238,147,195,15,138,48,145,87,240,218,
+                                      163,93,197,184,126,65,11,120,99,10,9,
+                                      207,199>>}]},
+                     builds =>
+                         #{efz_staged_parser =>
+                               <<76,83,200,210,3,191,95,202,119,77,120,254,
+                                 226,18,42,117,65,155,134,186,143,128,124,195,
+                                 255,187,93,150,51,158,10,94>>},
+                     outcome => {ok,empty},
+                     execution_ref =>
+                         {runtime_diagnostic,
+                             <<"#Ref<0.3228935888.1602486273.459>">>},
+                     input_id =>
+                         <<227,176,196,66,152,252,28,20,154,251,244,200,153,
+                           111,185,36,39,174,65,228,100,155,147,76,164,149,153,
+                           27,120,82,184,85>>,
+                     retention_reason => new_coverage,
+                     new_probes =>
+                         [{efz_staged_parser,
+                              <<76,83,200,210,3,191,95,202,119,77,120,254,226,
+                                18,42,117,65,155,134,186,143,128,124,195,255,
+                                187,93,150,51,158,10,94>>,
+                              6}]},
+               added_at => 1788942952401},
+             #{id => 5,
+               input => <<84,79,75,69,78,0>>,
+               metadata =>
+                   #{parent => 1,phase => mutation,
+                     mutation =>
+                         #{parent => 1,
+                           primary => <<0>>,
+                           dictionary_id =>
+                               <<103,23,188,247,26,102,33,144,85,23,71,45,116,
+                                 223,174,165,175,22,13,8,122,181,138,154,56,83,
+                                 115,59,169,0,63,208>>,
+                           engine_version => 1,
+                           config_id =>
+                               <<39,59,183,187,219,100,45,124,88,141,82,13,57,
+                                 254,95,174,184,248,50,229,118,107,81,154,78,
+                                 14,255,199,83,52,109,91>>,
+                           limits =>
+                               #{max_input_bytes => 64,max_block_bytes => 16,
+                                 max_token_bytes => 16,max_delta => 8},
+                           operation_version => 1,
+                           output_hash =>
+                               <<131,44,165,87,52,39,129,131,102,113,85,189,
+                                 113,138,249,226,242,116,105,142,189,180,16,
+                                 214,145,192,247,115,59,108,142,80>>,
+                           output_size => 6,
+                           rng => #{seed => {17,23,41},algorithm => exsplus},
+                           schema_version => 1,
+                           target_builds =>
+                               [{<<"efz_staged_parser">>,
+                                 <<76,83,200,210,3,191,95,202,119,77,120,254,
+                                   226,18,42,117,65,155,134,186,143,128,124,
+                                   195,255,187,93,150,51,158,10,94>>}],
+                           stage => dictionary_insert,
+                           primary_id =>
+                               <<110,52,11,156,255,179,122,152,156,165,68,230,
+                                 187,120,10,44,120,144,29,63,179,55,56,118,133,
+                                 17,163,6,23,175,160,29>>,
+                           operations => [{dictionary_insert,0,<<"TOKEN">>}]},
+                     builds =>
+                         #{efz_staged_parser =>
+                               <<76,83,200,210,3,191,95,202,119,77,120,254,
+                                 226,18,42,117,65,155,134,186,143,128,124,195,
+                                 255,187,93,150,51,158,10,94>>},
+                     outcome => {ok,dictionary_token},
+                     execution_ref =>
+                         {runtime_diagnostic,
+                             <<"#Ref<0.3228935888.1602486273.501>">>},
+                     input_id =>
+                         <<131,44,165,87,52,39,129,131,102,113,85,189,113,138,
+                           249,226,242,116,105,142,189,180,16,214,145,192,247,
+                           115,59,108,142,80>>,
+                     retention_reason => new_coverage,
+                     new_probes =>
+                         [{efz_staged_parser,
+                              <<76,83,200,210,3,191,95,202,119,77,120,254,226,
+                                18,42,117,65,155,134,186,143,128,124,195,255,
+                                187,93,150,51,158,10,94>>,
+                              1}]},
+               added_at => 1788942952401},
+             #{id => 6,
+               input => <<128>>,
+               metadata =>
+                   #{parent => 1,phase => mutation,
+                     mutation =>
+                         #{parent => 1,
+                           primary => <<0>>,
+                           dictionary_id =>
+                               <<103,23,188,247,26,102,33,144,85,23,71,45,116,
+                                 223,174,165,175,22,13,8,122,181,138,154,56,83,
+                                 115,59,169,0,63,208>>,
+                           engine_version => 1,
+                           config_id =>
+                               <<39,59,183,187,219,100,45,124,88,141,82,13,57,
+                                 254,95,174,184,248,50,229,118,107,81,154,78,
+                                 14,255,199,83,52,109,91>>,
+                           limits =>
+                               #{max_input_bytes => 64,max_block_bytes => 16,
+                                 max_token_bytes => 16,max_delta => 8},
+                           operation_version => 1,
+                           output_hash =>
+                               <<118,190,139,82,141,0,117,247,170,233,141,111,
+                                 165,122,109,60,131,174,72,10,132,105,230,104,
+                                 215,176,175,150,137,149,172,113>>,
+                           output_size => 1,
+                           rng => #{seed => {17,23,41},algorithm => exsplus},
+                           schema_version => 1,
+                           target_builds =>
+                               [{<<"efz_staged_parser">>,
+                                 <<76,83,200,210,3,191,95,202,119,77,120,254,
+                                   226,18,42,117,65,155,134,186,143,128,124,
+                                   195,255,187,93,150,51,158,10,94>>}],
+                           stage => boundary,
+                           primary_id =>
+                               <<110,52,11,156,255,179,122,152,156,165,68,230,
+                                 187,120,10,44,120,144,29,63,179,55,56,118,133,
+                                 17,163,6,23,175,160,29>>,
+                           operations => [{set_integer,0,8,big,128}]},
+                     builds =>
+                         #{efz_staged_parser =>
+                               <<76,83,200,210,3,191,95,202,119,77,120,254,
+                                 226,18,42,117,65,155,134,186,143,128,124,195,
+                                 255,187,93,150,51,158,10,94>>},
+                     outcome => {ok,signed_boundary},
+                     execution_ref =>
+                         {runtime_diagnostic,
+                             <<"#Ref<0.3228935888.1602486273.1292>">>},
+                     input_id =>
+                         <<118,190,139,82,141,0,117,247,170,233,141,111,165,
+                           122,109,60,131,174,72,10,132,105,230,104,215,176,
+                           175,150,137,149,172,113>>,
+                     retention_reason => new_coverage,
+                     new_probes =>
+                         [{efz_staged_parser,
+                              <<76,83,200,210,3,191,95,202,119,77,120,254,226,
+                                18,42,117,65,155,134,186,143,128,124,195,255,
+                                187,93,150,51,158,10,94>>,
+                              3}]},
+               added_at => 1788942952403}],
+        mutation_initial_corpus =>
+            [<<110,52,11,156,255,179,122,152,156,165,68,230,187,120,10,44,
+               120,144,29,63,179,55,56,118,133,17,163,6,23,175,160,29>>]},
+  legacy_example =>
+      #{status => completed,
+        stats =>
+            #{started_at => -576460751732,timeouts => 0,executions => 500,
+              infrastructure_failures => 0,calibrations => 1,crashes => 2,
+              discoveries => 5,rejections => 493,unique_crashes => 1}},
+  replay =>
+      #{input => <<66,79,79,77,33,0>>,
+        recipe =>
+            #{parent => 1,
+              primary => <<0>>,
+              dictionary_id =>
+                  <<103,23,188,247,26,102,33,144,85,23,71,45,116,223,174,165,
+                    175,22,13,8,122,181,138,154,56,83,115,59,169,0,63,208>>,
+              engine_version => 1,
+              config_id =>
+                  <<39,59,183,187,219,100,45,124,88,141,82,13,57,254,95,174,
+                    184,248,50,229,118,107,81,154,78,14,255,199,83,52,109,91>>,
+              limits =>
+                  #{max_input_bytes => 64,max_block_bytes => 16,
+                    max_token_bytes => 16,max_delta => 8},
+              operation_version => 1,
+              output_hash =>
+                  <<23,50,239,54,216,100,152,132,35,165,39,90,236,48,185,11,85,
+                    227,64,92,199,152,199,9,227,24,200,103,121,122,214,75>>,
+              output_size => 6,
+              rng => #{seed => {17,23,41},algorithm => exsplus},
+              schema_version => 1,
+              target_builds =>
+                  [{<<"efz_staged_parser">>,
+                    <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,42,
+                      117,65,155,134,186,143,128,124,195,255,187,93,150,51,
+                      158,10,94>>}],
+              stage => dictionary_insert,
+              primary_id =>
+                  <<110,52,11,156,255,179,122,152,156,165,68,230,187,120,10,44,
+                    120,144,29,63,179,55,56,118,133,17,163,6,23,175,160,29>>,
+              operations => [{dictionary_insert,0,<<"BOOM!">>}]},
+        recipe_file_sha256 =>
+            <<"5b1190ddb2ec3719b557e49f510437feb683f8546805a279b8ab9c116f662a47">>,
+        fresh_vm_test => <<"replayed 6 bytes\n">>,
+        explicit_fresh_vm_execution =>
+            <<"#{outcome =>\n      {crash,error,artificial_staged_exception,\n          [{efz_staged_parser,run,1,\n               [{file,\"examples/staged/efz_staged_parser.erl\"},{line,5}]},\n           {efz_executor,'-coordinate/6-fun-0-',5,\n               [{file,\"/home/fbogoslavskii/erl:fuzz/efz/src/efz_executor.erl\"},\n                {line,34}]}]},\n  coverage_status => ok,\n  builds =>\n      #{efz_staged_parser =>\n            <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,42,117,65,155,\n              134,186,143,128,124,195,255,187,93,150,51,158,10,94>>},\n  coverage =>\n      [{efz_staged_parser,\n           <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,42,117,65,155,\n             134,186,143,128,124,195,255,187,93,150,51,158,10,94>>,\n           2}],\n  elapsed_us => 238,execution_ref => #Ref<0.2107927090.1336410113.21859>,\n  target_outcome =>\n      {crash,error,artificial_staged_exception,\n          [{efz_staged_parser,run,1,\n               [{file,\"examples/staged/efz_staged_parser.erl\"},{line,5}]},\n           {efz_executor,'-coordinate/6-fun-0-',5,\n               [{file,\"/home/fbogoslavskii/erl:fuzz/efz/src/efz_executor.erl\"},\n                {line,34}]}]}}\n">>,
+        regeneration_command =>
+            "escript scripts/replay.escript docs/examples/staged-crash.recipe _build/from-docs.input",
+        regeneration_exit_status => 0,byte_comparison_exit_status => 0},
+  example_manifest =>
+      #{module => efz_staged_parser,
+        build_id =>
+            <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,42,117,65,155,
+              134,186,143,128,124,195,255,187,93,150,51,158,10,94>>,
+        schema_version => 1,
+        probes =>
+            [#{arity => 1,function => run,line => 4,column => 1,
+               source_file => "examples/staged/efz_staged_parser.erl",
+               structural_location => [{function,run,1},1],
+               kind => function_clause,probe_id => 1},
+             #{arity => 1,function => run,line => 5,column => 1,
+               source_file => "examples/staged/efz_staged_parser.erl",
+               structural_location => [{function,run,1},2],
+               kind => function_clause,probe_id => 2},
+             #{arity => 1,function => run,line => 6,column => 1,
+               source_file => "examples/staged/efz_staged_parser.erl",
+               structural_location => [{function,run,1},3],
+               kind => function_clause,probe_id => 3},
+             #{arity => 1,function => run,line => 7,column => 1,
+               source_file => "examples/staged/efz_staged_parser.erl",
+               structural_location => [{function,run,1},4],
+               kind => function_clause,probe_id => 4},
+             #{arity => 1,function => run,line => 8,column => 1,
+               source_file => "examples/staged/efz_staged_parser.erl",
+               structural_location => [{function,run,1},5],
+               kind => function_clause,probe_id => 5},
+             #{arity => 1,function => run,line => 9,column => 1,
+               source_file => "examples/staged/efz_staged_parser.erl",
+               structural_location => [{function,run,1},6],
+               kind => function_clause,probe_id => 6},
+             #{arity => 1,function => run,line => 10,column => 1,
+               source_file => "examples/staged/efz_staged_parser.erl",
+               structural_location => [{function,run,1},7],
+               kind => function_clause,probe_id => 7}],
+        instrumentation_version => 1,limitations => [],
+        metric => clause_outcome_probe,
+        toolchain =>
+            #{otp => "27",
+              compiler =>
+                  <<110,69,143,245,161,128,1,158,11,122,57,46,63,79,67,189>>}},
+  readme_snippet =>
+      #{exit_status => 0,
+        output =>
+            <<"/tmp/efz_phase3_readme.escript:25:1: Warning: the result of calling map_get/2 is ignored (suppress the warning by assigning the expression to the _ variable)\n%   25| maps:get(outcome, Replay),\n%     | ^\n\n/tmp/efz_phase3_readme.escript:25:1: Warning: the result of calling maps:get/2 is ignored (suppress the warning by assigning the expression to the _ variable)\n%   25| maps:get(outcome, Replay),\n%     | ^\n\n=INFO REPORT==== 9-Sep-2026::11:49:09.668838 ===\n    application: efz\n    exited: stopped\n    type: temporary\n\nREADME staged example and saved-byte replay passed.\n">>},
+  note =>
+      "Runtime references in reports are diagnostic strings, never recipe dependencies. Trace is omitted; source reports remain in _build. Final eunit includes the logging-level assertion; runtime source matches the measured benchmark."}.
