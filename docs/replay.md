@@ -300,3 +300,12 @@ durable corpus and staged parent-reuse tests cover the shared runtime path.
 Validated on the project's OTP 27 toolchain. Rebuilding with different target
 source/options/toolchain can change build identity and intentionally reject old
 execution expectations. Recipe byte reconstruction has its own versioned contract.
+
+## Runtime findings
+
+Runtime schema v1 is independent from crash expectations/recipes. Replay with
+`efz_replay:runtime(Directory, LocalTarget, Artifacts, #{runs=>3})` or
+`scripts/replay.escript --runtime-finding DIRECTORY --target MODULE --artifacts DIR
+--runs 3`. Identity/hash/policy checks precede the same executor; output distinguishes
+`observed`, `not_observed`, `inconclusive`, including sample count and repeatability.
+One successful repeat cannot disprove instability. [Full format and limits](runtime-diagnostics.md).

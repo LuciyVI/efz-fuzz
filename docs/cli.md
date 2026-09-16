@@ -146,3 +146,19 @@ the current build to avoid stale default-profile BEAMs, and uses an external
 ordinary harness with an automatically instrumented parser. It verifies raw
 input delivery, real coverage retention, both mutation modes, invalid paths and
 artifacts, callback errors, crash/timeout findings, and failure exit codes.
+
+## Automatic runtime diagnostics
+
+`--runtime-diagnostics` enables the core `runtime_oracles` policy (off by default).
+`--runtime-runs N` sets total seed/interesting/suspicious/failure runs, including
+original, 1..16; `--verification-budget N` caps extra executions across the campaign,
+0..1000000; `--sample-interval MS` sets 1..10000 ms. These value flags require the
+activation flag. All validation is shared with the core. Verification does not
+consume `--max-iterations`. Advanced thresholds/caps are available through the API
+namespaced map; unknown nested keys reject.
+
+Runtime observations are independent of crashes. Use `scripts/replay.escript
+--runtime-finding DIRECTORY --target MODULE --artifacts DIR --runs 3`, adding
+`--code-path` for an ordinary harness. Artifact content cannot select target code.
+CLI resolves module names from trusted local BEAMs without interning argument text.
+See [full schema and limits](runtime-diagnostics.md).

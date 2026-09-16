@@ -1,0 +1,13 @@
+Status: completed
+Stats: #{started_at => -576460751695,timeouts => 3,calibrations => 1,
+         coverage_broken_observations => 0,coverage_empty_executions => 0,
+         coverage_observed_executions => 1,coverage_unstarted_executions => 0,
+         crash_occurrences => 3,crashes => 0,discoveries => 0,executions => 0,
+         infrastructure_failures => 0,rejections => 0,
+         runtime_max_buffer_bytes => 11904,runtime_missed_executions => 0,
+         runtime_sampled_executions => 3,runtime_sampling_us => 3579,
+         unique_crashes => 1,verification_completed => 2,
+         verification_elapsed_us => 204735,verification_executions => 2,
+         verification_failed => 0,verification_requested => 2,
+         verification_skipped => 0,verification_valid => 2}
+Report: /home/fbogoslavskii/erl:fuzz/efz/_build/runtime-demo-final/out/report.term

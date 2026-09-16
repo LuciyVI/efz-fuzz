@@ -11,13 +11,14 @@ init(C) ->
         per_execution -> reference;
         prepared ->
             {ok, Plan} = efz_cov_manifest:prepare(maps:get(coverage, C), maps:get(manifests, C)),
-            (maps:with([coverage, coverage_backend, max_input_bytes, execution_identities], C))#{coverage_plan => Plan}
+            (maps:with([runtime_oracles, coverage, coverage_backend, max_input_bytes, execution_identities], C))#{coverage_plan => Plan}
     end,
     MutationState = case maps:get(mutation_mode,C) of
         random->undefined; staged->efz_mutation_plan:new(maps:get(mutation,C))
     end,
     self() ! iterate,
     {ok, C#{pending_seeds => efz_corpus:all(), feedback => efz_feedback:new(Builds),
+            verification_used=>0,runtime_store=>efz_runtime_store:new(),runtime_checks=>[],runtime_checks_dropped=>0,
             iteration => 0, decisions => [], crash_groups => #{}, crash_order => [],
             executor_options => ExecutorOptions, phase => calibration, mutation_state=>MutationState,
             mutation_trace=>[],trace_count=>0,coverage_seen=>sets:new(),coverage_empty=>0,coverage_broken=>0,coverage_unstarted=>0,
@@ -71,9 +72,12 @@ execute(Input, Parent, Phase, S) ->
         ok -> execute_checked(Input,Parent,Phase,S1);
         {error,Why} -> infrastructure(Why,S1)
     end.
+executor_reference_options(S)->maps:with([runtime_oracles,coverage,coverage_backend,
+    max_input_bytes,execution_identities,manifests],S).
 execute_checked(Input, Parent, Phase, S0 = #{target := M, timeout := T, feedback := F}) ->
-    Options = case maps:get(executor_options, S0) of reference -> S0; Prepared -> Prepared end,
-    Result = efz_executor:run(M, Input, T, Options),
+    Options = case maps:get(executor_options, S0) of reference -> executor_reference_options(S0); Prepared -> Prepared end,
+    Result = efz_executor:run(M, Input, T, Options#{execution_origin=>Phase}),
+    runtime_stats(Result),
     S = observed(Result,S0#{failure_context=>(maps:get(failure_context,S0))#{result=>Result}}),
     notify_context(maps:get(failure_context,S),S),
     execute_result(Input, Parent, Phase, Result, F, S).
@@ -85,7 +89,7 @@ execute_result(Input, Parent, Phase, Result, F, S) ->
         {ok, F1, Decision} ->
             Meta = Decision#{parent => maps:get(id, Parent), execution_ref => maps:get(execution_ref, Result),
                              input_id => crypto:hash(sha256, Input), builds => maps:get(builds, Result),
-                             phase => Phase, outcome => maps:get(outcome, Result),
+                             phase => Phase, origin => Phase, outcome => maps:get(outcome, Result),
                              execution_identities=>maps:get(execution_identities,S),
                              coverage_observation=>maps:get(coverage_observation,Result,#{})},
             WithMutation=case {Phase,maps:find(current_recipe,S)} of
@@ -99,7 +103,106 @@ execute_result(Input, Parent, Phase, Result, F, S) ->
 accepted(Input, Result, Meta1, F1, S) ->
     case record_failure(Input, Result, Meta1, S#{feedback => F1}) of
         {error,Why,S1} -> infrastructure(Why,S1);
-        {ok,S1} -> accepted_success(Meta1,S1)
+        {ok,S1} -> runtime_check(Input,Result,Meta1,S1)
+    end.
+runtime_check(Input,Result,Meta,S=#{runtime_oracles:=#{enabled:=true}=P}) ->
+    St=maps:get(stability,P),Cats=efz_runtime:categories(Result),
+    Reason=maps:get(retention_reason,Meta),
+    Key=case maps:get(phase,Meta) of
+        calibration->seed_runs;
+        mutation->case Reason of
+            target_failure->failure_runs;
+            _->case Cats--[descendant_activity] of
+                [_|_]->suspicious_runs;
+                []->case maps:get(new_probes,Meta,[]) of []->none;_->interesting_runs end
+            end
+        end
+    end,
+    Requested=case maps:get(enabled,St) andalso Key=/=none of true->maps:get(Key,St);false->1 end,
+    efz_stats:add(verification_requested,Requested-1),
+    Left=max(0,maps:get(max_extra_executions,St)-maps:get(verification_used,S)),
+    Begin=erlang:monotonic_time(microsecond),
+    Rows=[efz_stability:snapshot(Result,P)],
+    case verify(Input,Meta,min(Requested-1,Left),Rows,S) of
+        {Status,All,S1}->
+            Summary=efz_stability:summarize(All,Requested),
+            efz_stats:add(verification_skipped,maps:get(skipped,Summary)),
+            Admissible=[R||R<-All,maps:get(completed,R)],
+            RuntimeCats=lists:usort(lists:append([maps:get(categories,maps:get(runtime,R),[])||R<-Admissible])),
+            Categories=lists:usort(RuntimeCats++maps:get(categories,Summary)),
+            Reproductions=maps:from_list([{C,length([ok||R<-Admissible,lists:member(C,maps:get(categories,maps:get(runtime,R),[]))])}||C<-RuntimeCats]),
+            Check=Summary#{input_hash=>crypto:hash(sha256,Input),origin=>maps:get(phase,Meta),reproductions=>Reproductions,
+                diagnostic_us=>erlang:monotonic_time(microsecond)-Begin},
+            S2=remember_check(Check,S1),
+            Stored=save_runtime(Categories,Input,Result,Meta,Check,S2),
+            efz_stats:add(runtime_diagnostic_us,erlang:monotonic_time(microsecond)-Begin),
+            case Stored of
+                {ok,S3}->case Status of ok->accepted_success(Meta,S3);{error,Why}->infrastructure(Why,S3) end;
+                {error,Why,S3}->case Status of
+                    ok->infrastructure(Why,S3);
+                    {error,Primary}->infrastructure(Primary,S3#{runtime_storage_error=>Why}) end
+            end
+    end;
+runtime_check(_,_,Meta,S)->accepted_success(Meta,S).
+verify(_,_,0,Rows,S)->{ok,lists:reverse(Rows),S};
+verify(Input,Meta,N,Rows,S=#{runtime_oracles:=P,target:=M,timeout:=T})->
+    O=case maps:get(executor_options,S) of reference->executor_reference_options(S);Prepared->Prepared end,
+    VContext=(maps:get(failure_context,S))#{phase=>verification,origin=>verification},
+    notify_context(maps:remove(result,VContext),S),
+    R=efz_executor:run(M,Input,T,O#{execution_origin=>verification}),
+    efz_stats:inc(verification_executions),
+    efz_stats:add(verification_elapsed_us,maps:get(elapsed_us,R,0)),
+    runtime_stats(R),
+    S1=S#{verification_used=>maps:get(verification_used,S)+1,failure_context=>VContext#{result=>R}},
+    notify_context(maps:get(failure_context,S1),S1),
+    Next=[efz_stability:snapshot(R,P)|Rows],
+    case efz_stability:failure(R) of
+        {error,Why}->efz_stats:inc(verification_failed),{ {error,Why},lists:reverse(Next),
+            S1#{failure_context=>(maps:get(failure_context,S1))#{origin=>verification,result=>R}}};
+        ok->
+            efz_stats:inc(verification_completed),
+            case efz_stability:usable(R) of true->efz_stats:inc(verification_valid);false->ok end,
+            VMeta=Meta#{origin=>verification,phase=>verification,outcome=>maps:get(outcome,R),
+                execution_ref=>maps:get(execution_ref,R),new_probes=>[],retention_reason=>target_failure},
+            SavedDecision=maps:get(crash_decision,S1,false),
+            case record_failure(Input,R,VMeta,S1) of
+                {ok,S2}->verify(Input,Meta,N-1,Next,S2#{crash_decision=>SavedDecision});
+                {error,Why,S2}->{{error,Why},lists:reverse(Next),S2}
+            end
+    end.
+runtime_stats(#{runtime_observations:=R})->
+    case maps:get(sampling_status,R) of
+        sampled->efz_stats:inc(runtime_sampled_executions);
+        not_sampled->efz_stats:inc(runtime_missed_executions);
+        disabled->ok end,
+    efz_stats:add(runtime_sampling_us,maps:get(sampling_us,R)),
+    efz_stats:add(runtime_max_buffer_bytes,maps:get(diagnostic_buffer_bytes,R));
+runtime_stats(_)->ok.
+remember_check(Check,S)->
+    %% Summaries are bounded independently from disk. Probe arrays may be large;
+    %% enforce byte quota before retaining them in the report.
+    Limit=maps:get(max_total_metadata_bytes,maps:get(storage,maps:get(runtime_oracles,S))),
+    Size=erlang:external_size(Check),Used=maps:get(runtime_report_bytes,S,0),
+    case length(maps:get(runtime_checks,S))<128 andalso Used+Size=<Limit of
+        true->S#{runtime_checks=>[Check|maps:get(runtime_checks,S)],runtime_report_bytes=>Used+Size};
+        false->S#{runtime_checks_dropped=>maps:get(runtime_checks_dropped,S)+1}
+    end.
+save_runtime([],_,_,_,_,S)->{ok,S};
+save_runtime([Cat|Rest],Input,Result,Meta,Check,S)->
+    P=maps:get(runtime_oracles,S),
+    #{harness:=HI}=maps:get(execution_identities,Result),
+    Harness=(maps:with([beam_md5,attributes_sha256,build_id],HI))#{module=>atom_to_binary(maps:get(module,HI),utf8)},
+    Origin=case lists:member(Cat,efz_runtime:categories(Result)) orelse
+        lists:member(Cat,maps:get(categories,Check)) of true->maps:get(phase,Meta);false->verification end,
+    Record=#{coverage_mode=>maps:get(coverage,S),category=>Cat,scope=>target_owned,origin=>Origin,harness=>Harness,
+        target_builds=>efz_recipe:build_ids(maps:get(builds,Result)),policy=>P,
+        max_input_bytes=>maps:get(max_input_bytes,S),timeout=>maps:get(timeout,S),
+        original_outcome=>efz_runtime_store:portable(efz_stability:outcome(maps:get(outcome,Result))),
+        evidence=>efz_runtime_store:portable(Check),mutation=>maps:get(mutation,Meta,undefined)},
+    Dir=filename:join(filename:dirname(maps:get(crash_dir,S)),"runtime-findings"),
+    case efz_runtime_store:save(Dir,Input,Record,maps:get(storage,P),maps:get(runtime_store,S)) of
+        {ok,Store}->save_runtime(Rest,Input,Result,Meta,Check,S#{runtime_store=>Store});
+        {error,Why}->{error,Why,S}
     end.
 accepted_success(Meta1,S1) ->
     %% Bound report memory: retain decisions that explain calibration,
@@ -191,7 +294,11 @@ finish(Status0, S) ->
                crash_policy=>maps:get(crash_policy,S),
                crashes => [maps:get(Id,maps:get(crash_groups,S))||Id<-lists:reverse(maps:get(crash_order,S))],
                coverage => lists:sort(sets:to_list(maps:get(global, maps:get(feedback, S))))},
-    Base = maps:merge(Base0,maps:with([failure_context],S)),
+    RuntimeReport=case maps:get(enabled,maps:get(runtime_oracles,S)) of
+        false->#{};true->#{runtime_diagnostics=>#{policy=>maps:get(runtime_oracles,S),
+            verification_executions=>maps:get(verification_used,S),checks=>lists:reverse(maps:get(runtime_checks,S)),
+            checks_dropped=>maps:get(runtime_checks_dropped,S),findings=>efz_runtime_store:report(maps:get(runtime_store,S))}} end,
+    Base = maps:merge(maps:merge(Base0,RuntimeReport),maps:with([failure_context,runtime_storage_error],S)),
     WithCorpus=case maps:find(corpus_store,S) of
         error->Base;
         {ok,Store}->Base#{corpus_restore=>maps:with([dir,build_policy,restored_inputs,diagnostics],Store)}

@@ -1,6 +1,6 @@
 %% Filesystem/argument adapter only. The existing campaign owns all fuzzing work.
 -module(efz_cli).
--export([main/1]).
+-export([main/1, local_target/2]).
 
 main(Args) ->
     try
@@ -28,6 +28,10 @@ help() ->
     "  --timeout MS             Per-input timeout, nonnegative integer (default: 100)\n"
     "  --max-iterations N       Mutation execution limit (default: 1000)\n"
     "  --max-input-bytes N      Campaign/replay input bound, 0..1048576 (default: 4096)\n"
+    "  --runtime-diagnostics    Enable automatic runtime observations and bounded verification\n"
+    "  --runtime-runs N         Total runs per selected input, including original (1..16)\n"
+    "  --verification-budget N  Maximum extra executions (0..1000000)\n"
+    "  --sample-interval MS     Process sampling interval (1..10000)\n"
     "  --help                   Show this help\n"
     "\nSeed directories are not recursive; subdirectories are ignored. Empty files are valid seeds;\n"
     "a directory without seed files is an error.\n"
@@ -36,6 +40,10 @@ help() ->
 
 parse([], Options) -> Options;
 parse(["--help"], _) -> help;
+parse(["--runtime-diagnostics"|Rest],Options) ->
+    case maps:is_key(runtime_enabled,Options) of
+        true->fail("Duplicate option: --runtime-diagnostics",[]);
+        false->parse(Rest,Options#{runtime_enabled=>true}) end;
 parse([Option | Rest], Options) ->
     Key = option(Option),
     case Rest of
@@ -50,6 +58,9 @@ parse([Option | Rest], Options) ->
                 end
             end
     end.
+option("--runtime-runs") -> runtime_runs;
+option("--verification-budget") -> verification_budget;
+option("--sample-interval") -> sample_interval;
 option("--target") -> target;
 option("--seeds") -> seeds;
 option("--corpus-dir") -> corpus_dir;
@@ -63,7 +74,7 @@ option("--timeout") -> timeout;
 option("--max-iterations") -> max_iterations;
 option("--max-input-bytes") -> max_input_bytes;
 option(Unknown) -> fail("Unknown option: ~ts (use --help)", [Unknown]).
-value(target, Name) when Name =/= [], length(Name) =< 255 -> list_to_atom(Name);
+value(target, Name) when Name =/= [], length(Name) =< 255 -> Name;
 value(target, _) -> fail("--target must be a module name of 1..255 characters", []);
 value(mutation_mode, "staged") -> staged;
 value(mutation_mode, "random") -> random;
@@ -74,13 +85,16 @@ value(corpus_build_policy, _) -> fail("--corpus-build-policy must be reject or r
 value(coverage_policy, "diagnostic") -> diagnostic;
 value(coverage_policy, "strict") -> strict;
 value(coverage_policy, _) -> fail("--coverage-policy must be diagnostic or strict", []);
-value(K, Text) when K =:= timeout; K =:= max_iterations; K =:= max_input_bytes ->
+value(K, Text) when K =:= timeout; K =:= max_iterations; K =:= max_input_bytes; K =:= runtime_runs; K =:= verification_budget; K =:= sample_interval ->
     case Text =/= [] andalso lists:all(fun(C) -> C >= $0 andalso C =< $9 end, Text) of
         true -> list_to_integer(Text);
         false -> fail("~ts must be a nonnegative integer", [flag(K)])
     end;
 value(_, []) -> fail("Directory arguments must not be empty", []);
 value(_, Text) -> Text.
+flag(runtime_runs) -> "--runtime-runs";
+flag(verification_budget) -> "--verification-budget";
+flag(sample_interval) -> "--sample-interval";
 flag(timeout) -> "--timeout";
 flag(max_iterations) -> "--max-iterations";
 flag(max_input_bytes) -> "--max-input-bytes".
@@ -104,7 +118,12 @@ launch(O) ->
     end,
     Artifacts = require(efz_instrument:discover(maps:get(artifacts, O)), "Invalid artifacts"),
     Mode = maps:get(mutation_mode, O, staged),
-    C0 = #{target => maps:get(target, O), seeds => Seeds, artifacts => Artifacts,
+    Target=case local_target(maps:get(target,O),Artifacts) of
+        {ok,Local}->Local;
+        {error,local_target_not_found}->fail("target module ~ts could not be loaded; use --code-path for ordinary BEAM files",[maps:get(target,O)]);
+        {error,TargetError}->fail("Invalid local target: ~tp",[TargetError]) end,
+    Runtime=runtime_options(O),
+    C0 = #{target => Target, runtime_oracles=>Runtime, seeds => Seeds, artifacts => Artifacts,
            mutation_mode => Mode, timeout => maps:get(timeout, O, 100),
            max_iterations => maps:get(max_iterations, O, 1000)},
     C = C0#{max_input_bytes => Max},
@@ -189,3 +208,32 @@ require({ok, Value}, _) -> Value;
 require({error, Why}, Context) -> fail("~ts: ~tp", [Context, Why]).
 -spec fail(string(), [term()]) -> no_return().
 fail(Format, Args) -> throw({cli_error, io_lib:format(Format, Args)}).
+
+runtime_options(O)->
+    Has=lists:any(fun(K)->maps:is_key(K,O) end,[runtime_runs,verification_budget,sample_interval]),
+    case Has andalso not maps:get(runtime_enabled,O,false) of
+        true->fail("Runtime options require --runtime-diagnostics",[]);false->ok end,
+    N=maps:get(runtime_runs,O,3),I=maps:get(sample_interval,O,20),
+    #{enabled=>maps:get(runtime_enabled,O,false),
+      stability=>#{seed_runs=>N,interesting_runs=>N,suspicious_runs=>N,failure_runs=>N,
+          max_extra_executions=>maps:get(verification_budget,O,1000)},
+      resources=>#{sample_interval_ms=>I},hangs=>#{max_sample_age_ms=>max(100,I)}}.
+%% Only trusted local BEAM files can introduce module atoms. CLI text is never interned.
+local_target(Name,Artifacts) when is_list(Name),Name=/=[],length(Name)=<255->
+    case lists:all(fun(C)->(C>=$a andalso C=<$z) orelse (C>=$A andalso C=<$Z) orelse
+                          (C>=$0 andalso C=<$9) orelse C=:=$_ orelse C=:=$@ end,Name) of
+        false->{error,invalid_target_name};
+        true->case efz_instrument:preflight(Artifacts) of
+            {ok,Ms}->case [maps:get(module,M)||M<-Ms,atom_to_list(maps:get(module,M))=:=Name] of
+                [M]->{ok,M};
+                []->case code:where_is_file(Name++".beam") of
+                    non_existing->{error,local_target_not_found};
+                    File->case code:load_abs(filename:rootname(File)) of
+                        {module,M}->case atom_to_list(M)=:=Name of true->{ok,M};false->{error,target_name_mismatch} end;
+                        Error->Error end
+                end
+            end;
+            Error->Error
+        end
+    end;
+local_target(_,_) -> {error,invalid_target_name}.

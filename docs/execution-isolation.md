@@ -195,3 +195,11 @@ coverage, crash/replay и `A → AB → ABC` продолжают проверя
 исходную причину, `guardian_failure` описывает вторичную, а `execution_evidence`
 сохраняет исходный cleanup/coverage. Runner retired, следующий target не запускается.
 В production нет опции fault injection.
+
+## Optional runtime observations
+
+P0 samples only guardian-admitted processes and their ETS owners. It adds a bounded
+sampler monitor/lifecycle to this guardian; ownership/start gates/trace barriers
+and dirty-runner rules remain authoritative. Sampler failure is partial diagnostic
+evidence; guardian or unconfirmed lifecycle failure still retires the VM. Cleanup
+kills do not constitute process leaks. See [runtime diagnostics](runtime-diagnostics.md).

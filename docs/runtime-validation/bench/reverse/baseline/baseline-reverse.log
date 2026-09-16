@@ -1,0 +1,55 @@
+=INFO REPORT==== 16-Sep-2026::12:30:06.323059 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 16-Sep-2026::12:30:10.300456 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 16-Sep-2026::12:30:14.159743 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 16-Sep-2026::12:30:18.131116 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 16-Sep-2026::12:30:22.429931 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 16-Sep-2026::12:30:26.904458 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+baseline [#{wall_us => 3974325,mutation_executions => 1000,
+            calibration_executions => 1,verification_executions => 0,
+            verification_elapsed_us => 0,diagnostic_us => 0,sampling_us => 0,
+            sampled => 0,missed => 0,max_buffer_bytes => 0,
+            mutation_per_second => 251.6150541286885},
+          #{wall_us => 3859247,mutation_executions => 1000,
+            calibration_executions => 1,verification_executions => 0,
+            verification_elapsed_us => 0,diagnostic_us => 0,sampling_us => 0,
+            sampled => 0,missed => 0,max_buffer_bytes => 0,
+            mutation_per_second => 259.1179056432511},
+          #{wall_us => 3971443,mutation_executions => 1000,
+            calibration_executions => 1,verification_executions => 0,
+            verification_elapsed_us => 0,diagnostic_us => 0,sampling_us => 0,
+            sampled => 0,missed => 0,max_buffer_bytes => 0,
+            mutation_per_second => 251.79764634668055},
+          #{wall_us => 4298779,mutation_executions => 1000,
+            calibration_executions => 1,verification_executions => 0,
+            verification_elapsed_us => 0,diagnostic_us => 0,sampling_us => 0,
+            sampled => 0,missed => 0,max_buffer_bytes => 0,
+            mutation_per_second => 232.62419398624587},
+          #{wall_us => 4474540,mutation_executions => 1000,
+            calibration_executions => 1,verification_executions => 0,
+            verification_elapsed_us => 0,diagnostic_us => 0,sampling_us => 0,
+            sampled => 0,missed => 0,max_buffer_bytes => 0,
+            mutation_per_second => 223.48666008125974}]

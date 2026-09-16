@@ -12,6 +12,7 @@ main(Args) ->
 help() ->
     "Usage: replay.escript --input FILE.input | --recipe FILE.recipe\n"
     "       --target MODULE --artifacts DIR [--code-path DIR] [--expect FILE.replay]\n"
+    "       Or: --runtime-finding DIRECTORY --target MODULE --artifacts DIR [--runs N]\n"
     "       [--timeout MS] [--max-input-bytes N]\n"
     "Expected build, harness identity and crash signature are required; default expectation\n"
     "is the sibling .replay file. Raw .input is authoritative and does not need .recipe/.term.\n"
@@ -21,14 +22,15 @@ help() ->
 parse([],O)->O;
 parse([Flag,Value|Rest],O)->
     Key=case Flag of
+        "--runtime-finding"->runtime_finding;"--runs"->runs;
         "--input"->raw;"--recipe"->recipe;"--target"->target;"--artifacts"->artifacts;
         "--expect"->expect;"--code-path"->code_paths;"--timeout"->timeout;
         "--max-input-bytes"->max_input_bytes;_->usage("Unknown option: "++Flag)
     end,
     case Value of "--"++_->usage("Missing value: "++Flag);[]->usage("Empty value: "++Flag);_->ok end,
     V=case Key of
-        timeout->number(Value);max_input_bytes->number(Value);
-        target when length(Value)=<255->list_to_atom(Value);
+        runs->number(Value);timeout->number(Value);max_input_bytes->number(Value);
+        target when length(Value)=<255->Value;
         target->usage("Target module name is too long");_->Value
     end,
     case Key of
@@ -38,7 +40,21 @@ parse([Flag,Value|Rest],O)->
 parse(_,_) -> usage("Missing option value; use --help").
 number(S)->case S=/=[] andalso lists:all(fun(C)->C>=$0 andalso C=<$9 end,S) of
     true->list_to_integer(S);false->usage("Expected nonnegative integer") end.
+launch(#{runtime_finding:=Path}=O)->
+    case maps:keys(O)--[runtime_finding,target,artifacts,code_paths,runs] of
+        []->ok;_->usage("Runtime replay accepts only --runtime-finding, --target, --artifacts, --code-path, --runs") end,
+    lists:foreach(fun(P)->true=code:add_pathz(filename:absname(P)) end,maps:get(code_paths,O,[])),
+    case maps:is_key(target,O) andalso maps:is_key(artifacts,O) of
+        false->usage("--target and --artifacts are required");true->ok end,
+    case efz_instrument:discover(maps:get(artifacts,O)) of
+        {ok,As}->case efz_cli:local_target(maps:get(target,O),As) of
+            {ok,M}->case efz_replay:runtime(Path,M,As,maps:with([runs],O)) of
+                {ok,R}->io:format("~tp~n",[R]),case maps:get(status,R) of observed->0;_->3 end;
+                Error->result(Error) end;
+            Error->result(Error) end;
+        Error->result(Error) end;
 launch(O)->
+    case maps:is_key(runs,O) of true->usage("--runs requires --runtime-finding");false->ok end,
     case [K||K<-[target,artifacts],not maps:is_key(K,O)] of
         []->ok;_->usage("--target and --artifacts are required") end,
     {Kind,Path}=case {maps:find(raw,O),maps:find(recipe,O)} of
@@ -48,7 +64,9 @@ launch(O)->
         maps:get(code_paths,O,[])),
     ExpectPath=maps:get(expect,O,filename:rootname(Path)++".replay"),
     case {efz_replay:load(ExpectPath),efz_instrument:discover(maps:get(artifacts,O))} of
-        {{ok,E},{ok,As}} -> result(efz_replay:run(Kind,Path,maps:get(target,O),As,E,maps:with([timeout,max_input_bytes],O)));
+        {{ok,E},{ok,As}} -> case efz_cli:local_target(maps:get(target,O),As) of
+            {ok,M}->result(efz_replay:run(Kind,Path,M,As,E,maps:with([timeout,max_input_bytes],O)));
+            Error->result(Error) end;
         {{error,Why},_}->rejected(Why);
         {_,{error,Why}}->rejected(Why)
     end.

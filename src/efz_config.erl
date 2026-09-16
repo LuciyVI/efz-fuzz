@@ -2,7 +2,9 @@
 -export([defaults/0, prepare/1]).
 
 defaults() -> #{max_input_bytes => efz_input:default_limit(), timeout => 100, workers => 1, mutator => efz_mutator_random, mutation_mode => random,
-                coverage => automatic, coverage_backend => ets, coverage_validation => prepared, coverage_policy => diagnostic, max_iterations => infinity,
+                coverage => automatic, coverage_backend => ets,
+                coverage_validation => prepared, coverage_policy => diagnostic, max_iterations => infinity,
+                runtime_oracles => efz_runtime_config:defaults(),
                 crash_dir => "_build/efz-crashes",crash_policy=>efz_crash:defaults()}.
 prepare(C0) when is_map(C0) ->
     Allowed = maps:keys(defaults()) ++ [target, seeds, artifacts, mutation, random_seed, selection_seed,
@@ -32,7 +34,8 @@ prepare_known(C0) ->
 prepare_inputs(C) ->
     case [E || B <- maps:get(seeds,C), {error,E} <- [efz_input:check(B,maps:get(max_input_bytes,C),initial_seed)]] of
         [] -> case efz_crash:prepare(maps:get(crash_policy,C)) of
-            {ok,P}->prepare_mutation(C#{crash_policy=>P}); Error->Error end;
+            {ok,P}->case efz_runtime_config:prepare(maps:get(runtime_oracles,C)) of
+                {ok,R}->prepare_mutation(C#{crash_policy=>P,runtime_oracles=>R}); Error->Error end; Error->Error end;
         [Why|_] -> {error,Why}
     end.
 prepare_mutation(#{mutation_mode:=random}=C) ->
@@ -64,6 +67,7 @@ valid_field(coverage, V) -> lists:member(V, [automatic, manual]);
 valid_field(coverage_backend, V) -> lists:member(V, [ets, ets_member]);
 valid_field(coverage_validation, V) -> lists:member(V, [per_execution, prepared]);
 valid_field(coverage_policy, V) -> lists:member(V, [diagnostic, strict]);
+valid_field(runtime_oracles,V) -> is_map(V);
 valid_field(crash_policy,V) -> is_map(V);
 valid_field(artifacts, V) -> is_list(V) andalso lists:all(fun is_map/1, V);
 valid_field(corpus_dir, V) -> valid_field(crash_dir, V);

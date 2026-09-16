@@ -1,0 +1,14 @@
+Status: completed
+Stats: #{started_at => -576460751760,timeouts => 0,calibrations => 1,
+         coverage_broken_observations => 0,coverage_empty_executions => 0,
+         coverage_observed_executions => 11,
+         coverage_unstarted_executions => 0,crash_occurrences => 0,
+         crashes => 0,discoveries => 2,executions => 10,
+         infrastructure_failures => 0,rejections => 8,
+         runtime_max_buffer_bytes => 2648,runtime_missed_executions => 17,
+         runtime_sampled_executions => 0,runtime_sampling_us => 0,
+         unique_crashes => 0,verification_completed => 6,
+         verification_elapsed_us => 6955,verification_executions => 6,
+         verification_failed => 0,verification_requested => 6,
+         verification_skipped => 0,verification_valid => 6}
+Report: /home/fbogoslavskii/erl:fuzz/efz/_build/runtime-existing/out/report.term

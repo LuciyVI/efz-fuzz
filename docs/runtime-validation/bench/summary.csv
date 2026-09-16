@@ -1,0 +1,6 @@
+mode,median_mutation_per_second,min_mutation_per_second,max_mutation_per_second,median_wall_us,mutations,calibrations,verification,verification_us,diagnostic_us,sampling_us,sampled,missed,buffer_bytes,long_wall_us,long_samples,long_sampling_us,long_buffer_bytes
+baseline,279.541,236.060,372.694,3577289,1000,1,0,0,0,0,0,0,0,166522,0,0,0
+off,217.564,182.663,227.376,4596343,1000,1,0,0,0,0,0,0,0,164697,0,0,0
+stability,219.617,212.079,224.002,4553381,1000,1,4,4354,52365,0,0,0,2648,166496,0,0,2648
+resources,205.419,179.078,225.502,4868091,1000,1,0,0,38261,0,0,1001,2648,167436,7,1004,7008
+full,194.875,176.848,216.915,5131483,1000,1,4,3969,52604,0,0,1005,2648,166110,7,534,7008
