@@ -44,7 +44,8 @@ start(Caller, Request, M, Input, Timeout, Options) ->
         coordinator_alive=>true,alive=>#{},seen=>#{},barriers=>#{},code_drained=>false,phase=>running,
         violations=>[],attached=>#{},observed_probes=>sets:new(),coverage_failure=>ok,options=>Options,timeout=>Timeout,
         started=>erlang:monotonic_time(microsecond),baseline=>shared_state()},
-    {Root,S1} = admit(fun() -> efz_executor:invoke(M,Input,Context,Coordinator) end,S0),
+    Runtime=efz_runtime:start(Options),
+    {Root,S1} = admit(fun() -> efz_executor:invoke(M,Input,Context,Coordinator) end,S0#{runtime=>Runtime}),
     Coordinator ! {coordinate,Root,Context},
     loop(S1#{root=>Root,deadline=>now_ms()+Timeout}).
 
@@ -64,7 +65,8 @@ admit(Fun, S=#{context:=Context,capability:=Capability,session:=Session,alive:=A
     %% The gate is closed while tracing and the ownership record are installed.
     ok=efz_cov_integrity:admit(Pid,Context),
     1 = trace:process(Session,Pid,true,[procs,set_on_spawn,call]),
-    {Pid,S#{alive=>Alive#{Pid=>Mon},seen=>Seen#{Pid=>controlled}}}.
+    {Pid,S#{alive=>Alive#{Pid=>Mon},seen=>Seen#{Pid=>controlled},
+        runtime=>efz_runtime:admit(Pid,maps:get(runtime,S))}}.
 
 loop(S=#{phase:=cleaning,alive:=Alive,barriers:=Barriers,coordinator_alive:=false})
   when map_size(Alive)=:=0, map_size(Barriers)=:=0 ->
@@ -73,7 +75,9 @@ loop(S=#{phase:=cleaning,alive:=Alive,barriers:=Barriers,coordinator_alive:=fals
     case maps:get(code_drained,S) of
         false -> Ref=trace:delivered(maps:get(session,S),all),
                  loop(S#{code_drained=>true,barriers=>#{Ref=>all}});
-        true -> finish(S,confirmed)
+        true -> case maps:get(runtime,S) of
+            #{alive:=true}->wait_event(S,maps:get(deadline,S));
+            _->finish(S,confirmed) end
     end;
 loop(S=#{deadline:=Deadline}) ->
     %% Check the clock even with a continuously nonempty mailbox. A spawn
@@ -114,13 +118,16 @@ loop_event({'DOWN',Mon,process,_,Why},S=#{coordinator_mon:=Mon}) ->
         running -> loop(cleanup({infrastructure,{coordinator_down,Why}},Next));
         cleaning -> loop(Next)
     end;
-loop_event({'DOWN',Mon,process,Pid,_},S=#{alive:=Alive,barriers:=Barriers,session:=Session}) ->
+loop_event({'DOWN',Mon,process,_,Why},S=#{runtime:=#{mon:=Mon}=R}) ->
+    loop(S#{runtime=>efz_runtime:sampler_down(Why,R)});
+loop_event({'DOWN',Mon,process,Pid,Why},S=#{alive:=Alive,barriers:=Barriers,session:=Session}) ->
     case maps:find(Pid,Alive) of
         {ok,Mon} ->
             %% DOWN alone does not drain dislocated spawn traces. Each dead
             %% process gets its own barrier, including children found late.
             Ref=trace:delivered(Session,Pid),
-            loop(S#{alive=>maps:remove(Pid,Alive),barriers=>Barriers#{Ref=>Pid}});
+            loop(S#{alive=>maps:remove(Pid,Alive),barriers=>Barriers#{Ref=>Pid},
+                runtime=>efz_runtime:down(Pid,Why,maps:get(phase,S),maps:get(runtime,S))});
         _ -> loop(S)
     end;
 loop_event({trace_delivered,Pid,Ref},S=#{barriers:=Bs}) ->
@@ -157,7 +164,8 @@ cleanup(Outcome,S=#{alive:=Alive,coordinator:=C}) ->
     %% subsequent admission requests are refused, including nested requests.
     maps:foreach(fun(P,_)->exit(P,kill) end,Alive),
     exit(C,kill),
-    S#{phase=>cleaning,outcome=>Outcome,deadline=>now_ms()+?CLEANUP_MS}.
+    S#{phase=>cleaning,outcome=>Outcome,deadline=>now_ms()+?CLEANUP_MS,
+       runtime=>efz_runtime:stop(maps:get(runtime,S))}.
 violation(Why,S=#{violations:=Vs}) -> S#{violations=>lists:usort([Why|Vs])}.
 
 finish(S,ProcessStatus) ->
@@ -176,6 +184,8 @@ finish(S,ProcessStatus) ->
     end,
     Observation=efz_cov_integrity:observation(Hits,CovStatus,Attached),
     ok=efz_cov:close(Context),ok=efz_cov_integrity:close(), _=trace:session_destroy(Session),
+    Runtime=efz_runtime:finish(maps:get(runtime,S),maps:get(outcome,S),
+        #{status=>ProcessStatus,survivors=>maps:keys(maps:get(alive,S))}),
     Changes=shared_changes(Before,shared_state()),
     Violations=lists:usort(maps:get(violations,S)++Changes),
     Reusable=ProcessStatus=:=confirmed andalso Violations=:=[],
@@ -199,7 +209,7 @@ finish(S,ProcessStatus) ->
         elapsed_us=>erlang:monotonic_time(microsecond)-maps:get(started,S),
         execution_model=>controlled_descendants,cleanup=>Cleanup,runner_reusable=>Reusable},
     demonitor(maps:get(caller_mon,S),[flush]),
-    reply(maps:get(caller,S),maps:get(request,S),Result).
+    reply(maps:get(caller,S),maps:get(request,S),maps:merge(Result,Runtime)).
 
 %% This detects persistent_term/env changes and new escaped ETS tables. It is
 %% NOT a transaction or a sandbox: arbitrary existing shared ETS writes, ports,

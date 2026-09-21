@@ -1,0 +1,15 @@
+Status: completed
+Stats: #{started_at => -576460751600,timeouts => 0,calibrations => 1,
+         coverage_broken_observations => 0,coverage_empty_executions => 0,
+         coverage_observed_executions => 11,
+         coverage_unstarted_executions => 0,crash_occurrences => 3,
+         crashes => 3,discoveries => 2,executions => 10,
+         infrastructure_failures => 0,rejections => 7,
+         runtime_diagnostic_us => 58051,runtime_max_buffer_bytes => 2648,
+         runtime_missed_executions => 19,runtime_sampled_executions => 0,
+         runtime_sampling_us => 0,unique_crashes => 1,
+         verification_completed => 8,verification_elapsed_us => 14157,
+         verification_executions => 8,verification_failed => 0,
+         verification_requested => 8,verification_skipped => 0,
+         verification_valid => 8}
+Report: /tmp/efz-p0-fixes/existing-harness/report.term

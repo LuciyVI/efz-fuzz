@@ -375,3 +375,11 @@ the production mutator.
 
 See [Phase 2.1 profiling, measurements, tradeoffs, and reproduction](phase2.1-performance.md).
 The Phase 2 benchmark table above is historical; it is not a performance constant.
+
+## Diagnostic repeats
+
+Opt-in [runtime diagnostics](runtime-diagnostics.md) compare exact execution probe
+sets including build identity. Verification coverage is never merged into campaign
+global feedback; no masking of variable probes is performed. Invalid or unstarted
+observations are not empty coverage. Valid empty series has repeatability and
+stable-probe ratio 100%, with an explicit marker.

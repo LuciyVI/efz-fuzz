@@ -1,0 +1,60 @@
+=INFO REPORT==== 16-Sep-2026::12:27:30.610553 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 16-Sep-2026::12:27:35.195467 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 16-Sep-2026::12:27:40.063538 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 16-Sep-2026::12:27:45.133710 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 16-Sep-2026::12:27:49.568148 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 16-Sep-2026::12:27:55.152264 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+resources [#{wall_us => 4581154,mutation_executions => 1000,
+             calibration_executions => 1,verification_executions => 0,
+             verification_elapsed_us => 0,diagnostic_us => 39187,
+             sampling_us => 0,sampled => 0,missed => 1001,
+             max_buffer_bytes => 2648,
+             mutation_per_second => 218.28561100543664},
+           #{wall_us => 4868091,mutation_executions => 1000,
+             calibration_executions => 1,verification_executions => 0,
+             verification_elapsed_us => 0,diagnostic_us => 38261,
+             sampling_us => 0,sampled => 0,missed => 1001,
+             max_buffer_bytes => 2648,
+             mutation_per_second => 205.41933172572163},
+           #{wall_us => 5070140,mutation_executions => 1000,
+             calibration_executions => 1,verification_executions => 0,
+             verification_elapsed_us => 0,diagnostic_us => 40155,
+             sampling_us => 0,sampled => 0,missed => 1001,
+             max_buffer_bytes => 2648,
+             mutation_per_second => 197.23321249511847},
+           #{wall_us => 4434545,mutation_executions => 1000,
+             calibration_executions => 1,verification_executions => 0,
+             verification_elapsed_us => 0,diagnostic_us => 36968,
+             sampling_us => 0,sampled => 0,missed => 1001,
+             max_buffer_bytes => 2648,
+             mutation_per_second => 225.5022781367649},
+           #{wall_us => 5584152,mutation_executions => 1000,
+             calibration_executions => 1,verification_executions => 0,
+             verification_elapsed_us => 0,diagnostic_us => 45106,
+             sampling_us => 0,sampled => 0,missed => 1001,
+             max_buffer_bytes => 2648,
+             mutation_per_second => 179.07821993384135}]

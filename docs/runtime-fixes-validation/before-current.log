@@ -1,0 +1,199 @@
+[0;32m===> Verifying dependencies...
+[0m[0;32m===> Analyzing applications...
+[0m[0;32m===> Compiling efz
+[0m[0;32m===> Performing EUnit tests...
+[0m======================== EUnit ========================
+module 'efz_limits_tests'
+  efz_limits_tests: -limits_test_/0-fun-14- (campaign schema and seed boundaries)...[0.019 s] ok
+  efz_limits_tests: -limits_test_/0-fun-13- (explicit campaign limit above default reaches every boundary)...=INFO REPORT==== 21-Sep-2026::08:28:41.987049 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:28:41.999205 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.158 s] ok
+  efz_limits_tests: -limits_test_/0-fun-12- (real random mutator honors zero and full inputs)...=INFO REPORT==== 21-Sep-2026::08:28:44.906658 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+*timed out*
+in function gen:do_call/4 (gen.erl, line 260)
+in call from gen_server:call/3 (gen_server.erl, line 1122)
+in call from efz_limits_tests:campaign/1 (/home/fbogoslavskii/erl:fuzz/efz/test/efz_limits_tests.erl, line 37)
+in call from efz_limits_tests:observe/1 (/home/fbogoslavskii/erl:fuzz/efz/test/efz_limits_tests.erl, line 39)
+in call from efz_limits_tests:'-random/1-fun-7-'/2 (/home/fbogoslavskii/erl:fuzz/efz/test/efz_limits_tests.erl, line 80)
+in call from lists:foreach_1/2 (lists.erl, line 2310)
+in call from eunit_test:run_testfun/1 (eunit_test.erl, line 72)
+in call from eunit_proc:run_test/1 (eunit_proc.erl, line 544)
+  undefined
+=INFO REPORT==== 21-Sep-2026::08:28:47.075780 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[done in 5.184 s]
+module 'efz_phase3_tests'
+efz_phase3_tests: -phase3_test_/0-fun-6- (real deterministic operator discoveries and crash continuation)...=INFO REPORT==== 21-Sep-2026::08:28:48.983564 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[1.869 s] ok
+efz_phase3_tests: -phase3_test_/0-fun-5- (bounded trace does not change mutation choices)...=INFO REPORT==== 21-Sep-2026::08:28:49.581863 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:28:50.174121 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:28:50.697474 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:28:51.249401 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[2.261 s] ok
+efz_phase3_tests: -phase3_test_/0-fun-4- (fresh VM regeneration and actual crash replay)...[0.335 s] ok
+efz_phase3_tests: -phase3_test_/0-fun-3- (replay rejects incompatible builds and disposed plan options)...[0.020 s] ok
+efz_phase3_tests: exhaustion (no candidate is not a target execution)...=INFO REPORT==== 21-Sep-2026::08:28:51.628178 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.015 s] ok
+efz_phase3_tests: -phase3_test_/0-fun-2- (256 seeds reach productive bitflip after an unavailable dictionary lane)...=INFO REPORT==== 21-Sep-2026::08:28:56.596669 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[4.969 s] ok
+efz_phase3_tests: -phase3_test_/0-fun-1- (finite deterministic exhaustion differs from the idle guard)...=INFO REPORT==== 21-Sep-2026::08:29:39.419300 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[42.815 s] ok
+efz_phase3_tests: -phase3_test_/0-fun-0- (mutator exceptions are infrastructure failures)...=INFO REPORT==== 21-Sep-2026::08:29:39.433601 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.011 s] ok
+[done in 52.321 s]
+module 'efz_backend_tests'
+efz_backend_tests: -backend_test_/0-fun-12- (canonical outcomes, exact probes and novelty)...[0.477 s] ok
+efz_backend_tests: -backend_test_/0-fun-11- (published coverage survives external kill)...[0.025 s] ok
+efz_backend_tests: -backend_test_/0-fun-10- (published coverage survives timeout)...[4.042 s] ok
+efz_backend_tests: -backend_test_/0-fun-9- (kill while repeatedly publishing probes)...[0.265 s] ok
+efz_backend_tests: -backend_test_/0-fun-8- (broken backend cannot hide behind repeated observations)...[0.069 s] ok
+efz_backend_tests: -backend_test_/0-fun-7- (invalid or mismatched validation plans)...[0.009 s] ok
+efz_backend_tests: -backend_test_/0-fun-6- (prepared capability lifetime and empty-snapshot validation)...[0.082 s] ok
+efz_backend_tests: -backend_test_/0-fun-5- (two explicitly separate contexts)...[0.012 s] ok
+efz_backend_tests: -backend_test_/0-fun-4- (caller death releases execution storage)...[0.026 s] ok
+efz_backend_tests: -backend_test_/0-fun-3- (deadline boundary and repeated resource cleanup)...[2.565 s] ok
+efz_backend_tests: -backend_test_/0-fun-2- (campaign and application cancellation)...=INFO REPORT==== 21-Sep-2026::08:29:47.267358 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:29:47.275796 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:29:47.284177 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:29:47.292220 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:29:47.300743 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:29:47.307736 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:29:47.316144 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:29:47.322780 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.067 s] ok
+efz_backend_tests: -backend_test_/0-fun-1- (seeded real and prerecorded corpus decisions)...=INFO REPORT==== 21-Sep-2026::08:29:47.369971 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:29:47.418987 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:29:47.484403 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:29:47.543612 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:29:48.612209 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:29:49.609954 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:29:50.572098 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:29:51.452747 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[4.126 s] ok
+efz_backend_tests: -backend_test_/0-fun-0- (invalid config and missing instrumentation)...[0.001 s] ok
+=INFO REPORT==== 21-Sep-2026::08:29:51.460131 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[done in 11.807 s]
+=======================================================
+  Failed: 0.  Skipped: 0.  Passed: 23.
+One or more tests were cancelled.
+[0;31m===> [1mError running tests
+[0m[0m

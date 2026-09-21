@@ -1,7 +1,7 @@
 %% Compatibility data is separate from raw diagnostic ETF (which may contain
 %% arbitrary reasons/runtime objects). Neither artifact selects executable code.
 -module(efz_replay).
--export([expectation/5, encode/1, load/1, harness_identity/1, pin/3, run/6]).
+-export([expectation/5, encode/1, load/1, harness_identity/1, pin/3, run/6, runtime/4]).
 -define(MAX_EXPECTATION,2097152).
 
 portable(#{module:=M}=I) -> (maps:with([beam_md5,attributes_sha256,build_id],I))#{module=>atom_to_binary(M,utf8)}.
@@ -87,3 +87,6 @@ execute(B,Target,Artifacts,E,Options) ->
                 actual_signature=>Actual,compatibility=>verified,result=>R}};
         Error->Error
     end.
+
+%% Runtime artifacts use the same pinned executor, with an independent diagnostic policy.
+runtime(Path,Target,Artifacts,Options)->efz_runtime_replay:run(Path,Target,Artifacts,Options).

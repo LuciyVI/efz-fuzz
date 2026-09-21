@@ -1,0 +1,26 @@
+before-off #{mutation_per_s => 171.51697617857891,wall_us => 1749098,
+             mutations => 300,verification => 0,calibration => 1,
+             total_per_s => 172.0886994325075,sampled => 0}
+off #{mutation_per_s => 149.76285052619178,wall_us => 2003167,
+      mutations => 300,verification => 0,calibration => 1,
+      total_per_s => 150.26206002794575,sampled => 0}
+resources #{mutation_per_s => 149.60153630804353,wall_us => 2005327,
+            mutations => 300,verification => 0,calibration => 1,
+            total_per_s => 150.100208095737,sampled => 0}
+full #{mutation_per_s => 145.27739507945464,wall_us => 2065015,
+       mutations => 300,verification => 4,calibration => 1,
+       total_per_s => 147.69868499744553,sampled => 0}
+off-reverse #{mutation_per_s => 206.4486293875495,wall_us => 1453146,
+              mutations => 300,verification => 0,calibration => 1,
+              total_per_s => 207.13679148550798,sampled => 0}
+before-off-reverse #{mutation_per_s => 202.47737821491893,wall_us => 1481647,
+                     mutations => 300,verification => 0,calibration => 1,
+                     total_per_s => 203.15230280896867,sampled => 0}
+before-cpu #{reductions => 27963230,mutation_per_s => 206.46866321864,
+             wall_us => 1453005,mutations => 300,verification => 0,
+             calibration => 1,total_per_s => 207.15689209603545,sampled => 0,
+             cpu_ms => 4345}
+off-cpu #{reductions => 27965219,mutation_per_s => 205.81679423877628,
+          wall_us => 1457607,mutations => 300,verification => 0,
+          calibration => 1,total_per_s => 206.50285021957222,sampled => 0,
+          cpu_ms => 4321}

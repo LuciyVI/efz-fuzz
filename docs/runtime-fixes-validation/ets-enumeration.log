@@ -1,0 +1,2 @@
+ETS additional_tables=100 scans=100 us=3210
+ETS additional_tables=1000 scans=100 us=17313

@@ -1,0 +1,66 @@
+===> Verifying dependencies...
+===> Analyzing applications...
+===> Compiling efz
+===> Performing EUnit tests...
+======================== EUnit ========================
+module 'efz_runtime_acceptance_tests'
+  efz_runtime_acceptance_tests: comparator_test...[0.109 s] ok
+  efz_runtime_acceptance_tests: new_config_test...[0.002 s] ok
+  efz_runtime_acceptance_tests: memory (post cleanup residual and negative temporary allocation)...=INFO REPORT==== 21-Sep-2026::08:40:23.300688 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[1.795 s] ok
+  efz_runtime_acceptance_tests: unknown (disabled, absent, stale and incomplete timeout samples)...[0.059 s] ok
+  efz_runtime_acceptance_tests: default_return (default return values are ignored)...[0.021 s] ok
+  [done in 2.011 s]
+module 'efz_runtime_tests'
+  efz_runtime_tests: config_test...ok
+  efz_runtime_tests: stability_test...ok
+  efz_runtime_tests: timeout_unit_test...ok
+  efz_runtime_tests: -integration_test_/0-fun-10- (deterministic and valid empty real executor)...[0.048 s] ok
+  efz_runtime_tests: -integration_test_/0-fun-9- (owned resource peaks survive cleanup)...[0.387 s] ok
+  efz_runtime_tests: -integration_test_/0-fun-8- (child observation does not override root)...[0.046 s] ok
+  efz_runtime_tests: -integration_test_/0-fun-7- (busy and waiting timeouts have recent evidence)...[0.334 s] ok
+  efz_runtime_tests: -integration_test_/0-fun-6- (sampling is partial under process and ETS caps)...[0.109 s] ok
+  efz_runtime_tests: -integration_test_/0-fun-5- (sampler death degrades diagnostics)...[0.112 s] ok
+  efz_runtime_tests: -integration_test_/0-fun-4- (explicit return comparison is bounded)...[0.015 s] ok
+  efz_runtime_tests: -integration_test_/0-fun-3- (verification-only crash, storage and explicit replay)...=INFO REPORT==== 21-Sep-2026::08:40:25.339665 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.070 s] ok
+  efz_runtime_tests: -integration_test_/0-fun-2- (verification preserves staged recipes and random mutation inputs)...=INFO REPORT==== 21-Sep-2026::08:40:25.441812 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:40:25.527000 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:40:25.608534 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:40:25.692558 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.338 s] ok
+  efz_runtime_tests: -integration_test_/0-fun-1- (verification budget includes seed repeats)...=INFO REPORT==== 21-Sep-2026::08:40:25.709094 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.013 s] ok
+  efz_runtime_tests: -integration_test_/0-fun-0- (store bounds, corruption, interrupted publication)...[0.037 s] ok
+  efz_runtime_tests: dirty_external (dirty runner stops repeats in disposable test VM)...[2.123 s] ok
+  [done in 3.743 s]
+=======================================================
+  All 20 tests passed.

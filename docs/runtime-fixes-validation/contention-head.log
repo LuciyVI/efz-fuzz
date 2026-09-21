@@ -1,0 +1,55 @@
+======================== EUnit ========================
+debt_contention_escript__escript__1789__968902__373484__1124: -main/1-fun-3-...*timed out*
+in function gen:do_call/4 (gen.erl, line 260)
+in call from gen_server:call/3 (gen_server.erl, line 1122)
+in call from efz_limits_tests:campaign/1 (/tmp/efz-acceptance-20260921/baseline/test/efz_limits_tests.erl, line 37)
+in call from efz_limits_tests:observe/1 (/tmp/efz-acceptance-20260921/baseline/test/efz_limits_tests.erl, line 39)
+in call from efz_limits_tests:'-random/1-fun-7-'/2 (/tmp/efz-acceptance-20260921/baseline/test/efz_limits_tests.erl, line 80)
+in call from lists:foreach_1/2 (lists.erl, line 2310)
+in call from eunit_test:run_testfun/1 (eunit_test.erl, line 72)
+in call from eunit_proc:run_test/1 (eunit_proc.erl, line 544)
+undefined
+=======================================================
+  Failed: 0.  Skipped: 0.  Passed: 0.
+One or more tests were cancelled.
+=INFO REPORT==== 21-Sep-2026::08:35:08.131763 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+CONTENTION efz_limits_tests:random result=error runner=ready
+======================== EUnit ========================
+debt_contention_escript__escript__1789__968902__373484__1124: -main/1-fun-3-...*timed out*
+in function gen:do_call/4 (gen.erl, line 260)
+in call from gen_server:call/3 (gen_server.erl, line 1122)
+in call from efz_phase3_tests:run_campaign/2 (/tmp/efz-acceptance-20260921/baseline/test/efz_phase3_tests.erl, line 29)
+in call from efz_phase3_tests:scheduler_progress/1 (/tmp/efz-acceptance-20260921/baseline/test/efz_phase3_tests.erl, line 99)
+in call from eunit_test:run_testfun/1 (eunit_test.erl, line 72)
+in call from eunit_proc:run_test/1 (eunit_proc.erl, line 544)
+in call from eunit_proc:with_timeout/3 (eunit_proc.erl, line 369)
+in call from eunit_proc:handle_test/2 (eunit_proc.erl, line 527)
+undefined
+=======================================================
+  Failed: 0.  Skipped: 0.  Passed: 0.
+One or more tests were cancelled.
+=INFO REPORT==== 21-Sep-2026::08:35:13.327664 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+CONTENTION efz_phase3_tests:scheduler_progress result=error runner=ready
+======================== EUnit ========================
+debt_contention_escript__escript__1789__968902__373484__1124: -main/1-fun-3-...*timed out*
+in function efz_executor:run_pinned/4 (/tmp/efz-acceptance-20260921/baseline/src/efz_executor.erl, line 35)
+in call from efz_backend_tests:'-boundary/1-fun-3-'/3 (/tmp/efz-acceptance-20260921/baseline/test/efz_backend_tests.erl, line 196)
+in call from lists:foreach_1/2 (lists.erl, line 2310)
+in call from efz_backend_tests:'-with_options/2-lc$^0/1-0-'/3 (/tmp/efz-acceptance-20260921/baseline/test/efz_backend_tests.erl, line 41)
+in call from efz_backend_tests:'-with_options/2-lc$^0/1-0-'/3 (/tmp/efz-acceptance-20260921/baseline/test/efz_backend_tests.erl, line 41)
+in call from efz_backend_tests:boundary/1 (/tmp/efz-acceptance-20260921/baseline/test/efz_backend_tests.erl, line 190)
+in call from eunit_test:run_testfun/1 (eunit_test.erl, line 72)
+in call from eunit_proc:run_test/1 (eunit_proc.erl, line 544)
+undefined
+=======================================================
+  Failed: 0.  Skipped: 0.  Passed: 0.
+One or more tests were cancelled.
+CONTENTION efz_backend_tests:boundary result=error runner=ready

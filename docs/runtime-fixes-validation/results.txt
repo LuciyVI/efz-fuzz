@@ -1,0 +1,7 @@
+compile exit=0 seconds=1
+eunit-1 exit=0 seconds=117
+eunit-2 exit=0 seconds=123
+ct exit=0 seconds=6
+dialyzer exit=0 seconds=8
+xref exit=0 seconds=1
+runtime exit=0 seconds=8
