@@ -3,6 +3,8 @@
 -export([main/1, local_target/2]).
 
 main(Args) ->
+    case lists:member("--supervised",Args) of true->efz_external:main(Args);false->main_local(Args) end.
+main_local(Args) ->
     try
         case parse(Args, #{}) of
             help -> io:put_chars(help()), 0;
@@ -33,6 +35,13 @@ help() ->
     "  --verification-budget N  Maximum extra executions (0..1000000)\n"
     "  --sample-interval MS     Process sampling interval (1..10000)\n"
     "  --help                   Show this help\n"
+    "  --supervised             Linux external VM supervisor (see docs/p1-01-external-supervisor.md)\n"
+    "  --restart-budget N       Supervised worker restarts, 0..128 (default: 8)\n"
+    "  --supervised-runs N      Total supervised execution cap, 1..100000\n"
+    "  --campaign-ms MS         Absolute supervised campaign deadline\n"
+    "  --startup-ms MS          Worker startup/idle deadline\n"
+    "  --ipc-grace-ms MS        Bounded IPC/finalization deadline allowance\n"
+    "  --journal-bytes N        Durable external journal byte budget\n"
     "\nSeed directories are not recursive; subdirectories are ignored. Empty files are valid seeds;\n"
     "a directory without seed files is an error.\n"
     "Exit: 0 completed/exhausted/idle stop (including target crashes); 2 invalid invocation/config;\n"

@@ -9,6 +9,8 @@ runner_status() -> efz_guardian:status().
 run(M, Input, Timeout) -> maps:get(outcome, run(M, Input, Timeout, #{coverage => manual})).
 
 run(M, Input, Timeout, Options) when is_integer(Timeout), Timeout >= 0 ->
+    efz_external_worker:execution(Input,Timeout,Options,fun()->run_local(M,Input,Timeout,Options) end).
+run_local(M, Input, Timeout, Options) ->
     %% The low-level instrumentation API historically accepts terms. Campaigns
     %% and replay always supply max_input_bytes and require binary inputs.
     Check = case is_binary(Input) orelse maps:is_key(max_input_bytes,Options) of

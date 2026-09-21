@@ -332,3 +332,27 @@ unchanged. Findings go to `OUT/runtime-findings/`; replay uses
 `replay.escript --runtime-finding DIRECTORY --target MODULE --artifacts DIR`.
 See [policy, categories, limits and examples](docs/runtime-diagnostics.md) and
 [actual validation and performance evidence](docs/runtime-diagnostics-validation.md).
+
+## External worker VM (Linux, opt-in)
+
+`--supervised` runs the unchanged campaign loop in a launcher-owned BEAM OS
+process. Every executor call first publishes its exact input in the external
+journal and waits for a digest-bound RUN permission. A native VM crash, hard
+timeout, or dirty runner retires that VM; the controller waits for confirmed OS
+cleanup, starts a new generation, restores the durable corpus, recalibrates it,
+and continues within campaign-wide budgets. Existing `run(binary())` harnesses
+and legacy mode are unchanged. Build first with `rebar3 compile` (this compiles
+the small Linux lifecycle helper), then add `--supervised` to the normal command.
+
+The exact guarantees, journal format, replay command, recovery limits and tested
+native-crash evidence are in [P1-01 External supervisor](docs/p1-01-external-supervisor.md).
+
+```sh
+ERL_FLAGS='+S 4:4' escript scripts/fuzz.escript \
+  --supervised --target my_harness --code-path harness-ebin \
+  --artifacts instrumented --seeds corpus --corpus-dir out/corpus \
+  --out out --timeout 1000 --max-iterations 10000
+```
+
+Supervised mode is deliberately unavailable on non-Linux systems rather than
+silently weakening worker cleanup and parent-death guarantees.

@@ -34,10 +34,13 @@
 ```text
 efz/
 ├── src/                      runtime, контракты и instrumentation
+├── c_src/                    Linux lifecycle helper внешнего worker
+├── priv/                     bounded external supervisor/controller
 ├── scripts/                  подготовка, CLI campaign/replay и coverage benchmark
 ├── test/                     EUnit и Common Test
 ├── fixtures/                 искусственные targets для тестов
 │   ├── include/              include-файл для проверки компиляции
+│   ├── external/             отдельная BEAM и native-crash fixtures P1-01
 │   └── performance/          parser и sparse target для benchmarks
 ├── examples/                 самостоятельные примеры использования
 │   ├── automatic/            random campaign с automatic coverage
@@ -61,7 +64,7 @@ efz/
 | [.gitignore](../.gitignore) | Исключения для Git | Исключает `_build`, BEAM, PLT, логи, crash dumps, Erlang cookie и файлы редакторов. Это правила учёта файлов, а не конфигурация fuzz campaign. |
 | [LICENSE](../LICENSE) | Лицензия проекта | Текст Apache License 2.0; соответствует идентификатору лицензии в `efz.app.src`. |
 | [README.md](../README.md) | Главная точка входа в документацию | Сборка, launcher, harness, instrumentation, staged mutation, replay и ссылки на подробные контракты. |
-| [rebar.config](../rebar.config) | Сборка и проверки Rebar3 | Минимум OTP 27, `debug_info`, warnings as errors, EUnit, Xref и Dialyzer. В `src_dirs` включены `src` и `examples/simple_parser`; внешних Erlang-зависимостей нет. |
+| [rebar.config](../rebar.config) | Сборка и проверки Rebar3 | Минимум OTP 27, `debug_info`, warnings as errors, EUnit, Xref и Dialyzer. В `src_dirs` включены `src` и `examples/simple_parser`; Linux pre-hook собирает `c_src/efz_vm_launcher`. Внешних Erlang-зависимостей нет. |
 | [rebar.lock](../rebar.lock) | Фиксация зависимостей | Сейчас содержит `[]`: закреплённых внешних Rebar-зависимостей нет. Файл обслуживает Rebar3. |
 
 <a id="src"></a>
@@ -80,6 +83,8 @@ mutator, feedback, recipe и filesystem helpers вызываются как об
 | [efz_app.erl](../src/efz_app.erl) | Lifecycle OTP application | Callback `start/2` создаёт `efz_sup`; `stop/1` завершает application callback. Не содержит mutation loop. |
 | [efz_sup.erl](../src/efz_sup.erl) | Корневой supervisor | Начинает с пустого списка children; `efz:start/1` добавляет временный `efz_fuzzer`. Стратегия `one_for_all` с нулевой интенсивностью рестартов не восстанавливает campaign state. |
 | [efz_cli.erl](../src/efz_cli.erl) | Универсальный launcher | `main/1` разбирает опции, читает raw seeds с лимитом, проверяет пути и artifacts, вызывает `efz:start/1`, сохраняет `report.term`, возвращает exit code. Собственного fuzzing engine нет. |
+| [efz_external.erl](../src/efz_external.erl) | Граница supervised CLI | До target lookup запускает file-only controller через `spawn_executable`, передаёт явный argv и обслуживает parent-death ACK. На non-Linux возвращает понятную ошибку. |
+| [efz_external_worker.erl](../src/efz_external_worker.erl) | Worker entrypoint и обязательный barrier | Выполняется только в дочерней BEAM: проверяет identity, запускает обычный CLI/campaign и реализует bounded HELLO/READY/PREPARE/RUN/RESULT protocol. Legacy executor вызывает closure напрямую. |
 | [efz_config.erl](../src/efz_config.erl) | Строгая campaign schema | `prepare/1` проверяет известные ключи, `run/1`, workers, лимиты, mutation config и coverage artifacts; загружает durable corpus и формирует нормализованную конфигурацию. `function` и `arity` не поддерживаются. |
 | [efz_fuzzer.erl](../src/efz_fuzzer.erl) | Campaign coordinator, `gen_server` | Создаёт связанные corpus, stats и worker supervisor; следит за worker, обслуживает `await`, собирает итоговый report и останавливает сервисы. Отдельный input исполняет executor. |
 | [efz_worker_sup.erl](../src/efz_worker_sup.erl) | Supervision worker | Создаёт один temporary `efz_worker` под `one_for_one`. Название не означает реализованный параллельный pool: campaign schema допускает только `workers => 1`. |
@@ -92,7 +97,7 @@ mutator, feedback, recipe и filesystem helpers вызываются как об
 |---|---|---|
 | [efz_target.erl](../src/efz_target.erl) | Контракт harness | Behaviour с callback `run(binary()) -> term()`. Пользовательский модуль реализует callback, config проверяет экспорт. Также предоставляет `spawn/1`, `spawn_link/1` для controlled descendants и `dirty/1` для декларации внешних эффектов. |
 | [efz_input.erl](../src/efz_input.erl) | Общий предел размера input | `check/3` проверяет binary и inclusive limit; `read_file/3` ограничивает чтение файлов. Default 4096, допустимый предел 0..1048576; bytes не обрезаются. Используется ingestion, corpus, executor, mutations, replay и crash storage. |
-| [efz_executor.erl](../src/efz_executor.erl) | Исполнение одного input | `run/4` создаёт независимого guardian; coordinator классифицирует root. Возврат после final cleanup result и guardian DOWN; при потере guardian VM помечается dirty. `run/3` — compatibility wrapper. |
+| [efz_executor.erl](../src/efz_executor.erl) | Исполнение одного input | `run/4` сначала проходит external barrier, когда supervised broker зарегистрирован, затем создаёт прежнего guardian. Возврат после final cleanup result и guardian DOWN; при потере guardian VM помечается dirty. `run/3` — compatibility wrapper. |
 | [efz_guardian.erl](../src/efz_guardian.erl) | Lifecycle ownership | Владеет root/controlled descendants, start gates, monitors, observation ETS и trace barriers. Выполняет cleanup независимо от caller/coordinator, проверяет shared-state violations, запрещает reuse dirty VM. |
 
 ### Coverage: компиляция, runtime hooks и feedback
@@ -174,6 +179,9 @@ mutator, feedback, recipe и filesystem helpers вызываются как об
 | [efz_limits_tests.erl](../test/efz_limits_tests.erl) | Общий input limit и storage failures | Границы 0/max/max+1, random/staged/restore/replay/executor/crash; отказ callback с oversized result; filesystem errors, rollback, corrupt groups и interrupted staging. Проверяет exact input и primary reason в report при невозможности записи. |
 | [efz_smoke_tests.erl](../test/efz_smoke_tests.erl) | Минимальный lifecycle campaign | Десять random executions в explicit manual mode и корректная остановка. Не доказывает automatic coverage или реальное расширение corpus. |
 | [efz_scripted_mutator.erl](../test/efz_scripted_mutator.erl) | Fixture фиксированной последовательности | Callback выдаёт заранее заданные bytes по iteration для Phase 2/backend/CT acceptance. Используется только тестами; не является production mutator или доказательством staged scheduling. |
+| [efz_external_tests.erl](../test/efz_external_tests.erl) | Legacy compatibility gate | Доказывает, что отсутствие external broker не меняет executor return path, quarantine или readiness. |
+| [external_supervisor_test.py](../test/external_supervisor_test.py) | Native P1-01 acceptance | Реальные вторые BEAM VM и NIF: durable gate, SIGSEGV/SIGABRT recovery/replay, hard timeout, dirty recycle, protocol corruption, storage faults, restart budget и parent-death cleanup. |
+| [external_bench.py](../test/external_bench.py) | Legacy/supervised comparison | Три чередующихся запуска одинакового safe target; отдельно считает mutation/total throughput и durable prepare time без отключения fsync. |
 
 <a id="fixtures"></a>
 ## fixtures — цели и данные для проверок
@@ -199,6 +207,12 @@ mutator, feedback, recipe и filesystem helpers вызываются как об
 | [efz_limits_target.erl](../fixtures/efz_limits_target.erl) | Exact delivery и искусственный crash | Отправляет полученный binary зарегистрированному observer, возвращает его либо вызывает error для `CRASH`. Используется для limits и проверки сохранения triggering input при IO failure. |
 | [efz_crash_target.erl](../fixtures/efz_crash_target.erl) | Instrumented parser crash fixture | Возвращает ok для `OK`, ждёт на `WAIT`, иначе падает с data-dependent Reason. Compile macro создаёт несовместимый build; source relocation проверяет нормализацию signature. |
 | [efz_crash_harness.erl](../fixtures/efz_crash_harness.erl) | Обычный внешний binary harness | Вызывает реальный parser. Compile macro меняет harness identity; test-only env выбирает normal return, другую ошибку либо infrastructure failure в свежей replay VM. |
+
+### fixtures/external
+
+`efz_external_target` и `efz_external_startup` задают SAFE, dirty, timeout,
+ordinary-exit и startup paths. `efz_native_fixture` — test-only NIF с управляемыми
+SIGSEGV, SIGABRT и зависанием; он загружается только в дочерней acceptance VM.
 
 ### fixtures/include
 
@@ -330,6 +344,7 @@ listener: target синхронно разбирает query string.
 | [phase2.1-performance.md](phase2.1-performance.md) | Методика и результаты performance work: ETS variants, prepared validation, executor/campaign costs, memory, profiles и выбор defaults. |
 | [phase3-validation.md](phase3-validation.md) | Историческая проверка staged mutation и replay: discoveries, crashes, measured costs, memory, команды и границы Phase 3. |
 | [technical-audit-2026-09-12.md](technical-audit-2026-09-12.md) | Полный аудит 12 сентября: component inventory, реальные call paths, integration matrix, experiments, bugs, maturity и план. Найденные тогда scheduler/CLI/persistence/IO gaps нужно сопоставлять с текущим кодом и новыми regression tests. |
+| [p1-01-external-supervisor.md](p1-01-external-supervisor.md) | P1-01 contract и evidence | Process boundary, protocol/state machine, durable pre-execution journal, timeout/dirty/native recovery, replay, Linux limits, regression и benchmark evidence. |
 
 ### docs/adr
 
@@ -521,3 +536,15 @@ crash/corpus artifacts и локальные доказательства про
 | `fixtures/runtime/`, `test/efz_runtime_tests.erl` | Instrumented resources/lifecycle/verification regressions |
 | `bench/efz_runtime_bench.erl` | Same-driver baseline/off/stability/resources/full measurement |
 | `docs/runtime-diagnostics.md`, `docs/runtime-diagnostics-validation.md` | Contract and actual validation |
+
+## P1-01 external supervisor additions
+
+| Path | Purpose |
+|---|---|
+| `c_src/efz_vm_launcher.c`, `c_src/Makefile` | Linux pidfd/PDEATHSIG/session/subreaper lifecycle and authoritative wait status |
+| `priv/efz_external.py` | Bounded protocol, durable journal, state machine, restart policy and external replay |
+| `src/efz_external.erl`, `src/efz_external_worker.erl` | Pre-load CLI delegation and worker-side execution gate |
+| `fixtures/external/` | Safe/native-crash/hang/dirty/startup fixtures loaded only by integration workers |
+| `test/efz_external_tests.erl`, `test/external_supervisor_test.py` | Legacy gate and real OS-process acceptance |
+| `test/external_bench.py` | Same-target legacy/supervised durability-cost measurement |
+| `docs/p1-01-external-supervisor.md` | Contract, commands, evidence and limitations |

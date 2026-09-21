@@ -2,6 +2,7 @@
 -export([main/1]).
 
 main(["--help"]) -> io:put_chars(help()),0;
+main(["--external-finding"|Rest])->efz_external:main(["--supervised","--external-finding"|Rest]);
 main([R,O|Rest]) when hd(R)=/=$-,hd(O)=/=$- -> regenerate(R,O,Rest);
 main(Args) ->
     try launch(parse(Args,#{}))
@@ -13,6 +14,7 @@ help() ->
     "Usage: replay.escript --input FILE.input | --recipe FILE.recipe\n"
     "       --target MODULE --artifacts DIR [--code-path DIR] [--expect FILE.replay]\n"
     "       Or: --runtime-finding DIRECTORY --target MODULE --artifacts DIR [--runs N]\n"
+    "       Or: --external-finding DIRECTORY --target MODULE --artifacts DIR --out DIR [--reproduce-runs N]\n"
     "       [--timeout MS] [--max-input-bytes N]\n"
     "Expected build, harness identity and crash signature are required; default expectation\n"
     "is the sibling .replay file. Raw .input is authoritative and does not need .recipe/.term.\n"

@@ -524,7 +524,7 @@ lifecycle**. `efz_target:spawn/1` и `spawn_link/1` передают context и 
 | Owned ETS и registrations | Уходят вместе с процессами; escaping resources делают runner dirty |
 | `persistent_term` / application env | Сравнение before/after; изменения запрещают reuse, rollback не выполняется |
 | Запись в существующую внешнюю ETS | Вне модели; нет полной автоматической проверки, требуется explicit dirty declaration / disposable VM |
-| Arbitrary OTP applications, ports/NIF, remote work, filesystem effects | Не изолируются этим backend; следующий backend — disposable Erlang VM |
+| Arbitrary OTP applications, ports/NIF, remote work, filesystem effects | Legacy backend не изолирует их; opt-in P1-01 переносит target/NIF в отдельную BEAM, но не откатывает внешние side effects и не является sandbox |
 | Instrumentation / code loading | Pinned harness/builds; hot replacement и context corruption диагностируются как infrastructure. Подделка EFZ protocol/tracing вне защищаемой модели |
 | Campaign concurrency | Один worker и один execution в VM; второй caller получает runner_busy |
 | Stability | Calibration остаётся одним проходом; recipe determinism не гарантирует target determinism |
@@ -590,3 +590,23 @@ process/ETS metrics in the deadline path. Result `runtime_observations` is separ
 from outcome. `efz_runtime_store` bounds/deduplicates independent artifacts;
 `efz_replay:runtime/4` delegates compatible verification to `efz_runtime_replay`.
 The [diagnostic contract](runtime-diagnostics.md) specifies semantics and bounds.
+
+## P1-01 external supervisor
+
+Linux-only `--supervised` delegates before target lookup or application startup.
+The controller and target worker are different OS processes and address spaces;
+the existing campaign loop, executor and guardian stay inside the worker. The
+first operation of every `efz_executor:run/4` is a PREPARE barrier: the controller
+publishes and fsyncs the exact raw input plus bounded metadata, durably records
+authorization, and only then returns a digest-bound RunId permission. Legacy mode
+uses the same executor API without IPC or journal writes.
+
+The native launcher owns a worker process group, reports authoritative wait status
+and confirmed cleanup, and uses Linux pidfd/PDEATHSIG/subreaping to prevent a hung
+worker from surviving CLI/controller death. Native crash, external hard timeout
+and dirty result finalize the in-flight record, retire the old VM, restore the
+durable corpus and recalibrate it in a new generation. Recovery preserves global
+budgets but intentionally reconstructs worker-local coverage, RNG and staged
+cursors. The fixed bounded protocol, state machine, journal guarantees, replay
+flow, acceptance evidence and platform limits are documented in
+[P1-01 External supervisor](p1-01-external-supervisor.md).

@@ -16,6 +16,7 @@ init(C) ->
     MutationState = case maps:get(mutation_mode,C) of
         random->undefined; staged->efz_mutation_plan:new(maps:get(mutation,C))
     end,
+    ok=efz_external_worker:ready(),
     self() ! iterate,
     {ok, C#{pending_seeds => efz_corpus:all(), feedback => efz_feedback:new(Builds),
             verification_used=>0,runtime_store=>efz_runtime_store:new(),runtime_checks=>[],runtime_checks_dropped=>0,
@@ -64,6 +65,10 @@ trace(R,S=#{trace_count:=N,mutation:=C,mutation_trace:=Ts})->
     case N<maps:get(trace_limit,C) of true->S#{trace_count=>N+1,mutation_trace=>[R|Ts]};false->S end.
 
 execute(Input, Parent, Phase, S) ->
+    case efz_external_worker:quarantined(Input) of
+        true->self()!iterate,{noreply,S};false->execute_allowed(Input,Parent,Phase,S)
+    end.
+execute_allowed(Input, Parent, Phase, S) ->
     Context = #{input=>Input,input_hash=>crypto:hash(sha256,Input),parent=>maps:get(id,Parent),phase=>Phase},
     WithRecipe = case maps:find(current_recipe,S) of {ok,R}->Context#{recipe=>R};error->Context end,
     S1 = S#{failure_context=>WithRecipe},
@@ -76,7 +81,8 @@ executor_reference_options(S)->maps:with([runtime_oracles,coverage,coverage_back
     max_input_bytes,execution_identities,manifests],S).
 execute_checked(Input, Parent, Phase, S0 = #{target := M, timeout := T, feedback := F}) ->
     Options = case maps:get(executor_options, S0) of reference -> executor_reference_options(S0); Prepared -> Prepared end,
-    Result = efz_executor:run(M, Input, T, Options#{execution_origin=>Phase}),
+    Result = efz_executor:run(M, Input, T, Options#{execution_origin=>Phase,
+        execution_recipe=>maps:get(current_recipe,S0,undefined)}),
     runtime_stats(Result),
     S = observed(Result,S0#{failure_context=>(maps:get(failure_context,S0))#{result=>Result}}),
     notify_context(maps:get(failure_context,S),S),
@@ -149,7 +155,7 @@ verify(Input,Meta,N,Rows,S=#{runtime_oracles:=P,target:=M,timeout:=T})->
     O=case maps:get(executor_options,S) of reference->executor_reference_options(S);Prepared->Prepared end,
     VContext=(maps:get(failure_context,S))#{phase=>verification,origin=>verification},
     notify_context(maps:remove(result,VContext),S),
-    R=efz_executor:run(M,Input,T,O#{execution_origin=>verification}),
+    R=efz_executor:run(M,Input,T,O#{execution_origin=>verification,execution_recipe=>maps:get(mutation,Meta,undefined)}),
     efz_stats:inc(verification_executions),
     efz_stats:add(verification_elapsed_us,maps:get(elapsed_us,R,0)),
     runtime_stats(R),

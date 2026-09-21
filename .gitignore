@@ -1,5 +1,7 @@
 .rebar3
 _build
+priv/efz_vm_launcher
+__pycache__/
 _checkouts
 _vendor
 .eunit

@@ -162,3 +162,33 @@ Runtime observations are independent of crashes. Use `scripts/replay.escript
 `--code-path` for an ordinary harness. Artifact content cannot select target code.
 CLI resolves module names from trusted local BEAMs without interning argument text.
 See [full schema and limits](runtime-diagnostics.md).
+
+## External worker VM
+
+On Linux, add `--supervised` to the ordinary fuzz command. This delegates before
+the CLI loads the harness or target. The external controller computes identities
+from local files and launches the real CLI/campaign in a separate BEAM OS process.
+All target executions, including calibration and P0 verification, pass through a
+durable input barrier in `efz_executor`.
+
+Additional bounded options are `--restart-budget` (default 8),
+`--supervised-runs` (10000), `--campaign-ms` (3600000), `--startup-ms` (10000),
+`--ipc-grace-ms` (1000), and `--journal-bytes` (268435456). They are accepted only
+by supervised mode. Output includes `external-report.json`, an `external-runs/`
+journal, worker-generation directories, and external finding indexes under
+`crashes/external/`. Recheck a finding with:
+
+```sh
+escript scripts/replay.escript \
+  --external-finding OUT/external-runs/CAMPAIGN/RUN \
+  --target MODULE --artifacts ARTIFACTS --code-path HARNESS_EBIN \
+  --out RECHECK_OUT --reproduce-runs 3
+```
+
+The artifact never selects executable code. Local target/artifact identities
+must match. A supervised campaign returns 0 only for normal/budget completion
+(recheck also returns 0 with its explicit reproduction verdict), 2 for argument
+errors, and 1 for startup, protocol, storage, hard-timeout-without-recovery or
+restart-budget failure. The controller reports `observed N/M`, `not_observed` or
+`inconclusive`; it never treats one successful run as disproving a flaky crash.
+See [P1-01 External supervisor](p1-01-external-supervisor.md).
