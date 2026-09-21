@@ -1,0 +1,31 @@
+ M README.md
+ M docs/architecture.md
+ M docs/cli.md
+ M docs/corpus.md
+ M docs/coverage.md
+ M docs/repository-map.md
+ M src/efz_cli.erl
+ M src/efz_config.erl
+ M src/efz_corpus_store.erl
+ M src/efz_cov.erl
+ M src/efz_cov_rt.erl
+ M src/efz_feedback.erl
+ M src/efz_guardian.erl
+ M src/efz_instrument_pt.erl
+ M src/efz_worker.erl
+ M test/efz_backend_tests.erl
+ M test/efz_cli_tests.erl
+ M test/efz_corpus_store_tests.erl
+ M test/efz_integrity_tests.erl
+ M test/efz_phase3_tests.erl
+?? bench/efz_count_bench_harness.erl
+?? bench/efz_hit_count_experiment.erl
+?? bench/efz_hit_count_micro.erl
+?? bench/hit_count.escript
+?? docs/coverage-audit-2026-09-15/
+?? docs/coverage-tracking-audit.md
+?? docs/hit-count-experiment.md
+?? docs/performance/hit-count-samples.json
+?? fixtures/hit_count/
+?? src/efz_cov_count.erl
+?? test/efz_hit_count_tests.erl

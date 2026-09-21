@@ -577,3 +577,16 @@ rebar3 dialyzer
   стабильности и границ execution context, не реализованный calibration algorithm.
 - [Исторический технический аудит](technical-audit-2026-09-12.md) — состояние на
   момент аудита; исправления после него описаны текущим кодом и документами выше.
+
+## P0 runtime diagnostics
+
+Optional `runtime_oracles` joins the existing pipeline. `efz_runtime_config`
+validates one shared policy; worker repeats selected bytes through executor and
+`efz_stability` compares bounded snapshots. Repeats never call feedback, corpus
+selection or the mutation planner. Original retention remains unchanged.
+Guardian starts `efz_runtime` sampler, publishes admitted PID membership, records
+child DOWN evidence, and kills the sampler alongside cleanup. It never polls
+process/ETS metrics in the deadline path. Result `runtime_observations` is separate
+from outcome. `efz_runtime_store` bounds/deduplicates independent artifacts;
+`efz_replay:runtime/4` delegates compatible verification to `efz_runtime_replay`.
+The [diagnostic contract](runtime-diagnostics.md) specifies semantics and bounds.

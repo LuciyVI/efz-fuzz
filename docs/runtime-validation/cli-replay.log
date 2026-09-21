@@ -1,0 +1,902 @@
+#{status => observed,category => timeout_waiting,observed => 3,
+  input_hash =>
+      <<128,207,163,231,242,141,222,77,246,68,54,182,82,35,10,255,40,215,119,
+        145,22,209,54,156,33,239,43,191,55,38,29,113>>,
+  compatibility => verified,
+  summary =>
+      #{status => measured,failed => 0,schema_version => 1,completed => 3,
+        valid => 3,return_comparable => 0,categories => [],
+        return_repeatability => not_comparable,outcome_repeatability => 100.0,
+        coverage_repeatability => 100.0,valid_empty_coverage => false,
+        attempted => 3,requested => 3,
+        samples =>
+            [#{return => not_compared,
+               runtime =>
+                   #{timeout =>
+                         #{categories => [timeout_waiting],
+                           interpretation => observation_only,
+                           evidence =>
+                               [#{current_function =>
+                                      {efz_runtime_sites,run,1},
+                                  current_stacktrace =>
+                                      [{efz_runtime_sites,run,1},
+                                       {efz_executor,invoke,4},
+                                       {efz_guardian,'-admit/2-fun-0-',4}],
+                                  memory => 4000,message_queue_len => 0,
+                                  pid => <0.87.0>,reductions => 106,
+                                  status => waiting,process_id => 0}],
+                           observed_processes => 1,interval_ms => 6,
+                           matched_processes => 1,reductions_delta => 1,
+                           sample_age_ms => 5,
+                           statuses => [waiting]},
+                     scope => target_owned,origin => verification,
+                     schema_version => 1,children => [],
+                     categories => [timeout_waiting],
+                     sample_count => 16,partial => false,ets_scans => 0,
+                     samples =>
+                         [#{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 4000,message_queue_len => 0,
+                                   pid => <0.87.0>,reductions => 106,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 4000,known_processes => 1,
+                            at_ms => -576460751630,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 4000,message_queue_len => 0,
+                                   pid => <0.87.0>,reductions => 105,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 4000,known_processes => 1,
+                            at_ms => -576460751636,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 4000,message_queue_len => 0,
+                                   pid => <0.87.0>,reductions => 104,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 4000,known_processes => 1,
+                            at_ms => -576460751642,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 4000,message_queue_len => 0,
+                                   pid => <0.87.0>,reductions => 103,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 4000,known_processes => 1,
+                            at_ms => -576460751648,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 4000,message_queue_len => 0,
+                                   pid => <0.87.0>,reductions => 102,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 4000,known_processes => 1,
+                            at_ms => -576460751654,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 4000,message_queue_len => 0,
+                                   pid => <0.87.0>,reductions => 101,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 4000,known_processes => 1,
+                            at_ms => -576460751660,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 4000,message_queue_len => 0,
+                                   pid => <0.87.0>,reductions => 100,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 4000,known_processes => 1,
+                            at_ms => -576460751666,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 4000,message_queue_len => 0,
+                                   pid => <0.87.0>,reductions => 99,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 4000,known_processes => 1,
+                            at_ms => -576460751672,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 4000,message_queue_len => 0,
+                                   pid => <0.87.0>,reductions => 98,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 4000,known_processes => 1,
+                            at_ms => -576460751678,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 4000,message_queue_len => 0,
+                                   pid => <0.87.0>,reductions => 97,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 4000,known_processes => 1,
+                            at_ms => -576460751684,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 4000,message_queue_len => 0,
+                                   pid => <0.87.0>,reductions => 96,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 4000,known_processes => 1,
+                            at_ms => -576460751690,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 4000,message_queue_len => 0,
+                                   pid => <0.87.0>,reductions => 95,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 4000,known_processes => 1,
+                            at_ms => -576460751696,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 4000,message_queue_len => 0,
+                                   pid => <0.87.0>,reductions => 94,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 4000,known_processes => 1,
+                            at_ms => -576460751702,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 4000,message_queue_len => 0,
+                                   pid => <0.87.0>,reductions => 93,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 4000,known_processes => 1,
+                            at_ms => -576460751708,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 4000,message_queue_len => 0,
+                                   pid => <0.87.0>,reductions => 92,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 4000,known_processes => 1,
+                            at_ms => -576460751714,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 4000,message_queue_len => 0,
+                                   pid => <0.87.0>,reductions => 91,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 4000,known_processes => 1,
+                            at_ms => -576460751720,observed_processes => 1}],
+                     baseline =>
+                         #{scope => target_owned,memory_bytes => 0,
+                           ets_tables => 0,known_processes => 0,
+                           vm_global =>
+                               #{process_count => 43,scope => vm_global,
+                                 atom_count => 15607,atom_limit => 1048576}},
+                     sampler_status => stopped,
+                     peak => #{mailbox_messages => 0,memory_bytes => 4000},
+                     after_cleanup =>
+                         #{status => confirmed,ets_state => owners_terminated,
+                           known_survivors => 0},
+                     before_cleanup =>
+                         #{ets => #{status => not_sampled},
+                           processes =>
+                               [#{current_function =>
+                                      {efz_runtime_sites,run,1},
+                                  current_stacktrace =>
+                                      [{efz_runtime_sites,run,1},
+                                       {efz_executor,invoke,4},
+                                       {efz_guardian,'-admit/2-fun-0-',4}],
+                                  memory => 4000,message_queue_len => 0,
+                                  pid => <0.87.0>,reductions => 106,
+                                  status => waiting,process_id => 0}],
+                           partial => false,mailbox_messages => 0,
+                           memory_bytes => 4000,known_processes => 1,
+                           at_ms => -576460751630,observed_processes => 1},
+                     children_dropped => 0,descendants_created => 0,
+                     descendants_peak_live => 0,
+                     diagnostic_buffer_bytes => 11904,
+                     sampling_status => sampled,thresholds => [],
+                     sampling_us => 971,missed_sample_ticks => 0},
+               cleanup => confirmed,
+               builds =>
+                   #{efz_runtime_sites =>
+                         <<208,149,55,18,182,40,94,173,141,115,114,20,171,252,
+                           174,219,234,224,179,134,40,156,160,159,23,190,113,
+                           71,179,75,230,215>>},
+               completed => true,valid => true,outcome => timeout,
+               coverage_status => ok,
+               coverage =>
+                   [{efz_runtime_sites,
+                        <<208,149,55,18,182,40,94,173,141,115,114,20,171,252,
+                          174,219,234,224,179,134,40,156,160,159,23,190,113,71,
+                          179,75,230,215>>,
+                        23}],
+               elapsed_us => 104441},
+             #{return => not_compared,
+               runtime =>
+                   #{timeout =>
+                         #{categories => [timeout_waiting],
+                           interpretation => observation_only,
+                           evidence =>
+                               [#{current_function =>
+                                      {efz_runtime_sites,run,1},
+                                  current_stacktrace =>
+                                      [{efz_runtime_sites,run,1},
+                                       {efz_executor,invoke,4},
+                                       {efz_guardian,'-admit/2-fun-0-',4}],
+                                  memory => 2856,message_queue_len => 0,
+                                  pid => <0.91.0>,reductions => 49,
+                                  status => waiting,process_id => 0}],
+                           observed_processes => 1,interval_ms => 6,
+                           matched_processes => 1,reductions_delta => 1,
+                           sample_age_ms => 5,
+                           statuses => [waiting]},
+                     scope => target_owned,origin => verification,
+                     schema_version => 1,children => [],
+                     categories => [timeout_waiting],
+                     sample_count => 16,partial => false,ets_scans => 0,
+                     samples =>
+                         [#{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.91.0>,reductions => 49,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751523,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.91.0>,reductions => 48,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751529,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.91.0>,reductions => 47,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751535,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.91.0>,reductions => 46,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751541,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.91.0>,reductions => 45,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751547,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.91.0>,reductions => 44,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751553,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.91.0>,reductions => 43,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751559,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.91.0>,reductions => 42,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751565,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.91.0>,reductions => 41,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751571,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.91.0>,reductions => 40,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751577,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.91.0>,reductions => 39,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751583,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.91.0>,reductions => 38,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751589,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.91.0>,reductions => 37,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751595,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.91.0>,reductions => 36,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751601,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.91.0>,reductions => 35,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751607,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.91.0>,reductions => 34,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751613,observed_processes => 1}],
+                     baseline =>
+                         #{scope => target_owned,memory_bytes => 0,
+                           ets_tables => 0,known_processes => 0,
+                           vm_global =>
+                               #{process_count => 43,scope => vm_global,
+                                 atom_count => 15609,atom_limit => 1048576}},
+                     sampler_status => stopped,
+                     peak => #{mailbox_messages => 0,memory_bytes => 2856},
+                     after_cleanup =>
+                         #{status => confirmed,ets_state => owners_terminated,
+                           known_survivors => 0},
+                     before_cleanup =>
+                         #{ets => #{status => not_sampled},
+                           processes =>
+                               [#{current_function =>
+                                      {efz_runtime_sites,run,1},
+                                  current_stacktrace =>
+                                      [{efz_runtime_sites,run,1},
+                                       {efz_executor,invoke,4},
+                                       {efz_guardian,'-admit/2-fun-0-',4}],
+                                  memory => 2856,message_queue_len => 0,
+                                  pid => <0.91.0>,reductions => 49,
+                                  status => waiting,process_id => 0}],
+                           partial => false,mailbox_messages => 0,
+                           memory_bytes => 2856,known_processes => 1,
+                           at_ms => -576460751523,observed_processes => 1},
+                     children_dropped => 0,descendants_created => 0,
+                     descendants_peak_live => 0,
+                     diagnostic_buffer_bytes => 11904,
+                     sampling_status => sampled,thresholds => [],
+                     sampling_us => 830,missed_sample_ticks => 0},
+               cleanup => confirmed,
+               builds =>
+                   #{efz_runtime_sites =>
+                         <<208,149,55,18,182,40,94,173,141,115,114,20,171,252,
+                           174,219,234,224,179,134,40,156,160,159,23,190,113,
+                           71,179,75,230,215>>},
+               completed => true,valid => true,outcome => timeout,
+               coverage_status => ok,
+               coverage =>
+                   [{efz_runtime_sites,
+                        <<208,149,55,18,182,40,94,173,141,115,114,20,171,252,
+                          174,219,234,224,179,134,40,156,160,159,23,190,113,71,
+                          179,75,230,215>>,
+                        23}],
+               elapsed_us => 102978},
+             #{return => not_compared,
+               runtime =>
+                   #{timeout =>
+                         #{categories => [timeout_waiting],
+                           interpretation => observation_only,
+                           evidence =>
+                               [#{current_function =>
+                                      {efz_runtime_sites,run,1},
+                                  current_stacktrace =>
+                                      [{efz_runtime_sites,run,1},
+                                       {efz_executor,invoke,4},
+                                       {efz_guardian,'-admit/2-fun-0-',4}],
+                                  memory => 2856,message_queue_len => 0,
+                                  pid => <0.95.0>,reductions => 49,
+                                  status => waiting,process_id => 0}],
+                           observed_processes => 1,interval_ms => 6,
+                           matched_processes => 1,reductions_delta => 1,
+                           sample_age_ms => 5,
+                           statuses => [waiting]},
+                     scope => target_owned,origin => verification,
+                     schema_version => 1,children => [],
+                     categories => [timeout_waiting],
+                     sample_count => 16,partial => false,ets_scans => 0,
+                     samples =>
+                         [#{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.95.0>,reductions => 49,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751415,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.95.0>,reductions => 48,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751421,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.95.0>,reductions => 47,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751427,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.95.0>,reductions => 46,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751433,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.95.0>,reductions => 45,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751439,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.95.0>,reductions => 44,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751445,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.95.0>,reductions => 43,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751451,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.95.0>,reductions => 42,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751457,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.95.0>,reductions => 41,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751463,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.95.0>,reductions => 40,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751469,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.95.0>,reductions => 39,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751475,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.95.0>,reductions => 38,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751481,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.95.0>,reductions => 37,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751487,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.95.0>,reductions => 36,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751493,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.95.0>,reductions => 35,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751499,observed_processes => 1},
+                          #{ets => #{status => not_sampled},
+                            processes =>
+                                [#{current_function =>
+                                       {efz_runtime_sites,run,1},
+                                   current_stacktrace =>
+                                       [{efz_runtime_sites,run,1},
+                                        {efz_executor,invoke,4},
+                                        {efz_guardian,'-admit/2-fun-0-',4}],
+                                   memory => 2856,message_queue_len => 0,
+                                   pid => <0.95.0>,reductions => 34,
+                                   status => waiting,process_id => 0}],
+                            partial => false,mailbox_messages => 0,
+                            memory_bytes => 2856,known_processes => 1,
+                            at_ms => -576460751505,observed_processes => 1}],
+                     baseline =>
+                         #{scope => target_owned,memory_bytes => 0,
+                           ets_tables => 0,known_processes => 0,
+                           vm_global =>
+                               #{process_count => 43,scope => vm_global,
+                                 atom_count => 15609,atom_limit => 1048576}},
+                     sampler_status => stopped,
+                     peak => #{mailbox_messages => 0,memory_bytes => 2856},
+                     after_cleanup =>
+                         #{status => confirmed,ets_state => owners_terminated,
+                           known_survivors => 0},
+                     before_cleanup =>
+                         #{ets => #{status => not_sampled},
+                           processes =>
+                               [#{current_function =>
+                                      {efz_runtime_sites,run,1},
+                                  current_stacktrace =>
+                                      [{efz_runtime_sites,run,1},
+                                       {efz_executor,invoke,4},
+                                       {efz_guardian,'-admit/2-fun-0-',4}],
+                                  memory => 2856,message_queue_len => 0,
+                                  pid => <0.95.0>,reductions => 49,
+                                  status => waiting,process_id => 0}],
+                           partial => false,mailbox_messages => 0,
+                           memory_bytes => 2856,known_processes => 1,
+                           at_ms => -576460751415,observed_processes => 1},
+                     children_dropped => 0,descendants_created => 0,
+                     descendants_peak_live => 0,
+                     diagnostic_buffer_bytes => 11904,
+                     sampling_status => sampled,thresholds => [],
+                     sampling_us => 815,missed_sample_ticks => 0},
+               cleanup => confirmed,
+               builds =>
+                   #{efz_runtime_sites =>
+                         <<208,149,55,18,182,40,94,173,141,115,114,20,171,252,
+                           174,219,234,224,179,134,40,156,160,159,23,190,113,
+                           71,179,75,230,215>>},
+               completed => true,valid => true,outcome => timeout,
+               coverage_status => ok,
+               coverage =>
+                   [{efz_runtime_sites,
+                        <<208,149,55,18,182,40,94,173,141,115,114,20,171,252,
+                          174,219,234,224,179,134,40,156,160,159,23,190,113,71,
+                          179,75,230,215>>,
+                        23}],
+               elapsed_us => 105510}],
+        skipped => 0,stable_probe_ratio => 100.0,
+        stable_probes =>
+            [{efz_runtime_sites,
+                 <<208,149,55,18,182,40,94,173,141,115,114,20,171,252,174,219,
+                   234,224,179,134,40,156,160,159,23,190,113,71,179,75,230,215>>,
+                 23}],
+        variable_probes => []},
+  sample_count => 3,fraction => 1.0}

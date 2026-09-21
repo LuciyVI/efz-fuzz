@@ -320,3 +320,15 @@ Runner предупреждает о двух list comprehensions в `cowboy_req
 без внутренних probes; они не входят в путь `parse_qs/1`. Подробнее об области
 проверки, семантике ошибок и ограничениях — в
 [README обёртки Cowboy](examples/cowboy/README.md).
+
+## Automatic Runtime Diagnostics (opt-in)
+
+P0 adds repeated calibration/verification, bounded owned-process/ETS sampling,
+child-exit observations and timeout evidence without changing existing `run/1`
+harnesses. Enable `runtime_oracles => #{enabled => true}` or CLI
+`--runtime-diagnostics --runtime-runs 3 --verification-budget 1000 --sample-interval 20`.
+Outcomes, coverage retention and the controlled-descendant execution model remain
+unchanged. Findings go to `OUT/runtime-findings/`; replay uses
+`replay.escript --runtime-finding DIRECTORY --target MODULE --artifacts DIR`.
+See [policy, categories, limits and examples](docs/runtime-diagnostics.md) and
+[actual validation and performance evidence](docs/runtime-diagnostics-validation.md).

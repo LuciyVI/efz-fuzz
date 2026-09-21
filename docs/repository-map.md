@@ -508,3 +508,16 @@ crash/corpus artifacts и локальные доказательства про
 При добавлении или переносе файла обновляйте соответствующую таблицу и число
 файлов. Архивные diagnostics сохраняйте как evidence своего времени; текущую
 корректность подтверждают действующие tests и новый запуск, а не старый лог.
+
+## Runtime diagnostics additions
+
+| Path | Purpose |
+|---|---|
+| `src/efz_runtime_config.erl` | Shared nested policy validator and limits |
+| `src/efz_stability.erl` | Bounded return comparison, repeatability metrics and replay repetition |
+| `src/efz_runtime.erl` | Guardian-owned sampler, child/timeout observations |
+| `src/efz_runtime_store.erl` | Bounded independent runtime artifacts and checksummed index |
+| `src/efz_runtime_replay.erl` | Explicit-target compatible runtime rechecks |
+| `fixtures/runtime/`, `test/efz_runtime_tests.erl` | Instrumented resources/lifecycle/verification regressions |
+| `bench/efz_runtime_bench.erl` | Same-driver baseline/off/stability/resources/full measurement |
+| `docs/runtime-diagnostics.md`, `docs/runtime-diagnostics-validation.md` | Contract and actual validation |

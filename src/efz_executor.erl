@@ -16,7 +16,14 @@ run(M, Input, Timeout, Options) when is_integer(Timeout), Timeout >= 0 ->
         false -> ok
     end,
     case Check of
-        ok -> run_checked(M,Input,Timeout,Options);
+        ok -> case maps:find(runtime_oracles,Options) of
+            error -> run_checked(M,Input,Timeout,Options);
+            {ok,Policy} -> case efz_runtime_config:prepare(Policy) of
+                {ok,P}->run_checked(M,Input,Timeout,Options#{runtime_oracles=>P});
+                {error,Why}->#{outcome=>{infrastructure,Why},coverage_status=>{error,Why},
+                    coverage=>[],builds=>builds(Options),elapsed_us=>0,cleanup=>#{status=>not_started}}
+            end
+        end;
         {error,Why} -> #{execution_ref=>make_ref(),outcome=>{infrastructure,Why},
             coverage_status=>ok,coverage=>[],elapsed_us=>0,builds=>builds(Options),
             coverage_observation=>efz_cov_integrity:observation([],ok,[])}
