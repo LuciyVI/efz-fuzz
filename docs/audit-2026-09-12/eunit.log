@@ -92,10 +92,10 @@ Error in process <0.1208.0> with exit value:
                     <<36,87,81,85,225,241,171,62,21,138,61,97,8,9,137,39,
                       190,222,30,146,159,214,87,239,54,77,25,168,42,53,156,
                       25>>}}],
-         [{file,"/home/fbogoslavskii/erl:fuzz/efz/src/efz_cov_manifest.erl"},
+         [{file,"/home/anonymous_usr/erl:fuzz/efz/src/efz_cov_manifest.erl"},
           {line,70}]},
      {efz_executor,coordinate,6,
-         [{file,"/home/fbogoslavskii/erl:fuzz/efz/src/efz_executor.erl"},
+         [{file,"/home/anonymous_usr/erl:fuzz/efz/src/efz_executor.erl"},
           {line,52}]}]}
 
 =ERROR REPORT==== 12-Sep-2026::18:18:19.116943 ===
@@ -114,10 +114,10 @@ Error in process <0.1226.0> with exit value:
                     <<36,87,81,85,225,241,171,62,21,138,61,97,8,9,137,39,
                       190,222,30,146,159,214,87,239,54,77,25,168,42,53,156,
                       25>>}}],
-         [{file,"/home/fbogoslavskii/erl:fuzz/efz/src/efz_cov_manifest.erl"},
+         [{file,"/home/anonymous_usr/erl:fuzz/efz/src/efz_cov_manifest.erl"},
           {line,70}]},
      {efz_executor,coordinate,6,
-         [{file,"/home/fbogoslavskii/erl:fuzz/efz/src/efz_executor.erl"},
+         [{file,"/home/anonymous_usr/erl:fuzz/efz/src/efz_executor.erl"},
           {line,52}]}]}
 
 [0.002 s] ok

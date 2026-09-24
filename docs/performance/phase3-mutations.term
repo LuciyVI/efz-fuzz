@@ -8,13 +8,13 @@
         fixture =>
             #{module => efz_staged_parser,
               beam =>
-                  "/home/fbogoslavskii/erl:fuzz/efz/_build/phase3-performance-verified/targets/efz_staged_parser.beam",
+                  "/home/anonymous_usr/erl:fuzz/efz/_build/phase3-performance-verified/targets/efz_staged_parser.beam",
               warnings => [],
               build_id =>
                   <<76,83,200,210,3,191,95,202,119,77,120,254,226,18,42,117,65,
                     155,134,186,143,128,124,195,255,187,93,150,51,158,10,94>>,
               manifest =>
-                  "/home/fbogoslavskii/erl:fuzz/efz/_build/phase3-performance-verified/targets/efz_staged_parser.efz-manifest"},
+                  "/home/anonymous_usr/erl:fuzz/efz/_build/phase3-performance-verified/targets/efz_staged_parser.efz-manifest"},
         fixture_compile_us => 8921,profiled => false,
         os_release =>
             <<"PRETTY_NAME=\"Ubuntu 24.04.4 LTS\"\nNAME=\"Ubuntu\"\nVERSION_ID=\"24.04\"\nVERSION=\"24.04.4 LTS (Noble Numbat)\"\nVERSION_CODENAME=noble\nID=ubuntu\nID_LIKE=debian\nHOME_URL=\"https://www.ubuntu.com/\"\nSUPPORT_URL=\"https://help.ubuntu.com/\"\nBUG_REPORT_URL=\"https://bugs.launchpad.net/ubuntu/\"\nPRIVACY_POLICY_URL=\"https://www.ubuntu.com/legal/terms-and-policies/privacy-policy\"\nUBUNTU_CODENAME=noble\nLOGO=ubuntu-logo\n">>,
