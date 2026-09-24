@@ -61,13 +61,13 @@ IGNORED_CONFIG #{arity => 99,function => absent,max_input_bytes => 0,
 ** Reason for termination ==
 ** {{badmatch,{error,enotdir}},
     [{efz_crash,save,4,
-                [{file,"/home/fbogoslavskii/erl:fuzz/efz/src/efz_crash.erl"},
+                [{file,"/home/anonymous_usr/erl:fuzz/efz/src/efz_crash.erl"},
                  {line,17}]},
      {efz_worker,record_failure,4,
-                 [{file,"/home/fbogoslavskii/erl:fuzz/efz/src/efz_worker.erl"},
+                 [{file,"/home/anonymous_usr/erl:fuzz/efz/src/efz_worker.erl"},
                   {line,99}]},
      {efz_worker,execute,4,
-                 [{file,"/home/fbogoslavskii/erl:fuzz/efz/src/efz_worker.erl"},
+                 [{file,"/home/anonymous_usr/erl:fuzz/efz/src/efz_worker.erl"},
                   {line,74}]},
      {gen_server,try_handle_info,3,[{file,"gen_server.erl"},{line,2173}]},
      {gen_server,handle_msg,6,[{file,"gen_server.erl"},{line,2261}]},
@@ -79,9 +79,9 @@ IGNORED_CONFIG #{arity => 99,function => absent,max_input_bytes => 0,
     pid: <0.617.0>
     registered_name: []
     exception error: no match of right hand side value {error,enotdir}
-      in function  efz_crash:save/4 (/home/fbogoslavskii/erl:fuzz/efz/src/efz_crash.erl, line 17)
-      in call from efz_worker:record_failure/4 (/home/fbogoslavskii/erl:fuzz/efz/src/efz_worker.erl, line 99)
-      in call from efz_worker:execute/4 (/home/fbogoslavskii/erl:fuzz/efz/src/efz_worker.erl, line 74)
+      in function  efz_crash:save/4 (/home/anonymous_usr/erl:fuzz/efz/src/efz_crash.erl, line 17)
+      in call from efz_worker:record_failure/4 (/home/anonymous_usr/erl:fuzz/efz/src/efz_worker.erl, line 99)
+      in call from efz_worker:execute/4 (/home/anonymous_usr/erl:fuzz/efz/src/efz_worker.erl, line 74)
       in call from gen_server:try_handle_info/3 (gen_server.erl, line 2173)
       in call from gen_server:handle_msg/6 (gen_server.erl, line 2261)
     ancestors: [efz_worker_sup,efz_fuzzer,efz_sup,<0.611.0>]
@@ -101,13 +101,13 @@ IGNORED_CONFIG #{arity => 99,function => absent,max_input_bytes => 0,
     errorContext: child_terminated
     reason: {{badmatch,{error,enotdir}},
              [{efz_crash,save,4,
-                         [{file,"/home/fbogoslavskii/erl:fuzz/efz/src/efz_crash.erl"},
+                         [{file,"/home/anonymous_usr/erl:fuzz/efz/src/efz_crash.erl"},
                           {line,17}]},
               {efz_worker,record_failure,4,
-                          [{file,"/home/fbogoslavskii/erl:fuzz/efz/src/efz_worker.erl"},
+                          [{file,"/home/anonymous_usr/erl:fuzz/efz/src/efz_worker.erl"},
                            {line,99}]},
               {efz_worker,execute,4,
-                          [{file,"/home/fbogoslavskii/erl:fuzz/efz/src/efz_worker.erl"},
+                          [{file,"/home/anonymous_usr/erl:fuzz/efz/src/efz_worker.erl"},
                            {line,74}]},
               {gen_server,try_handle_info,3,
                           [{file,"gen_server.erl"},{line,2173}]},
@@ -139,15 +139,15 @@ STORAGE_FAILURE #{status =>
                      {{badmatch,{error,enotdir}},
                       [{efz_crash,save,4,
                         [{file,
-                          "/home/fbogoslavskii/erl:fuzz/efz/src/efz_crash.erl"},
+                          "/home/anonymous_usr/erl:fuzz/efz/src/efz_crash.erl"},
                          {line,17}]},
                        {efz_worker,record_failure,4,
                         [{file,
-                          "/home/fbogoslavskii/erl:fuzz/efz/src/efz_worker.erl"},
+                          "/home/anonymous_usr/erl:fuzz/efz/src/efz_worker.erl"},
                          {line,99}]},
                        {efz_worker,execute,4,
                         [{file,
-                          "/home/fbogoslavskii/erl:fuzz/efz/src/efz_worker.erl"},
+                          "/home/anonymous_usr/erl:fuzz/efz/src/efz_worker.erl"},
                          {line,74}]},
                        {gen_server,try_handle_info,3,
                         [{file,"gen_server.erl"},{line,2173}]},

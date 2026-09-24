@@ -205,14 +205,14 @@ No remaining MAJOR/BLOCKER or known correctness MINOR from this fix set.
 
 ```sh
 ERL_FLAGS='+S 4:4' rebar3 eunit --module=efz_runtime_acceptance_tests,efz_runtime_tests,efz_limits_tests,efz_phase3_tests,efz_backend_tests
-ERL_FLAGS='+S 4:4' escript /tmp/efz-p0-fixes/debt_probe.escript /home/fbogoslavskii/erl:fuzz/efz
+ERL_FLAGS='+S 4:4' escript /tmp/efz-p0-fixes/debt_probe.escript /home/anonymous_usr/erl:fuzz/efz
 ERL_FLAGS='+S 4:4' timeout 50s escript /tmp/efz-p0-fixes/debt_contention.escript /tmp/efz-acceptance-20260921/baseline
 ERL_FLAGS='+S 4:4' timeout 50s escript /tmp/efz-p0-fixes/debt_contention.escript /tmp/efz-p0-fixes/before-tree
 ERL_FLAGS='+S 4:4' escript /tmp/efz-p0-fixes/short_bench.escript /tmp/efz-p0-fixes/before-tree before-off off
-ERL_FLAGS='+S 4:4' escript /tmp/efz-p0-fixes/short_bench.escript /home/fbogoslavskii/erl:fuzz/efz off off
-ERL_FLAGS='+S 4:4' escript /tmp/efz-p0-fixes/short_bench.escript /home/fbogoslavskii/erl:fuzz/efz resources resources
-ERL_FLAGS='+S 4:4' escript /tmp/efz-p0-fixes/short_bench.escript /home/fbogoslavskii/erl:fuzz/efz full full
-ERL_FLAGS='+S 4:4' escript /tmp/efz-p0-fixes/post_bound.escript /home/fbogoslavskii/erl:fuzz/efz
+ERL_FLAGS='+S 4:4' escript /tmp/efz-p0-fixes/short_bench.escript /home/anonymous_usr/erl:fuzz/efz off off
+ERL_FLAGS='+S 4:4' escript /tmp/efz-p0-fixes/short_bench.escript /home/anonymous_usr/erl:fuzz/efz resources resources
+ERL_FLAGS='+S 4:4' escript /tmp/efz-p0-fixes/short_bench.escript /home/anonymous_usr/erl:fuzz/efz full full
+ERL_FLAGS='+S 4:4' escript /tmp/efz-p0-fixes/post_bound.escript /home/anonymous_usr/erl:fuzz/efz
 ```
 
 The temporary drivers/snapshots remain in `/tmp/efz-p0-fixes/` and
