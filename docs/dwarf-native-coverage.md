@@ -27,7 +27,7 @@ counts would not be comparable.
 
 Runtime: OTP 27, ERTS 15.0, x86-64 Linux. The active executable identified for
 this investigation was
-`/home/fbogoslavskii/.asdf/installs/erlang/27.0/erts-15.0/bin/beam.smp`.
+`beam.smp` from the Erlang/OTP 27.0 installation (ERTS 15.0).
 Its SHA256 is
 `dcc7fac32e6f401be539022fce3e15a3f92461600208a41f1e7bfe3ef9e5d98f`;
 its ELF GNU build-id is `545a52682e29950d87511c488a8d0f31551f5ad2`.
