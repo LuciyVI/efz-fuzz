@@ -18,5 +18,5 @@
                             [{file,"/tmp/efz-audit-20260912/audit_target.erl"},
                              {line,6}]},
               {efz_executor,'-coordinate/6-fun-0-',5,
-                            [{file,"/home/fbogoslavskii/erl:fuzz/efz/src/efz_executor.erl"},
+                            [{file,"/home/anonymous_usr/erl:fuzz/efz/src/efz_executor.erl"},
                              {line,34}]}]}}.

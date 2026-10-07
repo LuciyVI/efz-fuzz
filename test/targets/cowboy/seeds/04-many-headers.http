@@ -1,0 +1,7 @@
+GET /items/a/b HTTP/1.1
+Host: example.test
+Accept: text/plain
+User-Agent: efz-cowboy-bench
+X-Token: abc
+Connection: close
+

@@ -119,7 +119,7 @@ campaign. Эти аварийные пути не эквивалентны но�
 | Состояние | Владелец | Представление и lifetime |
 |---|---|---|
 | Active queue и `next` ID | `efz_corpus` | Список maps в состоянии `gen_server`; до остановки campaign |
-| Global coverage | `efz_worker` | `feedback.global`: Erlang `sets` и pinned build map |
+| Global coverage | `efz_worker` | `feedback.global`: exact probe set и pinned builds; opt-in hit-count также хранит `global_features` |
 | Staged cursors / RNG / pending round | `efz_worker` | `mutation_state`, возвращаемый `efz_mutation_plan`; не отдельный процесс |
 | Validation allowlist | `efz_worker` в default prepared mode | Безымянная `protected` ETS `efz_coverage_plan`; исчезает при смерти владельца |
 | Coverage текущего input | Execution guardian | Новая безымянная `public` ETS `efz_execution_coverage`; удаляется после исполнения |
@@ -291,9 +291,14 @@ spawn API и границы автоматических проверок: [exec
 <a id="coverage"></a>
 ## 6. Coverage и принятие решения
 
+Проект перехода на [bitmap backend](coverage-bitmap-architecture.md) описывает
+границы storage, lifecycle и критерии проверки. Сейчас backend не реализован:
+текущие `ets`/`ets_member` и правила `efz_feedback` остаются действующим контрактом.
+
 Метрика — **`clause_outcome_probe`**: custom points в clause/outcome bodies.
-Это не OTP native coverage, не `cover`, не bitmap edge coverage и не hit-count
-buckets. Полная identity автоматического probe:
+Это не OTP native coverage, не `cover` и не bitmap edge coverage. Default feedback
+использует присутствие probes; opt-in `coverage_feedback => hit_count` дополнительно
+учитывает buckets. Полная identity автоматического probe:
 
 ```erlang
 {ModuleAtom, BuildSHA256, ProbeIdInteger}
@@ -324,6 +329,15 @@ Result.builds должен совпасть с pinned FeedbackState.builds.
 Target failure: global coverage не меняется; reason = target_failure.
 Coverage / infrastructure failure: error; worker останавливает campaign.
 ```
+
+В экспериментальном hit-count mode та же guardian-owned ETS содержит
+`{{probe, ProbeIdentity}, Count}`. `ets:update_counter/4` атомарно увеличивает
+счётчик; exact probe set остаётся проекцией ключей. `efz_cov_count` классифицирует
+значения в восемь buckets. `efz_feedback` отдельно вычисляет разность
+`CurrentFeatures − GlobalFeatures`, сохраняя прежнюю формулу `New` для probes.
+Причины retention: `new_probe` либо `new_hit_count`; calibration обновляет оба
+множества, ошибки target — ни одно. Worker передаёт retained input в тот же corpus.
+Default presence сохраняет `new_coverage`. [Контракт и измерения](hit-count-experiment.md).
 
 Нет отдельного coverage collector server и нет общей observation table для
 нескольких inputs. Сериализация одного worker устраняет race «два worker

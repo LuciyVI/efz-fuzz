@@ -34,14 +34,41 @@ run_checked(M, Input, Timeout, Options) ->
     _=code:ensure_loaded(M),
     case efz_cov_integrity:options(M,Options) of
         {ok,Pinned} ->
-            Baseline=efz_runtime:memory_before(Pinned),
-            Result=run_pinned(M,Input,Timeout,Pinned),
-            efz_runtime:memory_after(Baseline,Result,Pinned);
+            case coverage_options(Pinned) of
+                ok ->
+                    Baseline=efz_runtime:memory_before(Pinned),
+                    Result=run_pinned(M,Input,Timeout,Pinned),
+                    efz_runtime:memory_after(Baseline,Result,Pinned);
+                {error,Why} -> rejected_coverage(Why,Pinned)
+            end;
         {error,Why} -> #{execution_ref=>make_ref(),outcome=>{infrastructure,Why},
             coverage_status=>{error,Why},coverage=>[],elapsed_us=>0,builds=>builds(Options),
             coverage_observation=>efz_cov_integrity:observation([],{error,Why},[]),
             cleanup=>#{status=>not_started},runner_reusable=>true}
     end.
+
+coverage_options(#{coverage_backend:=bitmap}=Options) ->
+    case {maps:get(coverage,Options,automatic),maps:get(coverage_feedback,Options,presence)} of
+        {automatic,presence} ->
+            case efz_coverage:valid_schema(maps:get(coverage_schema,Options,undefined),builds(Options)) of
+                true -> ok;
+                false -> {error,invalid_bitmap_schema}
+            end;
+        _ -> {error,bitmap_requires_automatic_presence}
+    end;
+coverage_options(#{coverage_backend:=otp_native_public}=Options) ->
+    case {maps:get(coverage,Options,automatic),maps:get(coverage_feedback,Options,presence),
+          efz_coverage:valid_native(maps:get(coverage_schema,Options,undefined),builds(Options))} of
+        {automatic,presence,true} -> ok;
+        _ -> {error,invalid_native_schema}
+    end;
+coverage_options(_) -> ok.
+
+rejected_coverage(Why,Options) ->
+    #{execution_ref=>make_ref(),outcome=>{infrastructure,Why},
+      coverage_status=>{error,Why},coverage=>[],elapsed_us=>0,builds=>builds(Options),
+      coverage_observation=>efz_cov_integrity:observation([],{error,Why},[]),
+      cleanup=>#{status=>not_started},runner_reusable=>true}.
 run_pinned(M, Input, Timeout, Options) ->
     Caller=self(), Request=make_ref(),
     {Guardian,Monitor}=spawn_monitor(fun()->
@@ -69,7 +96,7 @@ guardian_failed(Why,Result) ->
     Result#{outcome=>Primary,guardian_failure=>Failure,
         execution_evidence=>maps:with([outcome,coverage_status,coverage_observation,cleanup],Result),
         coverage_status=>{error,dirty_runner},
-        coverage_observation=>efz_cov_integrity:observation(maps:get(coverage,Result),{error,Failure},[]),
+        coverage_observation=>efz_cov_integrity:observation(maps:get(coverage,Result,[]),{error,Failure},[]),
         cleanup=>#{status=>unconfirmed},runner_reusable=>false}.
 
 %% This process classifies only the root. The guardian owns deadlines,
@@ -100,7 +127,7 @@ invoke(M,Input,{efz_context,1,Ref,_,_},Coordinator) ->
     Coordinator!{target_result,Ref,self(),Outcome},ok.
 
 coverage(Context, Options, Failure) ->
-    case efz_cov:snapshot(Context) of
+    case efz_coverage:snapshot(Context) of
         {ok, Hits} ->
             Status = case Failure of
                 ok -> validate(Hits, Options);

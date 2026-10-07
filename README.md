@@ -8,6 +8,13 @@ fuzzing engine.
 Документация: [архитектура и UML](docs/architecture.md) ·
 [карта всех директорий и файлов](docs/repository-map.md).
 
+[Аудит исходного presence backend и сравнение с AFL++](docs/coverage-tracking-audit.md)
+зафиксирован на commit `205e18b`. Теперь также доступен экспериментальный
+[hit-count feedback](docs/hit-count-experiment.md): `coverage_feedback => hit_count`
+или CLI `--coverage-feedback hit_count`. Default остаётся `presence`.
+Для automatic presence доступен opt-in `coverage_backend => bitmap`:
+один бит на точный структурный probe, без hashing и edge coverage.
+
 Быстрый старт с готовым тестовым корпусом:
 
 ```sh
@@ -25,6 +32,12 @@ allowlist and produces BEAM files plus source manifests in a separate directory.
 A single campaign worker calibrates seeds, then retains successful mutations
 that reach previously unseen probes. Exceptions, exits, and timeouts retain
 coverage and become result data; infrastructure failures stop the campaign.
+
+The optional `hit_count` mode additionally retains successful inputs that enter
+a new count bucket for an existing exact probe. It keeps probe novelty separate
+from count novelty (`new_probe` / `new_hit_count`) and uses the same mutation,
+execution, corpus and replay pipeline. See the [measured experiment](docs/hit-count-experiment.md)
+before choosing it for a target.
 
 Execution model: synchronous binary harness with controlled descendants created
 through `efz_target:spawn/1` / `spawn_link/1`. An independent guardian owns their
@@ -147,6 +160,8 @@ REBAR_BASE_DIR="$EFZ_CLEAN_BUILD" rebar3 compile
 ```
 
 [Coverage APIs, syntax support, manifests, measurements, and limits](docs/coverage.md),
+[Bitmap backend architecture](docs/coverage-bitmap-architecture.md),
+[implementation report and measurements](docs/coverage-bitmap-implementation-report.md),
 [Coverage integrity, pinned identities and zero-hit policy](docs/coverage-integrity.md),
 [Архитектура EFZ и UML-диаграммы](docs/architecture.md),
 [decision record](docs/adr/0002-automatic-coverage.md), and
@@ -159,7 +174,17 @@ An Erlang process is not a VM or operating-system sandbox.
 
 Exact coverage validation is prepared once per campaign. The default `ets` hook
 uses `insert_new` and independently reports first observations to the guardian;
-`coverage_backend => ets_member` checks membership before insertion. Both preserve execution-scoped observations
+`coverage_backend => ets_member` checks membership before insertion. Opt-in
+`coverage_backend => bitmap` with `coverage_bitmap_bits => 65536` uses a
+campaign schema and atomic execution map for automatic presence coverage.
+Use `coverage_backend => ets` to return to the reference backend. Current bitmap
+reuse, isolation, and performance results are in
+[docs/coverage-bitmap-v2-results.md](docs/coverage-bitmap-v2-results.md).
+Experimental `coverage_backend => otp_native_public` uses OTP 27+ executable
+line coverage through public APIs with separately compiled target artifacts.
+It has different coverage semantics; ETS stays default. See
+[short measurements and limitations](docs/otp-native-public-results.md).
+ETS and bitmap preserve execution-scoped observations
 and crash/timeout recovery. See the [performance report](docs/phase2.1-performance.md)
 for measured tradeoffs and raw artifacts. Set both `random_seed` and the optional
 `selection_seed` when reproducible mutation and corpus selection are needed.

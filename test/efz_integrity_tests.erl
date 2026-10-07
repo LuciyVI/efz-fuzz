@@ -113,11 +113,11 @@ crash_observed(S)->
     ?assertEqual(completed,maps:get(status,R)),?assertEqual([],maps:get(coverage,R)),
     ?assertEqual(observed,maps:get(status,maps:get(coverage_diagnostics,R))).
 contexts(S)->
-    lists:foreach(fun(Backend)->
-        C=pinned(S,#{coverage_backend=>Backend}),
+    lists:foreach(fun({Backend,Mode})->
+        C=pinned(S,#{coverage_backend=>Backend,coverage_feedback=>Mode}),
         lists:foreach(fun(B)->R=execute(B,C),broken(R),clean(R) end,
             [<<"erase_all">>,<<"erase_key">>,<<"detach">>,<<"malformed">>,<<"erase_restore">>])
-    end,[ets,ets_member]).
+    end,[{B,M}||B<-[ets,ets_member],M<-[presence,hit_count]]).
 caught(S)->
     lists:foreach(fun(B)->R=execute(B,pinned(S,#{})),
         ?assertEqual({ok,caught},maps:get(target_outcome,R)),broken(R),clean(R)

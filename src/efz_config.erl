@@ -2,13 +2,15 @@
 -export([defaults/0, prepare/1]).
 
 defaults() -> #{max_input_bytes => efz_input:default_limit(), timeout => 100, workers => 1, mutator => efz_mutator_random, mutation_mode => random,
-                coverage => automatic, coverage_backend => ets,
+                coverage => automatic, coverage_backend => ets, coverage_feedback => presence,
+                coverage_bitmap_bits => 65536,
                 coverage_validation => prepared, coverage_policy => diagnostic, max_iterations => infinity,
+                performance_profile => false,
                 runtime_oracles => efz_runtime_config:defaults(),
                 crash_dir => "_build/efz-crashes",crash_policy=>efz_crash:defaults()}.
 prepare(C0) when is_map(C0) ->
     Allowed = maps:keys(defaults()) ++ [target, seeds, artifacts, mutation, random_seed, selection_seed,
-                                      corpus_dir, corpus_build_policy],
+                                      corpus_dir, corpus_build_policy, benchmark_replay_inputs],
     case lists:sort(maps:keys(C0) -- Allowed) of
         [] -> prepare_known(C0);
         Unknown -> {error, {unknown_campaign_keys, Unknown}}
@@ -32,7 +34,8 @@ prepare_known(C0) ->
         Missing -> {error, {missing_campaign_keys, Missing}}
     end.
 prepare_inputs(C) ->
-    case [E || B <- maps:get(seeds,C), {error,E} <- [efz_input:check(B,maps:get(max_input_bytes,C),initial_seed)]] of
+    Inputs=maps:get(seeds,C)++maps:get(benchmark_replay_inputs,C,[]),
+    case [E || B <- Inputs, {error,E} <- [efz_input:check(B,maps:get(max_input_bytes,C),initial_seed)]] of
         [] -> case efz_crash:prepare(maps:get(crash_policy,C)) of
             {ok,P}->case efz_runtime_config:prepare(maps:get(runtime_oracles,C)) of
                 {ok,R}->prepare_mutation(C#{crash_policy=>P,runtime_oracles=>R}); Error->Error end; Error->Error end;
@@ -58,15 +61,22 @@ valid_field(target, V) -> is_atom(V);
 valid_field(mutator, V) -> is_atom(V);
 valid_field(workers, V) -> V =:= 1;
 valid_field(seeds, V) -> is_list(V) andalso lists:all(fun is_binary/1, V);
+valid_field(benchmark_replay_inputs,V) -> is_list(V) andalso V=/=[] andalso
+    length(V)=<10000 andalso lists:all(fun is_binary/1,V);
 valid_field(max_input_bytes, V) -> efz_input:valid_limit(V);
 valid_field(timeout, V) -> is_integer(V) andalso V >= 0;
 valid_field(max_iterations, V) -> V =:= infinity orelse (is_integer(V) andalso V >= 0);
 valid_field(mutation_mode, V) -> lists:member(V, [random, staged]);
 valid_field(mutation, V) -> is_map(V);
 valid_field(coverage, V) -> lists:member(V, [automatic, manual]);
-valid_field(coverage_backend, V) -> lists:member(V, [ets, ets_member]);
+valid_field(coverage_backend, V) -> lists:member(V, [ets, ets_member, bitmap, otp_native_public, none]);
+%% Bound allocation before starting a campaign (8 MiB payload at the limit).
+valid_field(coverage_bitmap_bits, V) -> is_integer(V) andalso V > 0 andalso
+    V =< (1 bsl 26) andalso V rem 64 =:= 0;
+valid_field(coverage_feedback, V) -> lists:member(V, [presence, hit_count]);
 valid_field(coverage_validation, V) -> lists:member(V, [per_execution, prepared]);
 valid_field(coverage_policy, V) -> lists:member(V, [diagnostic, strict]);
+valid_field(performance_profile, V) -> is_boolean(V);
 valid_field(runtime_oracles,V) -> is_map(V);
 valid_field(crash_policy,V) -> is_map(V);
 valid_field(artifacts, V) -> is_list(V) andalso lists:all(fun is_map/1, V);
@@ -79,10 +89,36 @@ valid_field(selection_seed, undefined) -> true;
 valid_field(K, {A,B,C}) when K =:= random_seed; K =:= selection_seed ->
     lists:all(fun(N) -> is_integer(N) andalso N >= 0 end, [A,B,C]);
 valid_field(_, _) -> false.
+prepare_coverage(#{coverage := manual, coverage_backend := bitmap}) ->
+    {error, bitmap_requires_automatic_presence};
+prepare_coverage(#{coverage_backend := bitmap, coverage_feedback := hit_count}) ->
+    {error, bitmap_requires_automatic_presence};
+prepare_coverage(#{coverage := manual, coverage_backend := otp_native_public}) ->
+    {error, native_public_requires_automatic_presence};
+prepare_coverage(#{coverage_backend := otp_native_public, coverage_feedback := hit_count}) ->
+    {error, native_public_requires_automatic_presence};
+prepare_coverage(#{coverage_backend := none, coverage := automatic,
+                   coverage_feedback := presence} = C) ->
+    %% Experimental engine ceiling: selected targets are pinned, but no
+    %% coverage artifact, snapshot or novelty state is created.
+    check_target(C#{manifests => []});
+prepare_coverage(#{coverage_backend := none}) ->
+    {error, none_requires_automatic_presence};
 prepare_coverage(#{coverage := manual} = C) -> check_target(C#{manifests => []});
+prepare_coverage(#{coverage := automatic, coverage_backend := otp_native_public} = C) ->
+    case efz_cov_native_public:preflight(maps:get(artifacts,C,[])) of
+        {ok,Ms} -> check_target(C#{manifests=>Ms});
+        Error -> Error
+    end;
 prepare_coverage(#{coverage := automatic} = C) ->
     case efz_instrument:preflight(maps:get(artifacts, C, [])) of
-        {ok, Ms} -> check_target(C#{manifests => Ms});
+        {ok, Ms} -> case maps:get(coverage_backend, C) of
+            bitmap -> case efz_coverage:check_capacity(Ms, maps:get(coverage_bitmap_bits, C)) of
+                ok -> check_target(C#{manifests => Ms});
+                Error -> Error
+            end;
+            _ -> check_target(C#{manifests => Ms})
+        end;
         Error -> Error
     end;
 prepare_coverage(_) -> {error, unsupported_coverage_mode}.

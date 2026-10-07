@@ -6,9 +6,29 @@ Actually tested: OTP 27.0 / ERTS 15.0, `x86_64-pc-linux-gnu`, Rebar3 3.25.0.
 The compiler module's MD5 is included in build identities. Other OTP releases and
 architectures require validation; the minimum-OTP setting alone is not evidence.
 
-The metric is **execution-scoped source-level clause/outcome probe coverage**.
-Each observation is an exact `{Module, BuildId, ProbeId}`. There is no hashed
-bitmap, hit-count bucketing, inferred CFG edge, or previous-probe transition state.
+The default ETS and opt-in bitmap metric is **execution-scoped source-level
+clause/outcome probe coverage**.
+Each observation is an exact `{Module, BuildId, ProbeId}`. The default
+`coverage_feedback => presence` retains exact set semantics. Experimental
+`coverage_feedback => hit_count` adds exact-identity counters and count buckets;
+see [its contract and measurements](hit-count-experiment.md). Neither mode has a
+hashed bitmap, inferred CFG edge, or previous-probe transition state. The opt-in
+bitmap backend stores these exact structural probes in collision-free slots.
+
+The [bitmap storage architecture](coverage-bitmap-architecture.md) keeps these
+structural probes and exact identities. For automatic presence campaigns, set
+`coverage_backend => bitmap` and optionally `coverage_bitmap_bits => 65536`
+(bits, not bytes). `ets` remains the default and fallback. Bitmap with manual
+coverage or hit-count feedback is rejected before the campaign. See the
+[v1 implementation report](coverage-bitmap-implementation-report.md) and
+[v2 measurements](coverage-bitmap-v2-results.md) for tests and measured tradeoffs.
+The experimental `coverage_backend => otp_native_public` uses OTP 27+
+`line_coverage` and documented reset/read APIs. Its feature is an executable
+line, so its count and corpus history must not be interpreted as equivalent to
+EFZ structural probes. It requires separately compiled native target artifacts
+and a dedicated VM without unrelated callers of those modules. See
+[implementation and short results](otp-native-public-results.md). Direct DWARF
+reading remains unimplemented.
 
 ## Syntax and semantics
 

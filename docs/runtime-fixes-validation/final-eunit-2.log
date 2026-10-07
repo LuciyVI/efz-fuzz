@@ -143,10 +143,10 @@ file "efz.app"
                     artifacts =>
                      [#{module => efz_crash_target,
                         beam =>
-                         "/home/fbogoslavskii/erl:fuzz/efz/_build/crash-test-0b000bdc5f59/instrumented/efz_crash_target.beam",
+                         "/home/anonymous_usr/erl:fuzz/efz/_build/crash-test-0b000bdc5f59/instrumented/efz_crash_target.beam",
                         warnings => [],
                         manifest =>
-                         "/home/fbogoslavskii/erl:fuzz/efz/_build/crash-test-0b000bdc5f59/instrumented/efz_crash_target.efz-manifest",
+                         "/home/anonymous_usr/erl:fuzz/efz/_build/crash-test-0b000bdc5f59/instrumented/efz_crash_target.efz-manifest",
                         build_id =>
                          <<4,50,128,75,215,193,218,165,208,148,163,82,196,24,
                            115,18,249,45,11,38,229,128,68,177,45,161,47,82,
@@ -180,7 +180,7 @@ file "efz.app"
                           max_metadata_bytes => 1048576,
                           max_total_metadata_bytes => 16777216}},
                     crash_dir =>
-                     "/home/fbogoslavskii/erl:fuzz/efz/_build/crash-test-0b000bdc5f59/worker-down",
+                     "/home/anonymous_usr/erl:fuzz/efz/_build/crash-test-0b000bdc5f59/worker-down",
                     execution_identities =>
                      #{modules =>
                         #{efz_crash_target =>
@@ -191,11 +191,11 @@ file "efz.app"
                                  {parse_transform,efz_instrument_pt},
                                  {efz_modules,[efz_crash_target]},
                                  {efz_source_root,
-                                  "/home/fbogoslavskii/erl:fuzz/efz/."},
+                                  "/home/anonymous_usr/erl:fuzz/efz/."},
                                  {efz_identity_options,[]},
                                  {efz_strict,true}]},
                                {source,
-                                "/home/fbogoslavskii/erl:fuzz/efz/fixtures/efz_crash_target.erl"}],
+                                "/home/anonymous_usr/erl:fuzz/efz/fixtures/efz_crash_target.erl"}],
                              module => efz_crash_target,
                              build_id =>
                               <<4,50,128,75,215,193,218,165,208,148,163,82,196,
@@ -213,7 +213,7 @@ file "efz.app"
                            [{version,"8.5"},
                             {options,[debug_info]},
                             {source,
-                             "/home/fbogoslavskii/erl:fuzz/efz/fixtures/efz_crash_harness.erl"}],
+                             "/home/anonymous_usr/erl:fuzz/efz/fixtures/efz_crash_harness.erl"}],
                           module => efz_crash_harness,build_id => undefined,
                           attributes_sha256 =>
                            <<84,65,46,28,106,116,188,97,139,123,157,155,41,208,

@@ -11,4 +11,4 @@ Stats: #{started_at => -576460751760,timeouts => 0,calibrations => 1,
          verification_elapsed_us => 6955,verification_executions => 6,
          verification_failed => 0,verification_requested => 6,
          verification_skipped => 0,verification_valid => 6}
-Report: /home/fbogoslavskii/erl:fuzz/efz/_build/runtime-existing/out/report.term
+Report: /home/anonymous_usr/erl:fuzz/efz/_build/runtime-existing/out/report.term

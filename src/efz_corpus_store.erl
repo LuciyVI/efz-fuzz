@@ -47,9 +47,15 @@ save(#{dir := Dir, identity := Identity} = Store, Input, QueueId, Meta) -> prote
         initial_seed -> {initial, none, #{new_probes => [], phase => initial}};
         new_coverage ->
             {discovery, #{content_hash => maps:get(parent_content, Meta), queue_id => maps:get(parent, Meta)},
-             #{new_probes => [probe(P) || P <- maps:get(new_probes, Meta)], phase => mutation}}
+             #{new_probes => [probe(P) || P <- maps:get(new_probes, Meta)], phase => mutation}};
+        Reason when Reason=:=new_probe; Reason=:=new_hit_count ->
+            {discovery, #{content_hash=>maps:get(parent_content,Meta),queue_id=>maps:get(parent,Meta)},
+             #{new_probes=>[probe(P)||P<-maps:get(new_probes,Meta)],phase=>mutation,
+               coverage_feedback=>hit_count,retention_reason=>Reason,
+               new_count_features=>[{probe(P),B}||{P,B}<-maps:get(new_count_features,Meta)]}}
     end,
-    Record = #{schema_version => 1, content_hash => Hash, input_size => byte_size(Input),
+    Version=case maps:get(coverage_feedback,Discovery,presence) of presence->1;hit_count->2 end,
+    Record = #{schema_version => Version, content_hash => Hash, input_size => byte_size(Input),
                queue_id => QueueId, origin => Origin, parent => Parent,
                discovery => Discovery, identity => Identity, recipe => Recipe},
     valid_record(Record, Input),
@@ -112,9 +118,15 @@ decode(<<"EFZC", 1, N:32, Hash:32/binary, Payload:N/binary>>, Path) ->
     catch error:_ -> error({invalid_corpus_encoding, Path}) end;
 decode(_, Path) -> error({truncated_or_invalid_corpus_metadata, Path}).
 
+%% The EFZC envelope stays at version 1. Record v2 identifies count provenance;
+%% v1 records and initial seeds retain their exact historical representation.
+valid_record(#{schema_version:=2,origin:=discovery,
+               discovery:=#{coverage_feedback:=hit_count}}=R,Input) -> valid_record_data(R,Input);
+valid_record(#{schema_version:=1}=R,Input) -> valid_record_data(R,Input);
 valid_record(R = #{schema_version := Version}, _) when Version =/= 1 ->
     error({incompatible_corpus_schema, maps:get(schema_version, R)});
-valid_record(R = #{schema_version := 1, content_hash := Hash, input_size := Size,
+valid_record(_, _) -> error(invalid_metadata_shape).
+valid_record_data(R = #{schema_version := Version, content_hash := Hash, input_size := Size,
                   queue_id := Q, origin := Origin, parent := Parent, discovery := Discovery,
                   identity := Identity, recipe := Recipe}, Input) ->
     check(lists:sort(maps:keys(R)) =:= lists:sort([schema_version, content_hash, input_size,
@@ -130,12 +142,25 @@ valid_record(R = #{schema_version := 1, content_hash := Hash, input_size := Size
         {discovery, #{content_hash := PH, queue_id := PQ}, #{new_probes := Ps, phase := mutation}} ->
             check(hash(PH) andalso is_integer(PQ) andalso PQ > 0 andalso map_size(Parent) =:= 2,
                   invalid_parent_provenance),
-            check(is_list(Ps) andalso Ps =/= [] andalso map_size(Discovery) =:= 2, invalid_discovery),
-            lists:foreach(fun valid_probe/1, Ps),
+            valid_discovery(Version,Discovery,Ps),
             valid_recipe(Recipe, Input, PH, PQ, maps:get(builds, Identity));
         _ -> error(invalid_corpus_origin)
     end;
-valid_record(_, _) -> error(invalid_metadata_shape).
+valid_record_data(_, _) -> error(invalid_metadata_shape).
+valid_discovery(1,D,Ps) ->
+    check(is_list(Ps) andalso Ps=/=[] andalso map_size(D)=:=2,invalid_discovery),
+    lists:foreach(fun valid_probe/1,Ps);
+valid_discovery(2,#{coverage_feedback:=hit_count,retention_reason:=Reason,new_count_features:=Fs}=D,Ps) ->
+    check(map_size(D)=:=5 andalso is_list(Ps) andalso is_list(Fs) andalso Fs=/=[],invalid_discovery),
+    lists:foreach(fun valid_probe/1,Ps),
+    lists:foreach(fun({P,B})->valid_probe(P),
+        check(lists:member(B,[1,2,4,8,16,32,64,128]),invalid_count_bucket);
+        (_)->error(invalid_count_feature) end,Fs),
+    check(Fs=:=lists:usort(Fs),invalid_count_features),
+    check((Reason=:=new_hit_count andalso Ps=:=[]) orelse
+          (Reason=:=new_probe andalso Ps=/=[] andalso
+           lists:all(fun(P)->lists:keymember(P,1,Fs) end,Ps)),invalid_count_retention);
+valid_discovery(_,_,_) -> error(invalid_discovery).
 valid_identity(#{target := M, callback := {<<"run">>, 1}, target_md5 := MD5,
                  coverage := Mode, builds := Bs} = I) ->
     check(map_size(I) =:= 5 andalso is_binary(M) andalso byte_size(M) > 0 andalso

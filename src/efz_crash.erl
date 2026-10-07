@@ -37,7 +37,8 @@ frames(Stack,N) -> lists:sublist(lists:filtermap(fun
     (_) -> false
 end,Stack),N).
 frame(M,F,A) ->
-    case lists:member(M,[efz_executor,efz_guardian,efz_cov,efz_cov_rt,efz_cov_integrity]) of
+    case lists:member(M,[efz_executor,efz_guardian,efz_cov,efz_cov_rt,
+                         efz_coverage,efz_cov_ets,efz_cov_integrity]) of
         true -> false;
         false when is_integer(A),A>=0 -> {true,{M,F,A}};
         false when is_list(A) -> {true,{M,F,length(A)}};

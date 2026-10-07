@@ -1,6 +1,7 @@
 -module(efz_fuzzer).
 -behaviour(gen_server).
--export([start_link/1, stop/0, stats/0, await/1]).
+-export([start_link/1, stop/0, stats/0, await/1,
+         benchmark_snapshot/0, benchmark_coverage/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 start_link(C0) ->
@@ -14,6 +15,9 @@ start_link(C0) ->
 stop() -> gen_server:stop(?MODULE).
 stats() -> efz_stats:get().
 await(Timeout) -> gen_server:call(?MODULE, await, Timeout).
+%% Sampled by external benchmarks; never called from the execution hot path.
+benchmark_snapshot() -> gen_server:call(?MODULE, benchmark_snapshot, 15000).
+benchmark_coverage() -> gen_server:call(?MODULE, benchmark_coverage, 15000).
 init(C) ->
     process_flag(trap_exit, true),
     Store = maps:get(corpus_store, C, undefined),
@@ -34,6 +38,23 @@ init(C) ->
 handle_call(await, From, #{report := pending, waiters := Ws} = S) ->
     {noreply, S#{waiters => [From | Ws]}};
 handle_call(await, _, #{report := R} = S) -> {reply, R, S};
+handle_call(benchmark_snapshot, _, #{worker := Worker, report := Report} = S) ->
+    Reply = case Report of
+        pending -> gen_server:call(Worker, benchmark_snapshot, 10000);
+        _ -> #{stats => maps:get(stats, Report),
+               coverage_count => length(maps:get(coverage, Report, [])),
+               corpus_size => length(maps:get(corpus, Report, [])),
+               status => maps:get(status,Report),
+               failure_context => maps:get(failure_context,Report,undefined),
+               completed => true}
+    end,
+    {reply, Reply, S};
+handle_call(benchmark_coverage, _, #{worker := Worker, report := Report} = S) ->
+    Reply = case Report of
+        pending -> gen_server:call(Worker, benchmark_coverage, 10000);
+        _ -> maps:get(coverage, Report, [])
+    end,
+    {reply, Reply, S};
 handle_call(_, _, S) -> {reply, ok, S}.
 handle_cast(_, S) -> {noreply, S}.
 handle_info({execution_context,Worker,Context},#{worker:=Worker}=S)->

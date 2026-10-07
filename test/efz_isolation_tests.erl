@@ -14,10 +14,20 @@ isolation_test_() -> {setup,fun setup/0,fun cleanup/1,fun(S)->[
     {"campaign and application cancellation reap descendants",fun()->cancel(S) end},
     {"coordinator killed: result waits for guardian cleanup",fun()->owner_failure(S,coordinator) end},
     {"descendants created during timeout are reaped",fun()->lists:foreach(fun(_)->check(S,<<"timeout_spawn">>,{timeout,30},at_least_two) end,lists:seq(1,10)) end},
+    {"bitmap descendants share context and timeout stops late writers",fun()->
+        {ok,Schema}=efz_coverage:prepare_schema(maps:get(manifests,maps:get(options,S)),65536),
+        Options=(maps:get(options,S))#{coverage_backend=>bitmap,coverage_schema=>Schema},
+        try
+            check(S#{options=>Options},<<"nested">>,{ok,ok},4),
+            check(S#{options=>Options},<<"timeout_spawn">>,{timeout,30},at_least_two),
+            check(S#{options=>Options},<<"normal">>,{ok,ok},1)
+        after efz_coverage:release_schema(Schema) end
+    end},
     {"owned ETS, registered names, dictionary and mailbox do not leak",fun()->owned_resources(S) end},
     {"dirty VM policies and ordinary spawn rejection",{timeout,30,fun()->
         lists:foreach(fun(Mode)->fresh_vm(S,Mode) end,
-            [persistent,env,shared_ets,escaped_ets,escaped_name,raw_spawn,raw_nested,guardian_killed,campaign_dirty,coordinator_dirty])
+            [persistent,env,shared_ets,escaped_ets,escaped_name,raw_spawn,raw_nested,
+             guardian_killed,bitmap_guardian_killed,campaign_dirty,coordinator_dirty])
     end}}
 ] end}.
 setup() ->
@@ -135,7 +145,13 @@ fresh(Mode,Descriptor) ->
             persistent_term:put({efz_isolation_target,external},External);
             _->ok
         end,
-        O=maps:get(options,S),
+        O=case Mode of
+            bitmap_guardian_killed ->
+                {ok,Schema}=efz_coverage:prepare_schema(Ms,65536),
+                (maps:get(options,S))#{coverage_backend=>bitmap,coverage_schema=>Schema,
+                    coverage_reuse_map=>efz_coverage:allocate_execution(Schema),coverage_compact=>true};
+            _ -> maps:get(options,S)
+        end,
         A=efz_executor:run(efz_isolation_target,<<"A">>,1000,O),
         ?assertEqual({ok,{false,false,[],undefined,clean_mailbox}},maps:get(outcome,A)),
         _=drain([]),
@@ -161,8 +177,8 @@ fresh(Mode,Descriptor) ->
                 ?assertEqual(1,maps:get(executions,maps:get(stats,Report))),
                 Context=maps:get(failure_context,Report),?assertEqual(<<"dirty_persistent">>,maps:get(input,Context)),
                 X=maps:get(result,Context),dead(maps:get(processes,maps:get(cleanup,X))),X;
-            guardian_killed ->
-                {Caller,Mon,Tag}=async(S,<<"hold">>),{G,Ps}=tree(),exit(G,kill),
+            GuardianMode when GuardianMode=:=guardian_killed; GuardianMode=:=bitmap_guardian_killed ->
+                {Caller,Mon,Tag}=async(S#{options=>O},<<"hold">>),{G,Ps}=tree(),exit(G,kill),
                 X=receive {Tag,V}->V after 3000->error(no_guardian_failure) end,
                 receive {'DOWN',Mon,process,Caller,normal}->ok end,
                 %% Guardian loss cannot certify cleanup. Retire VM; clean test

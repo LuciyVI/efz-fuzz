@@ -1,0 +1,22 @@
+#{otp => "27",schedulers => 2,
+  sha256 =>
+      #{calls => 100000,total_us => 17824,us_per_call => 0.17824,
+        caller_reductions_per_call => 11.5157,vm_gc_delta => 20},
+  corpus_select =>
+      #{calls => 10000,total_us => 12074,us_per_call => 1.2074,
+        caller_reductions_per_call => 22.665,vm_gc_delta => 326},
+  metadata_encode =>
+      #{calls => 100000,total_us => 24607,us_per_call => 0.24607,
+        caller_reductions_per_call => 14.35798,vm_gc_delta => 32},
+  in_memory_duplicate =>
+      #{calls => 1000,total_us => 1028,us_per_call => 1.028,
+        caller_reductions_per_call => 24.429,vm_gc_delta => 17},
+  in_memory_insert =>
+      #{calls => 100,total_us => 274,us_per_call => 2.74,
+        caller_reductions_per_call => 24.53,vm_gc_delta => 8},
+  fsync_publish =>
+      #{calls => 30,total_us => 76278,us_per_call => 2542.6,
+        caller_reductions_per_call => 2659.4,vm_gc_delta => 19},
+  disk_duplicate =>
+      #{calls => 30,total_us => 5596,us_per_call => 186.53333333333333,
+        caller_reductions_per_call => 2929.266666666667,vm_gc_delta => 29}}.

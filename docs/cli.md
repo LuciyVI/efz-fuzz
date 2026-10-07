@@ -4,6 +4,11 @@
 location, so it can be invoked from another working directory. Argument paths are
 relative to the caller's working directory. Run `rebar3 compile` first.
 
+`--coverage-feedback presence|hit_count` selects coverage feedback. The default
+is `presence`; `hit_count` is an experimental exact-counter mode described in
+[the measured prototype report](hit-count-experiment.md). It changes which
+successful inputs are retained, and uses the same launcher and fuzzing engine.
+
 The launcher calls `efz:start/1` once, waits with `efz:await/1`, saves the report,
 and stops EFZ in an `after` block. Configuration, instrumentation preflight,
 calibration, mutation, scheduling, execution, coverage, retention and crash
@@ -113,7 +118,8 @@ loading artifacts or targets. The input schema is:
 | `max_input_bytes` | Campaign binary limit, inclusive 0..1,048,576; default 4,096; applies to both modes, ingestion, restore and execution |
 | `mutation` | Staged-only map validated by `efz_mutation_plan:prepare/2`; see [mutation limits](mutations.md) |
 | `coverage` | `automatic` (default) or explicit API-only `manual` compatibility mode |
-| `coverage_backend` | `ets` (default) or `ets_member` |
+| `coverage_backend` | `ets` (default), `ets_member`, or `bitmap` (automatic presence only) |
+| `coverage_bitmap_bits` | Bitmap capacity in bits, default `65536`; positive multiple of 64 |
 | `coverage_validation` | `prepared` (default) or `per_execution` |
 | `coverage_policy` | `diagnostic` (default) or `strict`: fail a campaign with no observed automatic probes |
 | `artifacts` | List of artifact descriptor maps; automatic mode requires nonempty, valid artifacts |

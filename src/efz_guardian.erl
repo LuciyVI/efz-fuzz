@@ -31,23 +31,55 @@ run(Caller, Request, M, Input, Timeout, Options) ->
     end.
 
 start(Caller, Request, M, Input, Timeout, Options) ->
+    Profile=maps:get(performance_profile,Options,false),
+    ProfileStart=profile_now(Profile),
     CallerMon = monitor(process, Caller),
-    Context = efz_cov:open(maps:get(coverage_backend, Options, ets)),
+    {Context,CoverageOpenUs} = case {Profile,maps:get(coverage_backend,Options,ets)} of
+        {true,otp_native_public} ->
+            efz_cov_native_public:open_profiled(maps:get(coverage_schema,Options));
+        _ ->
+            {Opened,OpenUs}=efz_perf_profile:measure(Profile,fun() ->
+                case maps:find(coverage_reuse_map, Options) of
+        {ok, Map} -> efz_coverage:open(maps:get(coverage_backend, Options, ets),
+            maps:get(coverage_feedback,Options,presence),maps:get(coverage_schema,Options,undefined),Map);
+        error -> efz_coverage:open(maps:get(coverage_backend, Options, ets),
+            maps:get(coverage_feedback,Options,presence),maps:get(coverage_schema,Options,undefined))
+                end end),
+            {Opened,OpenUs}
+    end,
     Session = trace:session_create(efz_lifecycle, self(), []),
     Pins=maps:get(execution_identities,Options),
     Context=efz_cov_integrity:open(Context,Pins),
-    Context=efz_cov_integrity:trace_setup(Session,Context,Pins),
+    {Context,TraceSetupUs}=efz_perf_profile:measure(Profile,
+        fun()->efz_cov_integrity:trace_setup(Session,Context,Pins) end),
     Capability = make_ref(), Guardian = self(),
     {Coordinator, CMon} = spawn_monitor(fun() -> efz_executor:coordinate(Guardian) end),
+    {Baseline,BaselineUs}=efz_perf_profile:measure(Profile,fun shared_state/0),
     S0 = #{caller=>Caller,caller_mon=>CallerMon,request=>Request,context=>Context,
         session=>Session,capability=>Capability,coordinator=>Coordinator,coordinator_mon=>CMon,
         coordinator_alive=>true,alive=>#{},seen=>#{},barriers=>#{},code_drained=>false,phase=>running,
         violations=>[],attached=>#{},observed_probes=>sets:new(),coverage_failure=>ok,options=>Options,timeout=>Timeout,
-        started=>erlang:monotonic_time(microsecond),baseline=>shared_state()},
+        started=>erlang:monotonic_time(microsecond),baseline=>Baseline,
+        profile_enabled=>Profile,profile_start=>ProfileStart,coverage_open_us=>CoverageOpenUs,
+        trace_setup_us=>TraceSetupUs,shared_baseline_us=>BaselineUs,
+        target_us=>0,cleanup_started_us=>0},
     Runtime=efz_runtime:start(Options),
-    {Root,S1} = admit(fun() -> efz_executor:invoke(M,Input,Context,Coordinator) end,S0#{runtime=>Runtime}),
+    Guardian=self(),
+    RunTarget=case Profile of
+        true -> fun() ->
+            Begin=erlang:monotonic_time(microsecond),
+            try efz_executor:invoke(M,Input,Context,Coordinator)
+            after Guardian!{efz_profile_target,
+                erlang:monotonic_time(microsecond)-Begin} end
+        end;
+        false -> fun() -> efz_executor:invoke(M,Input,Context,Coordinator) end
+    end,
+    {{Root,S1},AdmitUs}=efz_perf_profile:measure(Profile,
+        fun()->admit(RunTarget,S0#{runtime=>Runtime}) end),
     Coordinator ! {coordinate,Root,Context},
-    loop(S1#{root=>Root,deadline=>now_ms()+Timeout}).
+    PrepareUs=case Profile of true -> profile_now(true)-ProfileStart; false -> 0 end,
+    loop(S1#{root=>Root,deadline=>now_ms()+Timeout,profile_prepare_us=>PrepareUs,
+             admit_us=>AdmitUs}).
 
 admit(Fun, S=#{context:=Context,capability:=Capability,session:=Session,alive:=Alive,seen:=Seen}) ->
     Guardian = self(),
@@ -57,7 +89,7 @@ admit(Fun, S=#{context:=Context,capability:=Capability,session:=Session,alive:=A
             {start_owned,Capability} ->
                 demonitor(GMon,[flush]),
                 put('$efz_lifecycle',{Guardian,Capability}),
-                ok=efz_cov:attach(Context),
+                ok=efz_coverage:attach(Context),
                 try Fun() after _=catch efz_cov_integrity:check(Context) end;
             {'DOWN',GMon,process,Guardian,_} -> ok
         end
@@ -136,6 +168,8 @@ loop_event({trace,_,spawn,Child,_},S) -> discovered(Child,S);
 loop_event({trace,Child,spawned,_,_},S) -> discovered(Child,S);
 loop_event({efz_cov_failure,Ref,Why},S=#{context:={efz_context,1,Ref,_,_}}) ->
     loop(coverage_failed(Why,S));
+loop_event({efz_profile_target,Us},S=#{profile_enabled:=true}) ->
+    loop(S#{target_us=>Us});
 loop_event({efz_cov_observed,Ref,Id},S=#{context:={efz_context,1,Ref,_,_},observed_probes:=Observed}) ->
     loop(S#{observed_probes=>sets:add_element(Id,Observed)});
 loop_event(Event,S=#{context:=Context,seen:=Seen,attached:=Attached}) ->
@@ -165,28 +199,90 @@ cleanup(Outcome,S=#{alive:=Alive,coordinator:=C}) ->
     maps:foreach(fun(P,_)->exit(P,kill) end,Alive),
     exit(C,kill),
     S#{phase=>cleaning,outcome=>Outcome,deadline=>now_ms()+?CLEANUP_MS,
+       cleanup_started_us=>profile_now(maps:get(profile_enabled,S)),
        runtime=>efz_runtime:stop(maps:get(runtime,S))}.
 violation(Why,S=#{violations:=Vs}) -> S#{violations=>lists:usort([Why|Vs])}.
 
 finish(S,ProcessStatus) ->
+    Profile=maps:get(profile_enabled,S),
+    FinishStart=profile_now(Profile),
     #{context:=Context,options:=Options,session:=Session,baseline:=Before}=S,
-    PinStatus=efz_cov_integrity:validate(maps:get(execution_identities,Options)),
+    {PinStatus,IntegrityUs}=efz_perf_profile:measure(Profile,
+        fun()->efz_cov_integrity:validate(maps:get(execution_identities,Options)) end),
     Failure=case maps:get(coverage_failure,S) of ok->PinStatus;Error->Error end,
-    {Hits,CovStatus0}=efz_executor:coverage(Context,Options,Failure),
-    CovStatus1=case {CovStatus0,sets:is_subset(maps:get(observed_probes,S),sets:from_list(Hits))} of
-        {ok,false} -> {error,coverage_observations_lost};
-        _ -> CovStatus0
+    Native=maps:get(coverage_backend,Options,ets)=:=otp_native_public,
+    NoCoverage=maps:get(coverage_backend,Options,ets)=:=none,
+    Compact=maps:get(coverage_compact,Options,false) andalso
+        maps:get(coverage_backend,Options,ets)=:=bitmap andalso
+        maps:is_key(coverage_reuse_map,Options) andalso ProcessStatus=:=confirmed
+        andalso Failure=:=ok andalso element(1,maps:get(outcome,S))=:=ok,
+    {Hits,SnapshotStatus}=case Compact of
+        true -> {[],compact_plan_status(Options)};
+        false -> case Native of
+            true -> {[],Failure};
+            false -> case NoCoverage of
+                true -> {[],Failure};
+                false -> efz_executor:coverage(Context,Options,Failure)
+            end
+        end
+    end,
+    {CountEvidence,CovStatus0}=count_evidence(Context,Options,Hits,SnapshotStatus),
+    CovStatus1=case Compact of
+        true -> CovStatus0;
+        false -> case {CovStatus0,sets:is_subset(maps:get(observed_probes,S),sets:from_list(Hits))} of
+            {ok,false} -> {error,coverage_observations_lost};
+            _ -> CovStatus0
+        end
     end,
     Attached=lists:sort(maps:keys(maps:get(attached,S))),
-    CovStatus=case {CovStatus1,maps:get(outcome,S),lists:member(maps:get(root,S),Attached)} of
+    CovStatus2=case {CovStatus1,maps:get(outcome,S),lists:member(maps:get(root,S),Attached)} of
         {ok,{ok,_},false} -> {error,missing_coverage_attachment};
         _ -> CovStatus1
     end,
-    Observation=efz_cov_integrity:observation(Hits,CovStatus,Attached),
-    ok=efz_cov:close(Context),ok=efz_cov_integrity:close(), _=trace:session_destroy(Session),
+    {BitsEvidence,CovStatus}=case {Compact,Native,ProcessStatus,CovStatus2,maps:get(outcome,S)} of
+        {false,true,confirmed,ok,{ok,_}} ->
+            NativeCollect=case Profile of
+                true -> efz_cov_native_public:collect_profiled(maps:get(coverage_schema,Options));
+                false -> efz_coverage:native_collect(maps:get(coverage_schema,Options))
+            end,
+            case NativeCollect of
+                {ok,NativeBits,Times} ->
+                    put('$efz_native_profile',Times),
+                    {{efz_native_observation,NativeBits},ok};
+                {ok,NativeBits} -> {{efz_native_observation,NativeBits},ok};
+                {error,NativeWhy} -> {none,{error,NativeWhy}}
+            end;
+        {true,false,confirmed,ok,{ok,_}} ->
+            Sealed0=efz_coverage:seal(Context),
+            case {efz_coverage:sealed_count(Sealed0),sets:size(maps:get(observed_probes,S))} of
+                {{ok,N},N} -> {Sealed0,ok};
+                {{ok,_},_} -> {none,{error,coverage_observations_lost}};
+                {{error,CountWhy},_} -> {none,{error,CountWhy}}
+            end;
+        {false,false,confirmed,ok,{ok,_}} -> case efz_coverage:snapshot_bits(Context) of
+            {ok,SnapshotBits} -> {SnapshotBits,ok};
+            {error,SnapshotWhy} -> {none,{error,SnapshotWhy}};
+            none -> {none,ok}
+        end;
+        _ -> {none,CovStatus2}
+    end,
+    Observation=case {Compact,BitsEvidence} of
+        {true,_} -> efz_cov_integrity:observation_count(sets:size(maps:get(observed_probes,S)),CovStatus,Attached);
+        {false,{efz_native_observation,NativeBits0}} ->
+            efz_cov_integrity:observation_count(efz_coverage:native_count(NativeBits0),CovStatus,Attached);
+        _ -> efz_cov_integrity:observation(Hits,CovStatus,Attached)
+    end,
+    case BitsEvidence of
+        {efz_bitmap_sealed,_,_,_,_,_,_} -> ok;
+        _ -> ok=efz_coverage:close(Context)
+    end,
+    ok=efz_cov_integrity:close(),
+    {_,TraceDestroyUs}=efz_perf_profile:measure(Profile,
+        fun()->trace:session_destroy(Session) end),
     Runtime=efz_runtime:finish(maps:get(runtime,S),maps:get(outcome,S),
         #{status=>ProcessStatus,survivors=>maps:keys(maps:get(alive,S))}),
-    Changes=shared_changes(Before,shared_state()),
+    {Changes,SharedCheckUs}=efz_perf_profile:measure(Profile,
+        fun()->shared_changes(Before,shared_state()) end),
     Violations=lists:usort(maps:get(violations,S)++Changes),
     Reusable=ProcessStatus=:=confirmed andalso Violations=:=[],
     Cleanup=#{status=>ProcessStatus,processes=>lists:sort(maps:keys(maps:get(seen,S))),
@@ -203,13 +299,86 @@ finish(S,ProcessStatus) ->
         end
     end,
     {efz_context,1,Ref,_,_}=Context,
-    Result=#{execution_ref=>Ref,outcome=>Final,target_outcome=>Outcome,
+    Result0=#{execution_ref=>Ref,outcome=>Final,target_outcome=>Outcome,
         coverage=>Hits,coverage_status=>Status,coverage_observation=>Observation,
         execution_identities=>maps:get(execution_identities,Options),builds=>efz_executor:builds(Options),
         elapsed_us=>erlang:monotonic_time(microsecond)-maps:get(started,S),
         execution_model=>controlled_descendants,cleanup=>Cleanup,runner_reusable=>Reusable},
+    ResultBase=case maps:is_key(coverage_reuse_map,Options) of
+        true -> Result0#{bitmap_map_armed=>true};
+        false -> Result0
+    end,
+    Result=case {Final,Status,Reusable,BitsEvidence} of
+        {{ok,_},ok,true,{efz_native_observation,ResultNativeBits}} ->
+            NativeSchema=maps:get(coverage_schema,Options),
+            DiagnosticHits=case maps:get(enabled,maps:get(runtime_oracles,Options,#{enabled=>false}),false) of
+                true -> efz_coverage:native_decode(NativeSchema,ResultNativeBits);
+                false -> []
+            end,
+            ResultBase#{coverage_native=>ResultNativeBits,
+                coverage=>DiagnosticHits,
+                coverage_count=>efz_coverage:native_count(ResultNativeBits),
+                coverage_modules=>efz_coverage:native_modules(NativeSchema,ResultNativeBits)};
+        {{ok,_},ok,true,{efz_bitmap_sealed,_,_,_,_,_,_}=Sealed} ->
+            Modules=sets:fold(fun({M,_,_},Acc)->sets:add_element(M,Acc) end,
+                              sets:new(),maps:get(observed_probes,S)),
+            (maps:remove(coverage,ResultBase))#{coverage_count=>sets:size(maps:get(observed_probes,S)),
+                coverage_modules=>sets:to_list(Modules),coverage_sealed=>Sealed};
+        {{ok,_},ok,true,none}->ResultBase;
+        {{ok,_},ok,true,Bits}->ResultBase#{coverage_bits=>Bits};
+        _->ResultBase
+    end,
     demonitor(maps:get(caller_mon,S),[flush]),
-    reply(maps:get(caller,S),maps:get(request,S),maps:merge(Result,Runtime)).
+    Profiled=case Profile of
+        true ->
+            End=profile_now(true),
+            Prepare=maps:get(profile_prepare_us,S,0),
+            Target=maps:get(target_us,S),
+            CleanupWaitUs=case maps:get(cleanup_started_us,S) of
+                0 -> 0; BeginCleanup -> max(0,FinishStart-BeginCleanup)
+            end,
+            Processing=End-FinishStart,
+            Total=End-maps:get(profile_start,S),
+            GuardianTimes=#{guardian_total_us=>Total,guardian_prepare_us=>Prepare,
+                target_us=>Target,cleanup_wait_us=>CleanupWaitUs,
+                guardian_finish_us=>Processing,
+                guardian_unaccounted_us=>max(0,Total-Prepare-Target-CleanupWaitUs-Processing),
+                coverage_open_us=>maps:get(coverage_open_us,S),
+                trace_setup_us=>maps:get(trace_setup_us,S),
+                shared_baseline_us=>maps:get(shared_baseline_us,S),
+                admit_us=>maps:get(admit_us,S),
+                integrity_validate_us=>IntegrityUs,
+                trace_destroy_us=>TraceDestroyUs,
+                shared_check_us=>SharedCheckUs},
+            Result#{performance_profile=>maps:merge(GuardianTimes,
+                case get('$efz_native_profile') of
+                    undefined -> #{}; NativeTimes -> NativeTimes
+                end)};
+        false -> Result
+    end,
+    reply(maps:get(caller,S),maps:get(request,S),maps:merge(maps:merge(Profiled,CountEvidence),Runtime)).
+
+profile_now(true) -> erlang:monotonic_time(microsecond);
+profile_now(false) -> 0.
+
+%% All admitted writers have terminated before either snapshot. Presence keeps
+%% its original result shape; hit counts are supplemental, never probe IDs.
+count_evidence(_,#{coverage_feedback:=hit_count},_,{error,_}=Error) -> {#{},Error};
+count_evidence(Context,#{coverage_feedback:=hit_count},Hits,ok) ->
+    case efz_coverage:counts(Context) of
+        {ok,Counts} -> case efz_coverage:count_features(Hits,Counts) of
+            {ok,Features}->{#{coverage_feedback=>hit_count,hit_counts=>Counts,count_features=>Features},ok};
+            Error->{#{},Error}
+        end;
+        Error->{#{},Error}
+    end;
+count_evidence(_,_,_,Status) -> {#{},Status}.
+
+%% Slot admission validates each hit against the exact schema. Still validate
+%% that the prepared plan itself remains live, as the list-based path did.
+compact_plan_status(#{coverage_plan:=Plan}) ->
+    efz_cov_manifest:validate_prepared(automatic,[],Plan);
+compact_plan_status(_) -> ok.
 
 %% This detects persistent_term/env changes and new escaped ETS tables. It is
 %% NOT a transaction or a sandbox: arbitrary existing shared ETS writes, ports,

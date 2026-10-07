@@ -25,6 +25,7 @@ help() ->
     "  --out DIR                Create/use DIR; write report.term and crashes/ (required)\n"
     "  --artifacts DIR          Instrumented .beam files with paired .efz-manifest files (required)\n"
     "  --coverage-policy diagnostic|strict  No-probe campaign policy (default: diagnostic)\n"
+    "  --coverage-feedback presence|hit_count  Experimental count feedback (default: presence)\n"
     "  --code-path DIR          Ordinary harness/dependency BEAM directory (repeatable)\n"
     "  --mutation staged|random Default: staged\n"
     "  --timeout MS             Per-input timeout, nonnegative integer (default: 100)\n"
@@ -77,6 +78,7 @@ option("--corpus-build-policy") -> corpus_build_policy;
 option("--out") -> out;
 option("--artifacts") -> artifacts;
 option("--coverage-policy") -> coverage_policy;
+option("--coverage-feedback") -> coverage_feedback;
 option("--code-path") -> code_paths;
 option("--mutation") -> mutation_mode;
 option("--timeout") -> timeout;
@@ -94,6 +96,9 @@ value(corpus_build_policy, _) -> fail("--corpus-build-policy must be reject or r
 value(coverage_policy, "diagnostic") -> diagnostic;
 value(coverage_policy, "strict") -> strict;
 value(coverage_policy, _) -> fail("--coverage-policy must be diagnostic or strict", []);
+value(coverage_feedback, "presence") -> presence;
+value(coverage_feedback, "hit_count") -> hit_count;
+value(coverage_feedback, _) -> fail("--coverage-feedback must be presence or hit_count", []);
 value(K, Text) when K =:= timeout; K =:= max_iterations; K =:= max_input_bytes; K =:= runtime_runs; K =:= verification_budget; K =:= sample_interval ->
     case Text =/= [] andalso lists:all(fun(C) -> C >= $0 andalso C =< $9 end, Text) of
         true -> list_to_integer(Text);
@@ -140,7 +145,7 @@ launch(O) ->
     Crashes = filename:join(Out, "crashes"),
     writable_directory(Out), writable_directory(Crashes),
     try
-        case efz:start(maps:merge(C#{crash_dir => Crashes}, maps:with([corpus_dir,corpus_build_policy,coverage_policy],O))) of
+        case efz:start(maps:merge(C#{crash_dir => Crashes}, maps:with([corpus_dir,corpus_build_policy,coverage_policy,coverage_feedback],O))) of
             {ok, _} -> finish(efz:await(infinity), Out);
             {error, Why} -> fail("Cannot start campaign: ~ts", [start_error(Why)])
         end

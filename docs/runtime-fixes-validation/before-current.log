@@ -24,9 +24,9 @@ module 'efz_limits_tests'
 *timed out*
 in function gen:do_call/4 (gen.erl, line 260)
 in call from gen_server:call/3 (gen_server.erl, line 1122)
-in call from efz_limits_tests:campaign/1 (/home/fbogoslavskii/erl:fuzz/efz/test/efz_limits_tests.erl, line 37)
-in call from efz_limits_tests:observe/1 (/home/fbogoslavskii/erl:fuzz/efz/test/efz_limits_tests.erl, line 39)
-in call from efz_limits_tests:'-random/1-fun-7-'/2 (/home/fbogoslavskii/erl:fuzz/efz/test/efz_limits_tests.erl, line 80)
+in call from efz_limits_tests:campaign/1 (/home/anonymous_usr/erl:fuzz/efz/test/efz_limits_tests.erl, line 37)
+in call from efz_limits_tests:observe/1 (/home/anonymous_usr/erl:fuzz/efz/test/efz_limits_tests.erl, line 39)
+in call from efz_limits_tests:'-random/1-fun-7-'/2 (/home/anonymous_usr/erl:fuzz/efz/test/efz_limits_tests.erl, line 80)
 in call from lists:foreach_1/2 (lists.erl, line 2310)
 in call from eunit_test:run_testfun/1 (eunit_test.erl, line 72)
 in call from eunit_proc:run_test/1 (eunit_proc.erl, line 544)

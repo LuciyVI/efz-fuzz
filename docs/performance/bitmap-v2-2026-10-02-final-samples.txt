@@ -1,0 +1,784 @@
+=INFO REPORT==== 2-Oct-2026::21:05:22.921379 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 2-Oct-2026::21:05:23.144141 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 2-Oct-2026::21:05:23.372906 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 2-Oct-2026::21:05:23.577476 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 2-Oct-2026::21:05:23.781026 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 2-Oct-2026::21:05:23.987657 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 2-Oct-2026::21:05:24.137100 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 2-Oct-2026::21:05:24.342382 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 2-Oct-2026::21:05:24.538574 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 2-Oct-2026::21:05:24.682754 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 2-Oct-2026::21:05:24.835620 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 2-Oct-2026::21:05:24.985416 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 2-Oct-2026::21:05:25.158071 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 2-Oct-2026::21:05:25.343570 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 2-Oct-2026::21:05:25.611416 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 2-Oct-2026::21:05:25.774082 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 2-Oct-2026::21:05:25.963989 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 2-Oct-2026::21:05:26.128138 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 2-Oct-2026::21:05:26.289859 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 2-Oct-2026::21:05:26.494600 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 2-Oct-2026::21:05:26.661540 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 2-Oct-2026::21:05:26.787680 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 2-Oct-2026::21:05:27.033320 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 2-Oct-2026::21:05:27.213148 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+#{rows =>
+      [#{name => "hit_repeated_5000",
+         samples =>
+             [#{reductions => 83889,backend => ets,us => 890,minor_gcs => 27},
+              #{reductions => 93652,backend => bitmap,us => 1361,
+                minor_gcs => 32},
+              #{reductions => 94282,backend => bitmap,us => 1373,
+                minor_gcs => 32},
+              #{reductions => 84312,backend => ets,us => 855,minor_gcs => 27},
+              #{reductions => 84219,backend => ets,us => 852,minor_gcs => 24},
+              #{reductions => 93327,backend => bitmap,us => 1296,
+                minor_gcs => 32},
+              #{reductions => 94367,backend => bitmap,us => 1308,
+                minor_gcs => 34},
+              #{reductions => 84224,backend => ets,us => 932,minor_gcs => 24},
+              #{reductions => 83365,backend => ets,us => 889,minor_gcs => 24},
+              #{reductions => 93181,backend => bitmap,us => 1330,
+                minor_gcs => 34},
+              #{reductions => 94299,backend => bitmap,us => 1396,
+                minor_gcs => 32},
+              #{reductions => 84231,backend => ets,us => 894,minor_gcs => 24},
+              #{reductions => 83317,backend => ets,us => 958,minor_gcs => 24},
+              #{reductions => 93101,backend => bitmap,us => 1388,
+                minor_gcs => 32},
+              #{reductions => 94304,backend => bitmap,us => 1328,
+                minor_gcs => 32},
+              #{reductions => 84331,backend => ets,us => 879,minor_gcs => 27},
+              #{reductions => 84239,backend => ets,us => 969,minor_gcs => 24},
+              #{reductions => 93389,backend => bitmap,us => 1533,
+                minor_gcs => 34},
+              #{reductions => 94388,backend => bitmap,us => 1435,
+                minor_gcs => 34},
+              #{reductions => 84243,backend => ets,us => 1134,
+                minor_gcs => 24}],
+         summary =>
+             #{ets =>
+                   #{median_us => 890,p95_us => 1134,min_us => 852,
+                     max_us => 1134},
+               bitmap =>
+                   #{median_us => 1361,p95_us => 1533,min_us => 1296,
+                     max_us => 1533}}},
+       #{name => "hit_sparse_64",
+         samples =>
+             [#{reductions => 792,backend => ets,us => 25,minor_gcs => 0},
+              #{reductions => 1176,backend => bitmap,us => 29,minor_gcs => 0},
+              #{reductions => 1177,backend => bitmap,us => 42,minor_gcs => 0},
+              #{reductions => 792,backend => ets,us => 25,minor_gcs => 0},
+              #{reductions => 792,backend => ets,us => 29,minor_gcs => 0},
+              #{reductions => 2656,backend => bitmap,us => 56,minor_gcs => 1},
+              #{reductions => 2681,backend => bitmap,us => 48,minor_gcs => 1},
+              #{reductions => 2326,backend => ets,us => 43,minor_gcs => 1},
+              #{reductions => 2350,backend => ets,us => 42,minor_gcs => 1},
+              #{reductions => 2754,backend => bitmap,us => 48,minor_gcs => 1},
+              #{reductions => 2779,backend => bitmap,us => 49,minor_gcs => 1},
+              #{reductions => 792,backend => ets,us => 19,minor_gcs => 0},
+              #{reductions => 792,backend => ets,us => 19,minor_gcs => 0},
+              #{reductions => 1176,backend => bitmap,us => 24,minor_gcs => 0},
+              #{reductions => 1176,backend => bitmap,us => 23,minor_gcs => 0},
+              #{reductions => 793,backend => ets,us => 20,minor_gcs => 0},
+              #{reductions => 792,backend => ets,us => 19,minor_gcs => 0},
+              #{reductions => 1176,backend => bitmap,us => 23,minor_gcs => 0},
+              #{reductions => 1176,backend => bitmap,us => 23,minor_gcs => 0},
+              #{reductions => 792,backend => ets,us => 23,minor_gcs => 0}],
+         summary =>
+             #{ets =>
+                   #{median_us => 23,p95_us => 43,min_us => 19,max_us => 43},
+               bitmap =>
+                   #{median_us => 29,p95_us => 56,min_us => 23,max_us => 56}}},
+       #{name => "hit_dense_1024",
+         samples =>
+             [#{reductions => 16514,backend => ets,us => 584,minor_gcs => 4},
+              #{reductions => 20011,backend => bitmap,us => 719,
+                minor_gcs => 5},
+              #{reductions => 21202,backend => bitmap,us => 737,
+                minor_gcs => 1},
+              #{reductions => 14341,backend => ets,us => 642,minor_gcs => 2},
+              #{reductions => 15827,backend => ets,us => 611,minor_gcs => 2},
+              #{reductions => 22682,backend => bitmap,us => 805,
+                minor_gcs => 2},
+              #{reductions => 20519,backend => bitmap,us => 760,
+                minor_gcs => 3},
+              #{reductions => 16301,backend => ets,us => 655,minor_gcs => 2},
+              #{reductions => 14106,backend => ets,us => 784,minor_gcs => 3},
+              #{reductions => 20773,backend => bitmap,us => 1224,
+                minor_gcs => 1},
+              #{reductions => 20662,backend => bitmap,us => 1149,
+                minor_gcs => 1},
+              #{reductions => 14763,backend => ets,us => 1129,minor_gcs => 1},
+              #{reductions => 14983,backend => ets,us => 1119,minor_gcs => 1},
+              #{reductions => 21349,backend => bitmap,us => 1284,
+                minor_gcs => 1},
+              #{reductions => 20987,backend => bitmap,us => 1178,
+                minor_gcs => 1},
+              #{reductions => 15168,backend => ets,us => 1194,minor_gcs => 1},
+              #{reductions => 15103,backend => ets,us => 1162,minor_gcs => 1},
+              #{reductions => 18459,backend => bitmap,us => 562,
+                minor_gcs => 0},
+              #{reductions => 18459,backend => bitmap,us => 541,
+                minor_gcs => 0},
+              #{reductions => 12312,backend => ets,us => 402,minor_gcs => 0}],
+         summary =>
+             #{ets =>
+                   #{median_us => 655,p95_us => 1194,min_us => 402,
+                     max_us => 1194},
+               bitmap =>
+                   #{median_us => 760,p95_us => 1284,min_us => 541,
+                     max_us => 1284}}},
+       #{name => "reset_fresh",
+         samples =>
+             [#{reductions => 60,backend => ets,us => 1,minor_gcs => 0},
+              #{reductions => 38,backend => bitmap,us => 1,minor_gcs => 0},
+              #{reductions => 38,backend => bitmap,us => 0,minor_gcs => 0},
+              #{reductions => 60,backend => ets,us => 1,minor_gcs => 0},
+              #{reductions => 60,backend => ets,us => 1,minor_gcs => 0},
+              #{reductions => 38,backend => bitmap,us => 1,minor_gcs => 0},
+              #{reductions => 38,backend => bitmap,us => 1,minor_gcs => 0},
+              #{reductions => 60,backend => ets,us => 1,minor_gcs => 0},
+              #{reductions => 60,backend => ets,us => 1,minor_gcs => 0},
+              #{reductions => 38,backend => bitmap,us => 0,minor_gcs => 0},
+              #{reductions => 38,backend => bitmap,us => 0,minor_gcs => 0},
+              #{reductions => 60,backend => ets,us => 1,minor_gcs => 0},
+              #{reductions => 60,backend => ets,us => 1,minor_gcs => 0},
+              #{reductions => 38,backend => bitmap,us => 0,minor_gcs => 0},
+              #{reductions => 38,backend => bitmap,us => 0,minor_gcs => 0},
+              #{reductions => 60,backend => ets,us => 1,minor_gcs => 0},
+              #{reductions => 60,backend => ets,us => 0,minor_gcs => 0},
+              #{reductions => 38,backend => bitmap,us => 0,minor_gcs => 0},
+              #{reductions => 38,backend => bitmap,us => 0,minor_gcs => 0},
+              #{reductions => 60,backend => ets,us => 1,minor_gcs => 0}],
+         summary =>
+             #{ets => #{median_us => 1,p95_us => 1,min_us => 0,max_us => 1},
+               bitmap =>
+                   #{median_us => 0,p95_us => 1,min_us => 0,max_us => 1}}},
+       #{name => "snapshot_64",
+         samples =>
+             [#{reductions => 491,backend => ets,us => 15,minor_gcs => 0},
+              #{reductions => 3608,backend => bitmap,us => 61,minor_gcs => 0},
+              #{reductions => 3608,backend => bitmap,us => 39,minor_gcs => 0},
+              #{reductions => 491,backend => ets,us => 12,minor_gcs => 0},
+              #{reductions => 491,backend => ets,us => 11,minor_gcs => 0},
+              #{reductions => 3608,backend => bitmap,us => 35,minor_gcs => 0},
+              #{reductions => 3608,backend => bitmap,us => 40,minor_gcs => 0},
+              #{reductions => 491,backend => ets,us => 12,minor_gcs => 0},
+              #{reductions => 491,backend => ets,us => 13,minor_gcs => 0},
+              #{reductions => 3608,backend => bitmap,us => 34,minor_gcs => 0},
+              #{reductions => 3608,backend => bitmap,us => 33,minor_gcs => 0},
+              #{reductions => 491,backend => ets,us => 11,minor_gcs => 0},
+              #{reductions => 491,backend => ets,us => 11,minor_gcs => 0},
+              #{reductions => 3608,backend => bitmap,us => 34,minor_gcs => 0},
+              #{reductions => 3608,backend => bitmap,us => 33,minor_gcs => 0},
+              #{reductions => 491,backend => ets,us => 11,minor_gcs => 0},
+              #{reductions => 491,backend => ets,us => 10,minor_gcs => 0},
+              #{reductions => 3608,backend => bitmap,us => 33,minor_gcs => 0},
+              #{reductions => 3608,backend => bitmap,us => 33,minor_gcs => 0},
+              #{reductions => 491,backend => ets,us => 11,minor_gcs => 0}],
+         summary =>
+             #{ets =>
+                   #{median_us => 11,p95_us => 15,min_us => 10,max_us => 15},
+               bitmap =>
+                   #{median_us => 34,p95_us => 61,min_us => 33,max_us => 61}}},
+       #{name => "snapshot_1024",
+         samples =>
+             [#{reductions => 16214,backend => ets,us => 1448,minor_gcs => 1},
+              #{reductions => 3608,backend => bitmap,us => 53,minor_gcs => 0},
+              #{reductions => 3609,backend => bitmap,us => 63,minor_gcs => 0},
+              #{reductions => 16218,backend => ets,us => 1524,minor_gcs => 1},
+              #{reductions => 10978,backend => ets,us => 375,minor_gcs => 0},
+              #{reductions => 3609,backend => bitmap,us => 54,minor_gcs => 0},
+              #{reductions => 3609,backend => bitmap,us => 53,minor_gcs => 0},
+              #{reductions => 12018,backend => ets,us => 285,minor_gcs => 0},
+              #{reductions => 12018,backend => ets,us => 285,minor_gcs => 0},
+              #{reductions => 3609,backend => bitmap,us => 37,minor_gcs => 0},
+              #{reductions => 3609,backend => bitmap,us => 44,minor_gcs => 0},
+              #{reductions => 12018,backend => ets,us => 303,minor_gcs => 0},
+              #{reductions => 12018,backend => ets,us => 330,minor_gcs => 0},
+              #{reductions => 3609,backend => bitmap,us => 38,minor_gcs => 0},
+              #{reductions => 3609,backend => bitmap,us => 37,minor_gcs => 0},
+              #{reductions => 12018,backend => ets,us => 3128,minor_gcs => 0},
+              #{reductions => 12018,backend => ets,us => 337,minor_gcs => 0},
+              #{reductions => 3609,backend => bitmap,us => 38,minor_gcs => 0},
+              #{reductions => 3609,backend => bitmap,us => 45,minor_gcs => 0},
+              #{reductions => 12018,backend => ets,us => 294,minor_gcs => 0}],
+         summary =>
+             #{ets =>
+                   #{median_us => 330,p95_us => 3128,min_us => 285,
+                     max_us => 3128},
+               bitmap =>
+                   #{median_us => 44,p95_us => 63,min_us => 37,max_us => 63}}},
+       #{name => "decode_1024",
+         samples =>
+             [#{reductions => 12018,backend => ets,us => 255,minor_gcs => 0},
+              #{reductions => 4528,backend => bitmap,us => 85,minor_gcs => 0},
+              #{reductions => 4528,backend => bitmap,us => 86,minor_gcs => 0},
+              #{reductions => 16676,backend => ets,us => 1898,minor_gcs => 1},
+              #{reductions => 19212,backend => ets,us => 2773,minor_gcs => 1},
+              #{reductions => 4528,backend => bitmap,us => 96,minor_gcs => 0},
+              #{reductions => 4528,backend => bitmap,us => 76,minor_gcs => 0},
+              #{reductions => 19494,backend => ets,us => 2408,minor_gcs => 1},
+              #{reductions => 19426,backend => ets,us => 2608,minor_gcs => 1},
+              #{reductions => 4528,backend => bitmap,us => 87,minor_gcs => 0},
+              #{reductions => 4528,backend => bitmap,us => 105,minor_gcs => 0},
+              #{reductions => 8818,backend => ets,us => 341,minor_gcs => 0},
+              #{reductions => 12018,backend => ets,us => 310,minor_gcs => 0},
+              #{reductions => 4528,backend => bitmap,us => 89,minor_gcs => 0},
+              #{reductions => 4528,backend => bitmap,us => 81,minor_gcs => 0},
+              #{reductions => 12018,backend => ets,us => 302,minor_gcs => 0},
+              #{reductions => 12018,backend => ets,us => 348,minor_gcs => 0},
+              #{reductions => 4528,backend => bitmap,us => 98,minor_gcs => 0},
+              #{reductions => 4528,backend => bitmap,us => 86,minor_gcs => 0},
+              #{reductions => 12018,backend => ets,us => 332,minor_gcs => 0}],
+         summary =>
+             #{ets =>
+                   #{median_us => 341,p95_us => 2773,min_us => 255,
+                     max_us => 2773},
+               bitmap =>
+                   #{median_us => 86,p95_us => 105,min_us => 76,
+                     max_us => 105}}},
+       #{name => "full_clear",
+         samples =>
+             [#{reductions => 60,backend => ets,us => 1,minor_gcs => 0},
+              #{reductions => 4374,backend => bitmap,us => 18,minor_gcs => 0},
+              #{reductions => 4374,backend => bitmap,us => 21,minor_gcs => 0},
+              #{reductions => 60,backend => ets,us => 13,minor_gcs => 0},
+              #{reductions => 60,backend => ets,us => 1,minor_gcs => 0},
+              #{reductions => 4374,backend => bitmap,us => 21,minor_gcs => 0},
+              #{reductions => 4374,backend => bitmap,us => 18,minor_gcs => 0},
+              #{reductions => 60,backend => ets,us => 1,minor_gcs => 0},
+              #{reductions => 60,backend => ets,us => 1,minor_gcs => 0},
+              #{reductions => 4374,backend => bitmap,us => 20,minor_gcs => 0},
+              #{reductions => 4374,backend => bitmap,us => 19,minor_gcs => 0},
+              #{reductions => 60,backend => ets,us => 1,minor_gcs => 0},
+              #{reductions => 60,backend => ets,us => 1,minor_gcs => 0},
+              #{reductions => 4374,backend => bitmap,us => 19,minor_gcs => 0},
+              #{reductions => 4374,backend => bitmap,us => 18,minor_gcs => 0},
+              #{reductions => 60,backend => ets,us => 1,minor_gcs => 0},
+              #{reductions => 60,backend => ets,us => 1,minor_gcs => 0},
+              #{reductions => 4374,backend => bitmap,us => 18,minor_gcs => 0},
+              #{reductions => 4374,backend => bitmap,us => 18,minor_gcs => 0},
+              #{reductions => 60,backend => ets,us => 1,minor_gcs => 0}],
+         summary =>
+             #{ets => #{median_us => 1,p95_us => 13,min_us => 1,max_us => 13},
+               bitmap =>
+                   #{median_us => 18,p95_us => 21,min_us => 18,max_us => 21}}},
+       #{name => "compare_256",
+         samples =>
+             [#{reductions => 10347,backend => ets,us => 130,minor_gcs => 0},
+              #{reductions => 1320,backend => bitmap,us => 36,minor_gcs => 0},
+              #{reductions => 1320,backend => bitmap,us => 68,minor_gcs => 0},
+              #{reductions => 10347,backend => ets,us => 132,minor_gcs => 0},
+              #{reductions => 10347,backend => ets,us => 131,minor_gcs => 0},
+              #{reductions => 1320,backend => bitmap,us => 43,minor_gcs => 0},
+              #{reductions => 1320,backend => bitmap,us => 47,minor_gcs => 0},
+              #{reductions => 10347,backend => ets,us => 132,minor_gcs => 0},
+              #{reductions => 10347,backend => ets,us => 134,minor_gcs => 0},
+              #{reductions => 1320,backend => bitmap,us => 52,minor_gcs => 0},
+              #{reductions => 1320,backend => bitmap,us => 52,minor_gcs => 0},
+              #{reductions => 10347,backend => ets,us => 134,minor_gcs => 0},
+              #{reductions => 10347,backend => ets,us => 132,minor_gcs => 0},
+              #{reductions => 1320,backend => bitmap,us => 33,minor_gcs => 0},
+              #{reductions => 1320,backend => bitmap,us => 52,minor_gcs => 0},
+              #{reductions => 10347,backend => ets,us => 102,minor_gcs => 0},
+              #{reductions => 10347,backend => ets,us => 106,minor_gcs => 0},
+              #{reductions => 1320,backend => bitmap,us => 37,minor_gcs => 0},
+              #{reductions => 1320,backend => bitmap,us => 37,minor_gcs => 0},
+              #{reductions => 10347,backend => ets,us => 117,minor_gcs => 0}],
+         summary =>
+             #{ets =>
+                   #{median_us => 131,p95_us => 134,min_us => 102,
+                     max_us => 134},
+               bitmap =>
+                   #{median_us => 43,p95_us => 68,min_us => 33,max_us => 68}}},
+       #{name => "merge_256",
+         samples =>
+             [#{reductions => 7267,backend => ets,us => 57,minor_gcs => 0},
+              #{reductions => 1320,backend => bitmap,us => 21,minor_gcs => 0},
+              #{reductions => 1320,backend => bitmap,us => 43,minor_gcs => 0},
+              #{reductions => 7267,backend => ets,us => 58,minor_gcs => 0},
+              #{reductions => 7267,backend => ets,us => 70,minor_gcs => 0},
+              #{reductions => 1320,backend => bitmap,us => 36,minor_gcs => 0},
+              #{reductions => 1320,backend => bitmap,us => 35,minor_gcs => 0},
+              #{reductions => 7267,backend => ets,us => 58,minor_gcs => 0},
+              #{reductions => 7267,backend => ets,us => 59,minor_gcs => 0},
+              #{reductions => 1320,backend => bitmap,us => 30,minor_gcs => 0},
+              #{reductions => 1320,backend => bitmap,us => 29,minor_gcs => 0},
+              #{reductions => 7267,backend => ets,us => 66,minor_gcs => 0},
+              #{reductions => 7267,backend => ets,us => 69,minor_gcs => 0},
+              #{reductions => 1320,backend => bitmap,us => 28,minor_gcs => 0},
+              #{reductions => 1320,backend => bitmap,us => 31,minor_gcs => 0},
+              #{reductions => 7267,backend => ets,us => 65,minor_gcs => 0},
+              #{reductions => 7267,backend => ets,us => 55,minor_gcs => 0},
+              #{reductions => 1320,backend => bitmap,us => 27,minor_gcs => 0},
+              #{reductions => 1320,backend => bitmap,us => 28,minor_gcs => 0},
+              #{reductions => 7267,backend => ets,us => 68,minor_gcs => 0}],
+         summary =>
+             #{ets =>
+                   #{median_us => 59,p95_us => 70,min_us => 55,max_us => 70},
+               bitmap =>
+                   #{median_us => 29,p95_us => 43,min_us => 21,max_us => 43}}},
+       #{name => "full_cycle_sparse",
+         samples =>
+             [#{reductions => 8880,backend => ets,us => 131,minor_gcs => 0},
+              #{reductions => 86955,backend => bitmap,us => 9281,
+                minor_gcs => 3},
+              #{reductions => 81639,backend => bitmap,us => 6897,
+                minor_gcs => 3},
+              #{reductions => 8880,backend => ets,us => 129,minor_gcs => 0},
+              #{reductions => 8880,backend => ets,us => 119,minor_gcs => 0},
+              #{reductions => 88442,backend => bitmap,us => 8595,
+                minor_gcs => 3},
+              #{reductions => 83406,backend => bitmap,us => 7793,
+                minor_gcs => 3},
+              #{reductions => 8880,backend => ets,us => 130,minor_gcs => 0},
+              #{reductions => 8880,backend => ets,us => 141,minor_gcs => 0},
+              #{reductions => 80377,backend => bitmap,us => 5938,
+                minor_gcs => 2},
+              #{reductions => 85597,backend => bitmap,us => 8370,
+                minor_gcs => 2},
+              #{reductions => 8880,backend => ets,us => 147,minor_gcs => 0},
+              #{reductions => 8880,backend => ets,us => 135,minor_gcs => 0},
+              #{reductions => 89140,backend => bitmap,us => 9105,
+                minor_gcs => 3},
+              #{reductions => 129704,backend => bitmap,us => 25454,
+                minor_gcs => 3},
+              #{reductions => 8880,backend => ets,us => 163,minor_gcs => 0},
+              #{reductions => 8880,backend => ets,us => 136,minor_gcs => 0},
+              #{reductions => 90573,backend => bitmap,us => 9175,
+                minor_gcs => 3},
+              #{reductions => 83760,backend => bitmap,us => 8521,
+                minor_gcs => 3},
+              #{reductions => 8880,backend => ets,us => 174,minor_gcs => 0}],
+         summary =>
+             #{ets =>
+                   #{median_us => 135,p95_us => 174,min_us => 119,
+                     max_us => 174},
+               bitmap =>
+                   #{median_us => 8521,p95_us => 25454,min_us => 5938,
+                     max_us => 25454}}},
+       #{name => "full_cycle_dense",
+         samples =>
+             [#{reductions => 547529,backend => ets,us => 23947,
+                minor_gcs => 5},
+              #{reductions => 144271,backend => bitmap,us => 10823,
+                minor_gcs => 3},
+              #{reductions => 139080,backend => bitmap,us => 8064,
+                minor_gcs => 1},
+              #{reductions => 543620,backend => ets,us => 21366,
+                minor_gcs => 5},
+              #{reductions => 557263,backend => ets,us => 24317,
+                minor_gcs => 5},
+              #{reductions => 152046,backend => bitmap,us => 12472,
+                minor_gcs => 2},
+              #{reductions => 142739,backend => bitmap,us => 9229,
+                minor_gcs => 2},
+              #{reductions => 562978,backend => ets,us => 27349,
+                minor_gcs => 5},
+              #{reductions => 557805,backend => ets,us => 27157,
+                minor_gcs => 5},
+              #{reductions => 154667,backend => bitmap,us => 13730,
+                minor_gcs => 2},
+              #{reductions => 152365,backend => bitmap,us => 12326,
+                minor_gcs => 2},
+              #{reductions => 576076,backend => ets,us => 34938,
+                minor_gcs => 6},
+              #{reductions => 578374,backend => ets,us => 35614,
+                minor_gcs => 6},
+              #{reductions => 153656,backend => bitmap,us => 13168,
+                minor_gcs => 2},
+              #{reductions => 164968,backend => bitmap,us => 17499,
+                minor_gcs => 2},
+              #{reductions => 733226,backend => ets,us => 95423,
+                minor_gcs => 6},
+              #{reductions => 699633,backend => ets,us => 85971,
+                minor_gcs => 5},
+              #{reductions => 168471,backend => bitmap,us => 17680,
+                minor_gcs => 2},
+              #{reductions => 165570,backend => bitmap,us => 16661,
+                minor_gcs => 2},
+              #{reductions => 606433,backend => ets,us => 45846,
+                minor_gcs => 6}],
+         summary =>
+             #{ets =>
+                   #{median_us => 27349,p95_us => 95423,min_us => 21366,
+                     max_us => 95423},
+               bitmap =>
+                   #{median_us => 12472,p95_us => 17680,min_us => 8064,
+                     max_us => 17680}}},
+       #{name => "one_writer",
+         samples =>
+             [#{reductions => 632643,backend => ets,us => 4266,minor_gcs => 0},
+              #{reductions => 638656,backend => bitmap,us => 4063,
+                minor_gcs => 0},
+              #{reductions => 638659,backend => bitmap,us => 4663,
+                minor_gcs => 0},
+              #{reductions => 632652,backend => ets,us => 4309,minor_gcs => 0},
+              #{reductions => 632655,backend => ets,us => 5279,minor_gcs => 0},
+              #{reductions => 638668,backend => bitmap,us => 4293,
+                minor_gcs => 0},
+              #{reductions => 638671,backend => bitmap,us => 4819,
+                minor_gcs => 0},
+              #{reductions => 632664,backend => ets,us => 4410,minor_gcs => 0},
+              #{reductions => 632667,backend => ets,us => 3871,minor_gcs => 0},
+              #{reductions => 638680,backend => bitmap,us => 5431,
+                minor_gcs => 0},
+              #{reductions => 638683,backend => bitmap,us => 4578,
+                minor_gcs => 0},
+              #{reductions => 632676,backend => ets,us => 4990,minor_gcs => 0},
+              #{reductions => 632679,backend => ets,us => 4637,minor_gcs => 0},
+              #{reductions => 638692,backend => bitmap,us => 4417,
+                minor_gcs => 0},
+              #{reductions => 638695,backend => bitmap,us => 5670,
+                minor_gcs => 0},
+              #{reductions => 632688,backend => ets,us => 4226,minor_gcs => 0},
+              #{reductions => 632691,backend => ets,us => 3579,minor_gcs => 0},
+              #{reductions => 638704,backend => bitmap,us => 4337,
+                minor_gcs => 0},
+              #{reductions => 638707,backend => bitmap,us => 4034,
+                minor_gcs => 0},
+              #{reductions => 632700,backend => ets,us => 4604,
+                minor_gcs => 0}],
+         summary =>
+             #{ets =>
+                   #{median_us => 4309,p95_us => 5279,min_us => 3579,
+                     max_us => 5279},
+               bitmap =>
+                   #{median_us => 4417,p95_us => 5670,min_us => 4034,
+                     max_us => 5670}}},
+       #{name => "two_writers_same_word",
+         samples =>
+             [#{reductions => 1265366,backend => ets,us => 7696,
+                minor_gcs => 0},
+              #{reductions => 1271386,backend => bitmap,us => 6180,
+                minor_gcs => 0},
+              #{reductions => 1271398,backend => bitmap,us => 8361,
+                minor_gcs => 0},
+              #{reductions => 1265402,backend => ets,us => 6399,
+                minor_gcs => 0},
+              #{reductions => 1265414,backend => ets,us => 8060,
+                minor_gcs => 0},
+              #{reductions => 1271434,backend => bitmap,us => 6401,
+                minor_gcs => 0},
+              #{reductions => 1271446,backend => bitmap,us => 6235,
+                minor_gcs => 0},
+              #{reductions => 1265450,backend => ets,us => 6343,
+                minor_gcs => 0},
+              #{reductions => 1265462,backend => ets,us => 6957,
+                minor_gcs => 0},
+              #{reductions => 1271482,backend => bitmap,us => 7299,
+                minor_gcs => 0},
+              #{reductions => 1271494,backend => bitmap,us => 7105,
+                minor_gcs => 0},
+              #{reductions => 1265498,backend => ets,us => 7359,
+                minor_gcs => 0},
+              #{reductions => 1265510,backend => ets,us => 6165,
+                minor_gcs => 0},
+              #{reductions => 1271530,backend => bitmap,us => 8515,
+                minor_gcs => 0},
+              #{reductions => 1271542,backend => bitmap,us => 6595,
+                minor_gcs => 0},
+              #{reductions => 1265546,backend => ets,us => 6645,
+                minor_gcs => 0},
+              #{reductions => 1265558,backend => ets,us => 5721,
+                minor_gcs => 0},
+              #{reductions => 1271578,backend => bitmap,us => 6915,
+                minor_gcs => 0},
+              #{reductions => 1271590,backend => bitmap,us => 6922,
+                minor_gcs => 0},
+              #{reductions => 1265594,backend => ets,us => 6395,
+                minor_gcs => 0}],
+         summary =>
+             #{ets =>
+                   #{median_us => 6399,p95_us => 8060,min_us => 5721,
+                     max_us => 8060},
+               bitmap =>
+                   #{median_us => 6915,p95_us => 8515,min_us => 6180,
+                     max_us => 8515}}},
+       #{name => "four_writers_same_word",
+         samples =>
+             [#{reductions => 2531339,backend => ets,us => 41329,
+                minor_gcs => 0},
+              #{reductions => 2537384,backend => bitmap,us => 15661,
+                minor_gcs => 0},
+              #{reductions => 2537432,backend => bitmap,us => 18594,
+                minor_gcs => 0},
+              #{reductions => 2531483,backend => ets,us => 19454,
+                minor_gcs => 0},
+              #{reductions => 2531531,backend => ets,us => 13276,
+                minor_gcs => 0},
+              #{reductions => 2537576,backend => bitmap,us => 12190,
+                minor_gcs => 0},
+              #{reductions => 2537624,backend => bitmap,us => 16312,
+                minor_gcs => 0},
+              #{reductions => 2531675,backend => ets,us => 12767,
+                minor_gcs => 0},
+              #{reductions => 2531723,backend => ets,us => 42305,
+                minor_gcs => 0},
+              #{reductions => 2537770,backend => bitmap,us => 18676,
+                minor_gcs => 0},
+              #{reductions => 2537814,backend => bitmap,us => 15216,
+                minor_gcs => 0},
+              #{reductions => 2531867,backend => ets,us => 13349,
+                minor_gcs => 0},
+              #{reductions => 2531915,backend => ets,us => 15719,
+                minor_gcs => 0},
+              #{reductions => 2537959,backend => bitmap,us => 13743,
+                minor_gcs => 0},
+              #{reductions => 2538006,backend => bitmap,us => 13327,
+                minor_gcs => 0},
+              #{reductions => 2532059,backend => ets,us => 15225,
+                minor_gcs => 0},
+              #{reductions => 2532107,backend => ets,us => 41200,
+                minor_gcs => 0},
+              #{reductions => 2538150,backend => bitmap,us => 12655,
+                minor_gcs => 0},
+              #{reductions => 2538200,backend => bitmap,us => 14823,
+                minor_gcs => 0},
+              #{reductions => 2532251,backend => ets,us => 13767,
+                minor_gcs => 0}],
+         summary =>
+             #{ets =>
+                   #{median_us => 15225,p95_us => 42305,min_us => 12767,
+                     max_us => 42305},
+               bitmap =>
+                   #{median_us => 14823,p95_us => 18676,min_us => 12190,
+                     max_us => 18676}}},
+       #{name => "eight_writers_same_word",
+         samples =>
+             [#{reductions => 5065319,backend => ets,us => 26258,
+                minor_gcs => 0},
+              #{reductions => 5071495,backend => bitmap,us => 26034,
+                minor_gcs => 0},
+              #{reductions => 5071692,backend => bitmap,us => 27470,
+                minor_gcs => 0},
+              #{reductions => 5065891,backend => ets,us => 25998,
+                minor_gcs => 0},
+              #{reductions => 5066083,backend => ets,us => 27684,
+                minor_gcs => 0},
+              #{reductions => 5072264,backend => bitmap,us => 56399,
+                minor_gcs => 0},
+              #{reductions => 5072456,backend => bitmap,us => 27146,
+                minor_gcs => 0},
+              #{reductions => 5066659,backend => ets,us => 33959,
+                minor_gcs => 0},
+              #{reductions => 5066855,backend => ets,us => 26900,
+                minor_gcs => 0},
+              #{reductions => 5073032,backend => bitmap,us => 62131,
+                minor_gcs => 0},
+              #{reductions => 5073224,backend => bitmap,us => 24858,
+                minor_gcs => 0},
+              #{reductions => 5067435,backend => ets,us => 25841,
+                minor_gcs => 0},
+              #{reductions => 5067631,backend => ets,us => 24581,
+                minor_gcs => 0},
+              #{reductions => 5073804,backend => bitmap,us => 25369,
+                minor_gcs => 0},
+              #{reductions => 5073990,backend => bitmap,us => 64447,
+                minor_gcs => 0},
+              #{reductions => 5068207,backend => ets,us => 23741,
+                minor_gcs => 0},
+              #{reductions => 5068395,backend => ets,us => 25431,
+                minor_gcs => 0},
+              #{reductions => 5074445,backend => bitmap,us => 53318,
+                minor_gcs => 0},
+              #{reductions => 5074760,backend => bitmap,us => 29590,
+                minor_gcs => 0},
+              #{reductions => 5068965,backend => ets,us => 64273,
+                minor_gcs => 0}],
+         summary =>
+             #{ets =>
+                   #{median_us => 25998,p95_us => 64273,min_us => 23741,
+                     max_us => 64273},
+               bitmap =>
+                   #{median_us => 27470,p95_us => 64447,min_us => 24858,
+                     max_us => 64447}}}],
+  environment =>
+      #{otp => "27",schedulers => 4,erts => "15.0",
+        architecture => "x86_64-pc-linux-gnu",word_bytes => 8,
+        schedulers_total => 4,
+        beam_memory =>
+            [{total,76540808},
+             {processes,33355184},
+             {processes_used,33320616},
+             {system,43185624},
+             {atom,499905},
+             {atom_used,488851},
+             {binary,854200},
+             {code,9541214},
+             {ets,699016}],
+        sample_pairs => 10,warmup_pairs => 2,bitmap_bits => 65536,
+        manifest_probes => 1024},
+  campaign =>
+      #{samples =>
+            [#{backend => ets,us => 201899,mutation_us => 199759,
+               executions => 50,exec_per_s => 247.64857676362934,
+               corpus_size => 4,coverage_size => 5},
+             #{backend => bitmap,us => 205181,mutation_us => 202614,
+               executions => 50,exec_per_s => 243.6872809860562,
+               corpus_size => 4,coverage_size => 5},
+             #{backend => bitmap,us => 148196,mutation_us => 145126,
+               executions => 50,exec_per_s => 337.391022699668,
+               corpus_size => 4,coverage_size => 5},
+             #{backend => ets,us => 204131,mutation_us => 201912,
+               executions => 50,exec_per_s => 244.94074883285734,
+               corpus_size => 4,coverage_size => 5},
+             #{backend => ets,us => 194824,mutation_us => 192788,
+               executions => 50,exec_per_s => 256.6418921693426,
+               corpus_size => 4,coverage_size => 5},
+             #{backend => bitmap,us => 142972,mutation_us => 140400,
+               executions => 50,exec_per_s => 349.7188260638447,
+               corpus_size => 4,coverage_size => 5},
+             #{backend => bitmap,us => 151583,mutation_us => 149138,
+               executions => 50,exec_per_s => 329.8522921435781,
+               corpus_size => 4,coverage_size => 5},
+             #{backend => ets,us => 148607,mutation_us => 146553,
+               executions => 50,exec_per_s => 336.45790575141143,
+               corpus_size => 4,coverage_size => 5},
+             #{backend => ets,us => 171155,mutation_us => 168843,
+               executions => 50,exec_per_s => 292.1328620256493,
+               corpus_size => 4,coverage_size => 5},
+             #{backend => bitmap,us => 183560,mutation_us => 180722,
+               executions => 50,exec_per_s => 272.3904990193942,
+               corpus_size => 4,coverage_size => 5},
+             #{backend => bitmap,us => 266632,mutation_us => 264024,
+               executions => 50,exec_per_s => 187.524378169162,
+               corpus_size => 4,coverage_size => 5},
+             #{backend => ets,us => 161801,mutation_us => 159729,
+               executions => 50,exec_per_s => 309.02157588642837,
+               corpus_size => 4,coverage_size => 5},
+             #{backend => ets,us => 188619,mutation_us => 186386,
+               executions => 50,exec_per_s => 265.08464152603926,
+               corpus_size => 4,coverage_size => 5},
+             #{backend => bitmap,us => 162730,mutation_us => 160107,
+               executions => 50,exec_per_s => 307.25742026669946,
+               corpus_size => 4,coverage_size => 5},
+             #{backend => bitmap,us => 160517,mutation_us => 158176,
+               executions => 50,exec_per_s => 311.4934866711937,
+               corpus_size => 4,coverage_size => 5},
+             #{backend => ets,us => 203149,mutation_us => 200355,
+               executions => 50,exec_per_s => 246.1247655661608,
+               corpus_size => 4,coverage_size => 5},
+             #{backend => ets,us => 165654,mutation_us => 162789,
+               executions => 50,exec_per_s => 301.8339430378983,
+               corpus_size => 4,coverage_size => 5},
+             #{backend => bitmap,us => 124880,mutation_us => 122104,
+               executions => 50,exec_per_s => 400.3843689942345,
+               corpus_size => 4,coverage_size => 5},
+             #{backend => bitmap,us => 244222,mutation_us => 240894,
+               executions => 50,exec_per_s => 204.73176044746174,
+               corpus_size => 4,coverage_size => 5},
+             #{backend => ets,us => 171965,mutation_us => 167974,
+               executions => 50,exec_per_s => 290.7568400546623,
+               corpus_size => 4,coverage_size => 5}],
+        summary =>
+            #{ets =>
+                  #{median_us => 171965,p95_us => 204131,min_us => 148607,
+                    max_us => 204131},
+              bitmap =>
+                  #{median_us => 160517,p95_us => 266632,min_us => 124880,
+                    max_us => 266632}},
+        workload => example_parser_random_50},
+  storage_memory =>
+      #{bitmap =>
+            #{active => 48,words => 8232,mapping_words => 20084,
+              reverse_bytes => 58633},
+        ets_1024_hit_table_words => 22071,ets_word_bytes => 8}}
