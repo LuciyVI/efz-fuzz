@@ -1,14 +1,16 @@
 %% Experimental OTP 27 line coverage. Only documented code:* coverage APIs
 %% touch VM coverage storage; all state returned to EFZ is owned Erlang data.
 -module(efz_cov_native_public).
--export([compile/2, preflight/1, prepare/1, valid/2, live/1, open/1, open_profiled/1, attach/1,
+-export([compile/2, compile/3, preflight/1, prepare/1, valid/2, live/1, open/1, open_profiled/1, attach/1,
          collect/1, close/1, has_new/2, unseen/2, merge/2, decode/2,
          empty/1, count/1, modules/2, read_raw/1, convert_raw/2,
          collect_profiled/1]).
 
-compile(Source, Out) ->
+compile(Source, Out) -> compile(Source,Out,[]).
+%% Ordinary parser dependencies may have headers outside their source directory.
+compile(Source, Out, Includes) ->
     case compile:noenv_file(Source, [binary, line_coverage, debug_info,
-                                      warnings_as_errors, return_errors]) of
+                                      warnings_as_errors, return_errors]++[{i,D}||D<-Includes]) of
         {ok,M,Beam} -> write_artifact(M,Beam,Out);
         {ok,M,Beam,[]} -> write_artifact(M,Beam,Out);
         Error -> {error,{native_compilation,Error}}

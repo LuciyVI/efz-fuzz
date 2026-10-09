@@ -21,7 +21,7 @@ benchmark_coverage() -> gen_server:call(?MODULE, benchmark_coverage, 15000).
 init(C) ->
     process_flag(trap_exit, true),
     Store = maps:get(corpus_store, C, undefined),
-    {ok, Corpus} = efz_corpus:start_link(maps:get(seeds, C), maps:get(selection_seed, C, undefined), Store, maps:get(max_input_bytes,C)),
+    {ok, Corpus} = efz_corpus:start_link(maps:get(seeds, C), maps:get(selection_seed, C, undefined), Store, maps:get(max_input_bytes,C),maps:get(gleam_layer,C,false)),
     {ok, Stats} = efz_stats:start_link(),
     WorkerC = case Store of
         undefined -> C;

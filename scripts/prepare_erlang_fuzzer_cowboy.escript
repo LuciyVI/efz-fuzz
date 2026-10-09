@@ -16,7 +16,7 @@ main([Out]) ->
         {ok, _} = efz_cov_native_public:compile(Src, Target)
     end, Mods),
     lists:foreach(fun(M) ->
-        Src = filename:join("test/targets/cowboy", atom_to_list(M) ++ ".erl"),
+        Src = filename:join("examples/cowboy/targets", atom_to_list(M) ++ ".erl"),
         {ok, M} = compile:file(Src, [debug_info, {outdir, Harness}, warnings_as_errors])
     end, [efz_cowboy_transport, efz_cowboy_stream, efz_cowboy_long_target]),
     {ok, efz_erlang_fuzzer_cowboy} = compile:file(

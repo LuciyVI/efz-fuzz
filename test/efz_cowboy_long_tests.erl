@@ -20,7 +20,7 @@ cowboy_raw_http_test_() ->
 
 setup() ->
     lists:foreach(fun(M) ->
-        Src = filename:join("test/targets/cowboy", atom_to_list(M) ++ ".erl"),
+        Src = filename:join("examples/cowboy/targets", atom_to_list(M) ++ ".erl"),
         {ok,M,Beam} = compile:noenv_file(Src,[binary,debug_info,warnings_as_errors]),
         {module,M} = code:load_binary(M,Src,Beam)
     end, [efz_cowboy_transport,efz_cowboy_stream,efz_cowboy_long_target]),

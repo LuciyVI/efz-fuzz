@@ -31,6 +31,11 @@ help() ->
     "  --timeout MS             Per-input timeout, nonnegative integer (default: 100)\n"
     "  --max-iterations N       Mutation execution limit (default: 1000)\n"
     "  --max-input-bytes N      Campaign/replay input bound, 0..1048576 (default: 4096)\n"
+    "  --gleam-layer            Enable optional native query-string layer (build profile gleam)\n"
+    "  --structured-fraction N  Structured branch percent 0..100 (default: 10)\n"
+    "  --semantic-feedback disabled|observation_only|guided (default: disabled)\n"
+    "  --semantic-oracle disabled|inline (default: disabled)\n"
+    "  --oracle-budget N        Maximum inline checks 0..10000 (default: 64)\n"
     "  --runtime-diagnostics    Enable automatic runtime observations and bounded verification\n"
     "  --runtime-runs N         Total runs per selected input, including original (1..16)\n"
     "  --verification-budget N  Maximum extra executions (0..1000000)\n"
@@ -50,6 +55,10 @@ help() ->
 
 parse([], Options) -> Options;
 parse(["--help"], _) -> help;
+parse(["--gleam-layer"|Rest],Options)->
+    case maps:is_key(gleam_enabled,Options) of
+        true->fail("Duplicate option: --gleam-layer",[]);
+        false->parse(Rest,Options#{gleam_enabled=>true}) end;
 parse(["--runtime-diagnostics"|Rest],Options) ->
     case maps:is_key(runtime_enabled,Options) of
         true->fail("Duplicate option: --runtime-diagnostics",[]);
@@ -69,6 +78,10 @@ parse([Option | Rest], Options) ->
             end
     end.
 option("--runtime-runs") -> runtime_runs;
+option("--structured-fraction") -> structured_fraction;
+option("--semantic-feedback") -> semantic_feedback;
+option("--semantic-oracle") -> semantic_oracle;
+option("--oracle-budget") -> oracle_budget;
 option("--verification-budget") -> verification_budget;
 option("--sample-interval") -> sample_interval;
 option("--target") -> target;
@@ -87,6 +100,13 @@ option("--max-input-bytes") -> max_input_bytes;
 option(Unknown) -> fail("Unknown option: ~ts (use --help)", [Unknown]).
 value(target, Name) when Name =/= [], length(Name) =< 255 -> Name;
 value(target, _) -> fail("--target must be a module name of 1..255 characters", []);
+value(semantic_feedback,"disabled")->disabled;
+value(semantic_feedback,"observation_only")->observation_only;
+value(semantic_feedback,"guided")->guided;
+value(semantic_feedback,_)->fail("Invalid --semantic-feedback",[]);
+value(semantic_oracle,"disabled")->disabled;
+value(semantic_oracle,"inline")->inline;
+value(semantic_oracle,_)->fail("Invalid --semantic-oracle",[]);
 value(mutation_mode, "staged") -> staged;
 value(mutation_mode, "random") -> random;
 value(mutation_mode, _) -> fail("--mutation must be staged or random", []);
@@ -99,7 +119,7 @@ value(coverage_policy, _) -> fail("--coverage-policy must be diagnostic or stric
 value(coverage_feedback, "presence") -> presence;
 value(coverage_feedback, "hit_count") -> hit_count;
 value(coverage_feedback, _) -> fail("--coverage-feedback must be presence or hit_count", []);
-value(K, Text) when K =:= timeout; K =:= max_iterations; K =:= max_input_bytes; K =:= runtime_runs; K =:= verification_budget; K =:= sample_interval ->
+value(K, Text) when K =:= timeout; K =:= max_iterations; K =:= max_input_bytes; K =:= runtime_runs; K =:= verification_budget; K =:= sample_interval; K=:=structured_fraction; K=:=oracle_budget ->
     case Text =/= [] andalso lists:all(fun(C) -> C >= $0 andalso C =< $9 end, Text) of
         true -> list_to_integer(Text);
         false -> fail("~ts must be a nonnegative integer", [flag(K)])
@@ -107,6 +127,8 @@ value(K, Text) when K =:= timeout; K =:= max_iterations; K =:= max_input_bytes; 
 value(_, []) -> fail("Directory arguments must not be empty", []);
 value(_, Text) -> Text.
 flag(runtime_runs) -> "--runtime-runs";
+flag(structured_fraction)->"--structured-fraction";
+flag(oracle_budget)->"--oracle-budget";
 flag(verification_budget) -> "--verification-budget";
 flag(sample_interval) -> "--sample-interval";
 flag(timeout) -> "--timeout";
@@ -137,7 +159,7 @@ launch(O) ->
         {error,local_target_not_found}->fail("target module ~ts could not be loaded; use --code-path for ordinary BEAM files",[maps:get(target,O)]);
         {error,TargetError}->fail("Invalid local target: ~tp",[TargetError]) end,
     Runtime=runtime_options(O),
-    C0 = #{target => Target, runtime_oracles=>Runtime, seeds => Seeds, artifacts => Artifacts,
+    C0 = #{target => Target, runtime_oracles=>Runtime, gleam_layer=>gleam_options(O), seeds => Seeds, artifacts => Artifacts,
            mutation_mode => Mode, timeout => maps:get(timeout, O, 100),
            max_iterations => maps:get(max_iterations, O, 1000)},
     C = C0#{max_input_bytes => Max},
@@ -150,6 +172,15 @@ launch(O) ->
             {error, Why} -> fail("Cannot start campaign: ~ts", [start_error(Why)])
         end
     after _ = efz:stop() end.
+
+gleam_options(O)->
+    Keys=[structured_fraction,semantic_feedback,semantic_oracle,oracle_budget],
+    case maps:get(gleam_enabled,O,false) of
+        false->case maps:with(Keys,O) of M when map_size(M)=:=0->false;
+            _->fail("Semantic options require --gleam-layer",[]) end;
+        true->maps:from_list([{case K of semantic_feedback->feedback;semantic_oracle->oracle;_->K end,V}
+            ||{K,V}<-maps:to_list(maps:with(Keys,O))])
+    end.
 
 add_code_path(Dir) ->
     case code:add_pathz(filename:absname(Dir)) of

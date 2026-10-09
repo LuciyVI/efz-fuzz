@@ -191,10 +191,17 @@ execute_result(Input, Parent, Phase, Result, F, S) ->
             WithMutation=case {Phase,maps:find(current_recipe,SFeedback)} of
                 {mutation,{ok,Recipe}}->Meta#{mutation=>Recipe};_->Meta
             end,
+            semantic_result(Input,Result,WithMutation,F1,SFeedback,Profile)
+    end.
+
+semantic_result(Input,Result,Meta,F1,S,Profile) ->
+    case semantic_callbacks(Input,Result,Meta,S) of
+        {error,Why,SFailed}->infrastructure(Why,SFailed);
+        {ok,WithSemantic,SFeedback}->
             {RetentionData,CorpusUs}=efz_perf_profile:measure(Profile,
                 fun()->case maps:get(phase,SFeedback) of
-                    replay -> {WithMutation,0};
-                    _ -> retain(Input, WithMutation,Profile)
+                    replay -> {WithSemantic,0};
+                    _ -> retain_layer(Input,WithSemantic,Profile,SFeedback)
                 end end),
             {Retention,StoreUs}=RetentionData,
             S2=efz_perf_profile:add_state(
@@ -204,10 +211,82 @@ execute_result(Input, Parent, Phase, Result, F, S) ->
                 {error, Why} ->
                     FailureState=diagnostic_failure_context(Result,S2),
                     infrastructure(Why,FailureState#{failure_context=>
-                        (maps:get(failure_context,FailureState))#{metadata=>WithMutation}});
+                        (maps:get(failure_context,FailureState))#{metadata=>WithSemantic}});
                 Meta1 -> accepted(Input, public_result(Result), Meta1, F1, S2)
             end
     end.
+
+%% Off path creates no semantic state and performs no callback or random draw.
+semantic_callbacks(_,_,Meta,#{gleam_layer:=false}=S)->{ok,Meta,S};
+semantic_callbacks(Input,Result,Meta,S=#{gleam_layer:=P}) ->
+    %% Persist real target failures first, independently of layer/admission.
+    Public=public_result(Result),
+    Counted=case maps:get(outcome,Public) of
+        {ok,rejected}->layer_count(expected_rejections,S);
+        {timeout,_}->layer_count(target_timeouts,S);
+        {crash,_,_,_}->layer_count(target_exceptions,S);
+        {exit,_}->layer_count(target_exceptions,S);
+        _->S end,
+    case record_failure(Input,Public,Meta,Counted) of
+        {error,Why,S1}->{error,Why,S1};
+        {ok,S1}->semantic_observe(Input,Public,Meta,S1#{target_failure_recorded=>true},P)
+    end.
+semantic_observe(Input,Result,Meta,S,P) ->
+    {Observation,Cost}=timed(fun()->case maps:get(feedback,P) of
+        disabled->{ok,[]};
+        _->efz_gleam_adapter:observe(Input,maps:get(outcome,Result),efz_gleam_adapter:limits(P))
+    end end),
+    S0=case maps:get(feedback,P) of disabled->S;_->layer_count(observer_calls,layer_time(observer_us,Cost,S)) end,
+    case Observation of
+        {ok,Fs}->semantic_oracle(Input,Result,case maps:get(feedback,P) of
+            disabled->Meta;_->Meta#{semantic=>efz_semantic:metadata(Fs)} end,S0,P);
+        {skip,Why}->semantic_oracle(Input,Result,Meta#{semantic_observation=>{skipped,Why}},layer_count(observer_skipped,S0),P);
+        {error,Why}->{error,{semantic_layer_error,Why},layer_count(layer_errors,S0)}
+    end.
+semantic_oracle(_,_,Meta,S,#{oracle:=disabled})->{ok,Meta,S};
+semantic_oracle(Input,Result,Meta,S,P) ->
+    Used=maps:get(oracle_used,S,0),
+    case Used>=maps:get(oracle_budget,P) of
+        true->{ok,Meta#{oracle=>{inconclusive,budget}},layer_count(oracle_skipped,S)};
+        false ->
+            {Check,Cost}=timed(fun()->efz_gleam_adapter:oracle(Input,maps:get(outcome,Result),efz_gleam_adapter:limits(P)) end),
+            S0=layer_count(oracle_checks,layer_time(oracle_us,Cost,S#{oracle_used=>Used+1})),
+            case Check of
+                {error,Why}->{error,{semantic_layer_error,Why},layer_count(layer_errors,S0)};
+                {fail,Property} ->
+                    FindingMeta=Meta#{finding_kind=>oracle_failure,property=>{Property,1},
+                        layer_versions=>efz_gleam_adapter:versions(),gleam_layer=>P,
+                        target_original_outcome=>maps:get(outcome,Result)},
+                    Finding=Result#{outcome=>{crash,oracle_failure,{Property,1},[]}},
+                    case record_failure(Input,Finding,FindingMeta,S0) of
+                        {ok,S1}->{ok,Meta#{oracle=>Check},layer_count(oracle_failures,S1)};
+                        {error,Why,S1}->{error,Why,S1}
+                    end;
+                {pass,_}->{ok,Meta#{oracle=>Check},layer_count(oracle_passes,S0)};
+                {inconclusive,_}->{ok,Meta#{oracle=>Check},layer_count(oracle_inconclusive,S0)}
+            end
+    end.
+timed(F)->Start=erlang:monotonic_time(microsecond),R=F(),{R,erlang:monotonic_time(microsecond)-Start}.
+layer_count(K,S)->Cs=maps:get(gleam_stats,S,#{}),S#{gleam_stats=>Cs#{K=>maps:get(K,Cs,0)+1}}.
+layer_time(K,V,S)->Cs=maps:get(gleam_stats,S,#{}),S#{gleam_stats=>Cs#{K=>maps:get(K,Cs,0)+V}}.
+retain_layer(Input,Meta,Profile,#{gleam_layer:=#{feedback:=guided}}) ->
+    case {maps:get(outcome,Meta),maps:find(semantic,Meta)} of
+        {{ok,_},{ok,_}} ->
+            Keep=lists:member(maps:get(retention_reason,Meta),[new_coverage,new_probe,new_hit_count]),
+            {Admission,StoreUs}=efz_perf_profile:measure(Profile,fun()->
+                efz_corpus:admit_semantic(Input,Meta,efz_semantic:features(Meta),Keep) end),
+            R=case Admission of
+                {ok,Id,M}->efz_stats:inc(discoveries),M#{corpus_id=>Id};
+                {existing,Id,M}->case maps:get(phase,Meta) of
+                    calibration->M#{corpus_id=>Id};_->M#{corpus_id=>Id,retention_reason=>
+                        case Keep of true->existing_input;false->equivalent_coverage end} end;
+                {rejected,M}->M;
+                {error,Why}->{error,Why}
+            end,
+            {R,StoreUs};
+        _ -> retain(Input,Meta,Profile)
+    end;
+retain_layer(Input,Meta,Profile,_)->retain(Input,Meta,Profile).
 
 begin_iteration(#{performance_profile:=true}=S) ->
     S#{profile_iteration_start=>erlang:monotonic_time(microsecond),
@@ -240,9 +319,12 @@ input_bucket(N) when N=<1024 -> '257_1024';
 input_bucket(N) when N=<4096 -> '1025_4096';
 input_bucket(_) -> 'over_4096'.
 accepted(Input, Result, Meta1, F1, S) ->
-    case record_failure(Input, Result, Meta1, S#{feedback => F1}) of
+    case maps:get(target_failure_recorded,S,false) of
+        true->runtime_check(Input,Result,Meta1,S#{feedback=>F1});
+        false->case record_failure(Input, Result, Meta1, S#{feedback => F1}) of
         {error,Why,S1} -> infrastructure(Why,S1);
         {ok,S1} -> runtime_check(Input,Result,Meta1,S1)
+        end
     end.
 runtime_check(Input,Result,Meta,S=#{runtime_oracles:=#{enabled:=true}=P}) ->
     St=maps:get(stability,P),Cats=efz_runtime:categories(Result),
@@ -359,7 +441,7 @@ accepted_success(Meta1,S1) ->
     end,
     notify_context(undefined,S2),
     self() ! iterate,
-    {noreply, maps:without([current_recipe,failure_context,crash_decision],S2)}.
+    {noreply, maps:without([current_recipe,failure_context,crash_decision,target_failure_recorded],S2)}.
 notify_context(Context,S)->maps:get(coordinator,S)!{execution_context,self(),Context},ok.
 decision_metadata(#{mutation:=Recipe}=Meta)->
     Meta#{mutation=>maps:with([stage,primary_id,config_id,output_hash],Recipe)};
@@ -475,11 +557,19 @@ finish(Status0, S) ->
         error->Base;
         {ok,Store}->Base#{corpus_restore=>maps:with([dir,build_policy,restored_inputs,diagnostics],Store)}
     end,
-    Report=case maps:get(mutation_state,S) of
+    Report0=case maps:get(mutation_state,S) of
         undefined->WithCorpus;
         #{counts:=Counts}->WithCorpus#{mutation=>maps:get(mutation,S),mutation_stats=>Counts,
             mutation_initial_corpus=>[efz_mutation:hash(B)||B<-maps:get(seeds,S)],
             mutation_trace=>lists:reverse(maps:get(mutation_trace,S))}
+    end,
+    Report=case maps:get(gleam_layer,S) of
+        false->Report0;
+        P->Plan=maps:get(mutation_state,S),Report0#{gleam_layer=>P,
+            gleam_stats=>maps:get(gleam_stats,S,#{}),
+            structured_stats=>case Plan of undefined->#{};_->maps:get(structured_counts,Plan,#{}) end,
+            semantic_features=>case maps:get(feedback,P) of guided->efz_corpus:semantic_state();_->[] end,
+            oracle_extra_executions=>0}
     end,
     maps:get(coordinator, S) ! {campaign_done, self(), Report},
     {noreply, S}.

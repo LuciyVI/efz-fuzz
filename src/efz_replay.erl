@@ -1,7 +1,8 @@
 %% Compatibility data is separate from raw diagnostic ETF (which may contain
 %% arbitrary reasons/runtime objects). Neither artifact selects executable code.
 -module(efz_replay).
--export([expectation/5, encode/1, load/1, harness_identity/1, pin/3, run/6, runtime/4]).
+-export([expectation/5, encode/1, load/1, harness_identity/1, pin/3, run/6, runtime/4,
+         run_input/5]).
 -define(MAX_EXPECTATION,2097152).
 
 portable(#{module:=M}=I) -> (maps:with([beam_md5,attributes_sha256,build_id],I))#{module=>atom_to_binary(M,utf8)}.
@@ -68,6 +69,19 @@ run(Kind,Path,Target,Artifacts,#{status:=ready}=Expected,Options) ->
             end
     end;
 run(_,_,_,_,_,_) -> {error,missing_replay_compatibility}.
+%% Cold byte minimization uses the same pinned raw replay, without a decoder.
+run_input(B,Target,Artifacts,#{status:=ready}=E,Options) ->
+    case valid(E) andalso whereis(efz_fuzzer)=:=undefined of
+        false->{error,invalid_replay_expectation};
+        true->case efz_input:check(B,maps:get(max_input_bytes,E),replay) of
+            ok->case crypto:hash(sha256,B)=:=maps:get(input_hash,E) of
+                true->execute(B,Target,Artifacts,E,Options#{max_input_bytes=>maps:get(max_input_bytes,E)});
+                false->{error,replay_input_hash_mismatch}
+            end;
+            Error->Error
+        end
+    end;
+run_input(_,_,_,_,_)->{error,missing_replay_compatibility}.
 input(raw,Path,Max) -> efz_input:read_file(Path,Max,replay);
 input(recipe,Path,Max) ->
     case efz_recipe:load(Path) of {ok,R}->efz_recipe:regenerate(R,#{max_input_bytes=>Max});Error->Error end;

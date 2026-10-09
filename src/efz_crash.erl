@@ -95,8 +95,12 @@ save(Input,Result,Metadata,#{crash_dir:=Dir}=Options) ->
                 Expected=efz_replay:expectation(Result,Policy,Hash,Key,Max),
                 Payload=Identity#{format=>efz_crash,schema_version=>2,result=>Result,
                     metadata=>Metadata,max_input_bytes=>Max,crash_policy=>Policy,recipe_error=>RecipeError},
+                SemanticFiles=case maps:get(finding_kind,Metadata,target_failure) of
+                    oracle_failure -> [{"artifact.semantic",efz_semantic_replay:encode(
+                        efz_semantic_replay:expectation(Result,Metadata,Hash))}];
+                    _->[] end,
                 Files=[{"artifact.input",Input},{"artifact.term",term_to_binary(Payload)},
-                       {"artifact.replay",efz_replay:encode(Expected)}|RecipeFiles],
+                       {"artifact.replay",efz_replay:encode(Expected)}|RecipeFiles++SemanticFiles],
                 case efz_fs:atomic_group(GroupDir,Name,Files) of
                     {ok,Location}->{ok,filename:join(Location,"artifact")};Error->Error end
             end,

@@ -157,14 +157,14 @@ default_out(C) ->
 
 load_harness() ->
     lists:foreach(fun(M) ->
-        Src = filename:join("test/targets/cowboy", atom_to_list(M) ++ ".erl"),
+        Src = filename:join("examples/cowboy/targets", atom_to_list(M) ++ ".erl"),
         {ok, M, Beam} = compile:noenv_file(Src, [binary, debug_info, warnings_as_errors]),
         {module, M} = code:load_binary(M, Src, Beam)
     end, [efz_cowboy_transport, efz_cowboy_stream, efz_cowboy_long_target]),
     ok.
 
 load_noop() ->
-    Src="test/targets/engine/efz_noop_target.erl",
+    Src="examples/engine/efz_noop_target.erl",
     {ok,efz_noop_target,Beam}=compile:noenv_file(Src,[binary,debug_info,warnings_as_errors]),
     {module,efz_noop_target}=code:load_binary(efz_noop_target,Src,Beam),ok.
 

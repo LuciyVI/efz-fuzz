@@ -43,18 +43,25 @@ save(#{dir := Dir, identity := Identity} = Store, Input, QueueId, Meta) -> prote
         error -> none;
         {ok, R} -> need(efz_recipe:encode(R), recipe_encoding)
     end,
-    {Origin, Parent, Discovery} = case maps:get(retention_reason, Meta, initial_seed) of
+    {Origin, Parent, Discovery0} = case maps:get(retention_reason, Meta, initial_seed) of
         initial_seed -> {initial, none, #{new_probes => [], phase => initial}};
         new_coverage ->
             {discovery, #{content_hash => maps:get(parent_content, Meta), queue_id => maps:get(parent, Meta)},
              #{new_probes => [probe(P) || P <- maps:get(new_probes, Meta)], phase => mutation}};
+        new_semantic ->
+            {discovery,#{content_hash=>maps:get(parent_content,Meta),queue_id=>maps:get(parent,Meta)},
+             #{new_probes=>[],phase=>mutation}};
         Reason when Reason=:=new_probe; Reason=:=new_hit_count ->
             {discovery, #{content_hash=>maps:get(parent_content,Meta),queue_id=>maps:get(parent,Meta)},
              #{new_probes=>[probe(P)||P<-maps:get(new_probes,Meta)],phase=>mutation,
                coverage_feedback=>hit_count,retention_reason=>Reason,
                new_count_features=>[{probe(P),B}||{P,B}<-maps:get(new_count_features,Meta)]}}
     end,
-    Version=case maps:get(coverage_feedback,Discovery,presence) of presence->1;hit_count->2 end,
+    Discovery=case maps:find(semantic,Meta) of
+        {ok,Semantic}->Discovery0#{semantic=>Semantic,retention_reason=>maps:get(retention_reason,Meta)};
+        error->Discovery0 end,
+    Version=case maps:is_key(semantic,Discovery) of
+        true->3;false->case maps:get(coverage_feedback,Discovery,presence) of presence->1;hit_count->2 end end,
     Record = #{schema_version => Version, content_hash => Hash, input_size => byte_size(Input),
                queue_id => QueueId, origin => Origin, parent => Parent,
                discovery => Discovery, identity => Identity, recipe => Recipe},
@@ -114,12 +121,15 @@ decode(<<"EFZC", 1, N:32, Hash:32/binary, Payload:N/binary>>, Path) ->
     try
         <<131, Term/binary>> = Payload,
         {<<>>, _} = scan(Term, 0, 1000000),
+        %% Fixed schema atoms for fresh-VM v3 restore; no Gleam module is loaded.
+        {module,efz_semantic}=code:ensure_loaded(efz_semantic),
         binary_to_term(Payload, [safe])
     catch error:_ -> error({invalid_corpus_encoding, Path}) end;
 decode(_, Path) -> error({truncated_or_invalid_corpus_metadata, Path}).
 
 %% The EFZC envelope stays at version 1. Record v2 identifies count provenance;
 %% v1 records and initial seeds retain their exact historical representation.
+valid_record(#{schema_version:=3,origin:=discovery,discovery:=#{semantic:=_}}=R,Input) -> valid_record_data(R,Input);
 valid_record(#{schema_version:=2,origin:=discovery,
                discovery:=#{coverage_feedback:=hit_count}}=R,Input) -> valid_record_data(R,Input);
 valid_record(#{schema_version:=1}=R,Input) -> valid_record_data(R,Input);
@@ -160,6 +170,18 @@ valid_discovery(2,#{coverage_feedback:=hit_count,retention_reason:=Reason,new_co
     check((Reason=:=new_hit_count andalso Ps=:=[]) orelse
           (Reason=:=new_probe andalso Ps=/=[] andalso
            lists:all(fun(P)->lists:keymember(P,1,Fs) end,Ps)),invalid_count_retention);
+valid_discovery(3,#{semantic:=S,retention_reason:=Reason}=D,Ps) ->
+    Fs=efz_semantic:features(#{semantic=>S}),
+    check(is_list(Ps) andalso (Ps=/=[] orelse Fs=/=[]),invalid_discovery),
+    lists:foreach(fun valid_probe/1,Ps),
+    case maps:get(coverage_feedback,D,presence) of
+        presence ->
+            check(map_size(D)=:=4,invalid_discovery),
+            check(lists:member(Reason,[new_coverage,new_probe,new_semantic]),invalid_semantic_retention),
+            check(Reason=/=new_semantic orelse Ps=:=[],invalid_semantic_retention);
+        hit_count -> valid_discovery(2,maps:remove(semantic,D),Ps);
+        _ -> error(invalid_discovery)
+    end;
 valid_discovery(_,_,_) -> error(invalid_discovery).
 valid_identity(#{target := M, callback := {<<"run">>, 1}, target_md5 := MD5,
                  coverage := Mode, builds := Bs} = I) ->

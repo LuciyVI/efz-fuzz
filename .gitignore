@@ -1,5 +1,6 @@
 .rebar3
 _build
+gleam/efz_semantic/build/
 artifacts/cowboy-long-bench/
 priv/efz_vm_launcher
 __pycache__/

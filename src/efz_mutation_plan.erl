@@ -96,6 +96,11 @@ visit(S=#{pending_entries:=Pending,config:=C,cursors:=Cs},Entries)->
     S0=inc(visits,S#{pending_entries=>Rest,cursors=>Cs#{Key=>Cur#{lane=>Lane+1}}}),
     {Result,S1}=attempts(maps:get(attempts_per_visit,C),Stage,B,Entries,Key,S0),
     case Result of
+        {ok,Candidate,Ops,Structured}->
+            P=#{primary=>B,primary_id=>efz_mutation:hash(B),parent=>maps:get(id,E),stage=>Stage,
+                operations=>Ops,config_id=>maps:get(config_id,C),dictionary_id=>maps:get(dictionary_id,C),
+                source_kind=>structured,structured=>Structured},
+            {candidate,Candidate,P,inc(generated_candidates,progress(S1))};
         {ok,Candidate,Ops}->
             P=#{primary=>B,primary_id=>efz_mutation:hash(B),parent=>maps:get(id,E),stage=>Stage,
                 operations=>Ops,config_id=>maps:get(config_id,C),dictionary_id=>maps:get(dictionary_id,C)},
@@ -112,7 +117,13 @@ visit(S=#{pending_entries:=Pending,config:=C,cursors:=Cs},Entries)->
         {error,Why}->{error,Why,S1}
     end.
 attempts(0,_,_,_,_,S)->{{skip,visit_budget},S};
-attempts(N,Stage,B,Es,Key,S=#{config:=C,cursors:=Cs})->
+attempts(N,Stage,B,Es,Key,S=#{config:=C})->
+    case structured(B,C,S) of
+        {ordinary,SOrdinary}->ordinary_attempts(N,Stage,B,Es,Key,SOrdinary);
+        Result->Result
+    end.
+ordinary_attempts(0,_,_,_,_,S)->{{skip,visit_budget},S};
+ordinary_attempts(N,Stage,B,Es,Key,S=#{config:=C,cursors:=Cs})->
     case Stage=:=havoc orelse Stage=:=splice of
         true->random_attempts(min(N,maps:get(random_retries,C)),Stage,B,Es,S);
         false->Cur=maps:get(Key,Cs),Index=maps:get(Stage,Cur,0),
@@ -122,11 +133,43 @@ attempts(N,Stage,B,Es,Key,S=#{config:=C,cursors:=Cs})->
                     S0=inc(operation_attempts,inc(mutation_attempts,S#{cursors=>Cs#{Key=>Cur#{Stage=>Index+1}}})),
                     case efz_mutation:apply_operation(B,Op,C) of
                         {ok,Next}->{{ok,Next,[Op]},S0};
-                        {skip,Why}->attempts(N-1,Stage,B,Es,Key,skip(Why,S0));
+                        {skip,Why}->ordinary_attempts(N-1,Stage,B,Es,Key,skip(Why,S0));
                         Error->{Error,S0}
                     end
             end
     end.
+%% Off/fraction-zero is a single lookup, with no additional random draws.
+structured(B,#{gleam_layer:=#{structured_fraction:=F}=P},S=#{rng:=R}) when F>0 ->
+    {Branch,R1}=uniform(100,R),S1=S#{rng=>R1},
+    case Branch=<F of
+        false->{ordinary,S1};
+        true ->
+            {Operation,R2}=zero(5,R1),
+            S2=semantic_operation(Operation,semantic_count(attempts,inc(mutation_attempts,S1#{rng=>R2}))),
+            Limits=efz_gleam_adapter:limits(P),
+            Start=erlang:monotonic_time(microsecond),
+            Result=efz_gleam_adapter:mutate(B,Operation,Limits),
+            Timed=semantic_time(callback_us,erlang:monotonic_time(microsecond)-Start,S2),
+            case Result of
+                {ok,B,_} -> {ordinary,semantic_count(no_change,Timed)};
+                {ok,Out,#{versions:=V,operation:=Op}} ->
+                    %% Versioned, data-only operation: replay never executes a plugin.
+                    Provenance=#{schema_version=>1,versions=>V,operation=>Op,limits=>Limits,
+                        fraction=>F,rng_before=>rng_words(R),rng_after=>rng_words(R2)},
+                    {{ok,Out,[{structured_replace,1,V,Op,Out}],Provenance},
+                        semantic_time(generated_bytes,byte_size(Out),semantic_count(successes,Timed))};
+                {skip,Why}->{ordinary,semantic_count(Why,Timed)};
+                {error,Why}->{{error,{semantic_layer_error,Why}},semantic_count(errors,Timed)}
+            end
+    end;
+structured(_,_,S)->{ordinary,S}.
+semantic_count(K,S)->Cs=maps:get(structured_counts,S,#{}),S#{structured_counts=>Cs#{K=>maps:get(K,Cs,0)+1}}.
+semantic_time(K,V,S)->Cs=maps:get(structured_counts,S,#{}),S#{structured_counts=>Cs#{K=>maps:get(K,Cs,0)+V}}.
+semantic_operation(Op,S)->Cs=maps:get(structured_counts,S,#{}),Ops=maps:get(operations,Cs,#{}),
+    S#{structured_counts=>Cs#{operations=>Ops#{Op=>maps:get(Op,Ops,0)+1}}}.
+%% OTP exsplus exports two 58-bit words as an improper list. Persist a proper
+%% bounded list, retaining the exact state rather than reseeding from a triplet.
+rng_words(R)->{exsplus,[A|B]}=rand:export_seed_s(R),[A,B].
 random_attempts(0,_,_,_,S)->{{skip,random_retry_budget},S};
 random_attempts(N,Stage,B,Es,S=#{config:=C,rng:=R})->
     {Depth,R1}=case Stage of havoc->uniform(maps:get(havoc_depth,C),R);splice->{1,R} end,

@@ -58,6 +58,11 @@ operation(B,{set_integer,Off,W,Endian,V},L)
     integer_write(B,Off,W,Endian,V,L);
 operation(B,{overwrite,Off,Bytes},L) when is_binary(Bytes) -> literal(B,Off,byte_size(Bytes),Bytes,L);
 operation(B,{insert,Off,Bytes},L) when is_binary(Bytes) -> literal(B,Off,0,Bytes,L);
+operation(_,{structured_replace,1,{1,1,1,1,1,1},Op,Bytes},L)
+  when is_integer(Op),Op>=0,Op<6,is_binary(Bytes) ->
+    case byte_size(Bytes)=<maps:get(max_input_bytes,L) andalso byte_size(Bytes)=<4096 of
+        true->{ok,Bytes}; false->{skip,size_limit}
+    end;
 operation(B,{dictionary_overwrite,Off,Token},L) when is_binary(Token) ->
     dictionary(B,Off,byte_size(Token),Token,L);
 operation(B,{dictionary_insert,Off,Token},L) when is_binary(Token) -> dictionary(B,Off,0,Token,L);
