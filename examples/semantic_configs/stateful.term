@@ -1,0 +1,27 @@
+#{timeout => 1000,artifacts => [],coverage_backend => none,
+  mutation_mode => staged,
+  mutation => #{seed => {17,23,41},stages => [havoc]},
+  random_seed => {17,23,41},
+  selection_seed => {29,31,37},
+  max_input_bytes => 4096,max_iterations => 100,target => efz_stateful_target,
+  seeds =>
+      [<<69,70,90,84,1,0,1,5,0,3,6,0,3,9,0,1,8,0,3,2,0,0,0,0,0,0,0,7,6,0,3,9,
+         0,1,8,0,0,2,0,0,0,0,0,0,0,2,6,0,3,9,0,1,8,0,2,2,0,0,0,0,0,0,0,0>>],
+  gleam_layer =>
+      #{adapter => efz_term_api_adapter,
+        adapter_options =>
+            #{arguments =>
+                  [#{item =>
+                         #{items =>
+                               [#{values => [counter],kind => resource},
+                                #{values => [get,put,add,reset],kind => atom},
+                                #{max => 1000,min => -1000,kind => integer}],
+                           kind => tuple},
+                     kind => list,max_length => 16}],
+              property => #{callback => {efz_stateful_target,property}},
+              entrypoint => {efz_stateful_target,scenario,1}},
+        structured_fraction => 10,feedback => guided,oracle => inline,
+        oracle_budget => 64,
+        limits =>
+            #{nodes => 128,depth => 8,bytes => 4096,collection => 32,
+              operations => 1}}}.

@@ -221,12 +221,14 @@ semantic_callbacks(_,_,Meta,#{gleam_layer:=false}=S)->{ok,Meta,S};
 semantic_callbacks(Input,Result,Meta,S=#{gleam_layer:=P}) ->
     %% Persist real target failures first, independently of layer/admission.
     Public=public_result(Result),
-    Counted=case maps:get(outcome,Public) of
-        {ok,rejected}->layer_count(expected_rejections,S);
+    Outcome=maps:get(outcome,Public),
+    TargetCounted=case Outcome of
         {timeout,_}->layer_count(target_timeouts,S);
         {crash,_,_,_}->layer_count(target_exceptions,S);
         {exit,_}->layer_count(target_exceptions,S);
         _->S end,
+    Counted=lists:foldl(fun layer_count/2,TargetCounted,
+        efz_qs_legacy:outcome_counters(P,Outcome)),
     case record_failure(Input,Public,Meta,Counted) of
         {error,Why,S1}->{error,Why,S1};
         {ok,S1}->semantic_observe(Input,Public,Meta,S1#{target_failure_recorded=>true},P)
@@ -253,11 +255,13 @@ semantic_oracle(Input,Result,Meta,S,P) ->
             S0=layer_count(oracle_checks,layer_time(oracle_us,Cost,S#{oracle_used=>Used+1})),
             case Check of
                 {error,Why}->{error,{semantic_layer_error,Why},layer_count(layer_errors,S0)};
-                {fail,Property} ->
-                    FindingMeta=Meta#{finding_kind=>oracle_failure,property=>{Property,1},
-                        layer_versions=>efz_gleam_adapter:versions(),gleam_layer=>P,
+                {fail,{Property,PropertyVersion}} ->
+                    FindingMeta0=Meta#{finding_kind=>oracle_failure,property=>{Property,PropertyVersion},
+                        gleam_layer=>P,adapter_identity=>efz_gleam_adapter:identity(P),
                         target_original_outcome=>maps:get(outcome,Result)},
-                    Finding=Result#{outcome=>{crash,oracle_failure,{Property,1},[]}},
+                    FindingMeta=case maps:get(legacy_qs,P,false) of
+                        true->FindingMeta0#{layer_versions=>efz_gleam_adapter:versions()};false->FindingMeta0 end,
+                    Finding=Result#{outcome=>{crash,oracle_failure,{Property,PropertyVersion},[]}},
                     case record_failure(Input,Finding,FindingMeta,S0) of
                         {ok,S1}->{ok,Meta#{oracle=>Check},layer_count(oracle_failures,S1)};
                         {error,Why,S1}->{error,Why,S1}

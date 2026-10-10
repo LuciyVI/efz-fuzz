@@ -144,21 +144,34 @@ structured(B,#{gleam_layer:=#{structured_fraction:=F}=P},S=#{rng:=R}) when F>0 -
     case Branch=<F of
         false->{ordinary,S1};
         true ->
-            {Operation,R2}=zero(5,R1),
-            S2=semantic_operation(Operation,semantic_count(attempts,inc(mutation_attempts,S1#{rng=>R2}))),
+            Catalogue=efz_gleam_adapter:operations(P),
+            {Index,R2}=zero(length(Catalogue)-1,R1),Operation=lists:nth(Index+1,Catalogue),
+            Legacy=maps:get(legacy_qs,P,not maps:is_key(adapter,P)),
+            {Params,R3}=case Legacy of true->{#{choice=>0},R2};false->
+                {Choice,NextR}=zero(65535,R2),{#{choice=>Choice},NextR} end,
+            S2=semantic_operation(Operation,semantic_count(attempts,inc(mutation_attempts,S1#{rng=>R3}))),
             Limits=efz_gleam_adapter:limits(P),
             Start=erlang:monotonic_time(microsecond),
-            Result=efz_gleam_adapter:mutate(B,Operation,Limits),
+            Result=case Legacy of true->efz_gleam_adapter:mutate(B,Operation,Limits);
+                false->efz_gleam_adapter:mutate(B,Operation,Params,P) end,
             Timed=semantic_time(callback_us,erlang:monotonic_time(microsecond)-Start,S2),
             case Result of
-                {ok,B,_} -> {ordinary,semantic_count(no_change,Timed)};
-                {ok,Out,#{versions:=V,operation:=Op}} ->
-                    %% Versioned, data-only operation: replay never executes a plugin.
-                    Provenance=#{schema_version=>1,versions=>V,operation=>Op,limits=>Limits,
-                        fraction=>F,rng_before=>rng_words(R),rng_after=>rng_words(R2)},
-                    {{ok,Out,[{structured_replace,1,V,Op,Out}],Provenance},
+                {ok,B,_} -> {ordinary,semantic_count(fallbacks,semantic_count(no_change,Timed))};
+                {ok,Out,Recipe} ->
+                    {Replacement,Provenance}=case Legacy of
+                        true->V=efz_gleam_adapter:versions(),LL=efz_qs_legacy:provider_limits(Limits),
+                            {{structured_replace,1,V,Operation,Out},
+                                #{schema_version=>1,versions=>V,operation=>Operation,limits=>LL,
+                                    fraction=>F,rng_before=>rng_words(R),rng_after=>rng_words(R3)}};
+                        false->Identity=efz_gleam_adapter:identity(P),
+                            {{structured_replace,2,Identity,Operation,Out},
+                                #{schema_version=>2,identity=>Identity,operation=>Operation,
+                                    params=>Params,recipe=>term_to_binary(Recipe,[deterministic]),limits=>maps:get(limits,P),fraction=>F,
+                                    rng_before=>rng_words(R),rng_after=>rng_words(R3)}}
+                    end,
+                    {{ok,Out,[Replacement],Provenance},
                         semantic_time(generated_bytes,byte_size(Out),semantic_count(successes,Timed))};
-                {skip,Why}->{ordinary,semantic_count(Why,Timed)};
+                {skip,Why}->{ordinary,semantic_count(fallbacks,semantic_count(Why,Timed))};
                 {error,Why}->{{error,{semantic_layer_error,Why}},semantic_count(errors,Timed)}
             end
     end;

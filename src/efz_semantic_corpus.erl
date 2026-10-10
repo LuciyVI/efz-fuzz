@@ -16,8 +16,10 @@ reduce(Config,Destination,Limits) ->
         Seeds=bounded(maps:get(seeds,Config),Max,Bytes,[]),
         %% Two complete calibrations, with no online mutations or oracle.
         Start=erlang:monotonic_time(millisecond),Deadline=Start+Ms,
+        PreviousLayer=case maps:get(gleam_layer,Config,false) of false->#{};X->X end,
         C=Config#{seeds=>Seeds,max_iterations=>0,
-            gleam_layer=>#{structured_fraction=>0,feedback=>guided,oracle=>disabled}},
+            gleam_layer=>maps:merge(PreviousLayer,
+                #{structured_fraction=>0,feedback=>guided,oracle=>disabled})},
         {ok,Prepared}=efz_config:prepare(C),
         Before=calibrate(C,Deadline),
         Entries=[eligible(E)||E<-maps:get(corpus,Before)],

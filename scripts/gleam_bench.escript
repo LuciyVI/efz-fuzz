@@ -4,6 +4,8 @@
 main([Engine,ModeText,SeedText,CountText,TraceText,Out,SourceRoot]) ->
     main([Engine,ModeText,SeedText,CountText,TraceText,Out,SourceRoot,"legacy"]);
 main([Engine,ModeText,SeedText,CountText,TraceText,Out,SourceRoot,SeedDirectory]) ->
+    main([Engine,ModeText,SeedText,CountText,TraceText,Out,SourceRoot,SeedDirectory,"compile"]);
+main([Engine,ModeText,SeedText,CountText,TraceText,Out,SourceRoot,SeedDirectory,ArtifactFile]) ->
     Mode=list_to_existing_atom(ModeText),Seed=list_to_integer(SeedText),N=list_to_integer(CountText),
     Trace=list_to_integer(TraceText),true=N>=1 andalso N=<100000,true=Trace>=0 andalso Trace=<10000,
     true=code:add_patha(filename:join([Engine,"lib","efz","ebin"])),
@@ -18,13 +20,15 @@ main([Engine,ModeText,SeedText,CountText,TraceText,Out,SourceRoot,SeedDirectory]
     SrcDir=filename:join(Out,"source"),ok=filelib:ensure_dir(SrcDir++"/cow_qs.erl"),
     {ok,_}=file:copy(filename:join([SourceRoot,"_build","default","lib","cowlib","src","cow_qs.erl"]),SrcDir++"/cow_qs.erl"),
     {ok,_}=file:copy(filename:join([SourceRoot,"_build","default","lib","cowlib","include","cow_inline.hrl"]),SrcDir++"/cow_inline.hrl"),
-    {ok,A}=efz_cov_native_public:compile(SrcDir++"/cow_qs.erl",Out++"/target"),
+    A=case ArtifactFile of "compile"->
+        {ok,Compiled}=efz_cov_native_public:compile(SrcDir++"/cow_qs.erl",Out++"/target"),Compiled;
+        _->{ok,[Shared]}=file:consult(ArtifactFile),Shared end,
     C0=#{target=>Target,seeds=>[<<"a=1">>],artifacts=>[A],coverage_backend=>otp_native_public,
         mutation_mode=>staged,max_iterations=>N,timeout=>1000,crash_dir=>Out++"/crashes",
         selection_seed=>{Seed,Seed+1,Seed+2},
         mutation=>#{seed=>{Seed,Seed+1,Seed+2},stages=>[havoc],trace_limit=>Trace}},
     C1=mode(Mode,C0),
-    PreparedModes=[seeds,structured,observation,guided,oracle,fraction1,fraction5,fraction10,fraction20],
+    PreparedModes=[off,seeds,structured,observation,guided,plugin_guided,oracle,fraction1,fraction5,fraction10,fraction20],
     C=case SeedDirectory=/="legacy" andalso lists:member(Mode,PreparedModes) of
         true->{ok,Names}=file:list_dir(SeedDirectory),
             true=length(Names)=<64,
@@ -74,6 +78,8 @@ main([Engine,ModeText,SeedText,CountText,TraceText,Out,SourceRoot,SeedDirectory]
         coverage_count=>length(maps:get(coverage,R)),trace=>Rows,
         trace_sha256=>crypto:hash(sha256,term_to_binary(Rows)),
         gleam_stats=>maps:get(gleam_stats,R,#{}),structured_stats=>maps:get(structured_stats,R,#{}),
+        target_artifact_build_id=>maps:get(build_id,A),target_artifact_beam_md5=>maps:get(beam_md5,A),
+        total_target_executions=>Exec+Cal+maps:get(verification_executions,Stats,0)+maps:get(oracle_extra_executions,R,0),
         semantic_features=>maps:get(semantic_features,R,[]),semantic_state_created=>SemanticState,
         active_represented_features=>length(lists:usort(lists:append([efz_semantic_features(E)||E<-Kept]))),
         gleam_loaded=>code:is_loaded(efz_qs_model)=/=false,
@@ -102,6 +108,9 @@ mode(seeds,C)->C#{seeds=>typed_seeds()};
 mode(structured,C)->C#{seeds=>typed_seeds(),gleam_layer=>#{structured_fraction=>10}};
 mode(observation,C)->C#{seeds=>typed_seeds(),gleam_layer=>#{structured_fraction=>10,feedback=>observation_only}};
 mode(guided,C)->C#{seeds=>typed_seeds(),gleam_layer=>#{structured_fraction=>10,feedback=>guided}};
+mode(plugin_guided,C)->C#{seeds=>typed_seeds(),gleam_layer=>#{adapter=>efz_qs_adapter,
+    adapter_options=>#{fields=>32,component=>128},
+    structured_fraction=>10,feedback=>guided}};
 mode(oracle,C)->C#{seeds=>typed_seeds(),gleam_layer=>#{structured_fraction=>10,feedback=>guided,oracle=>inline,oracle_budget=>64}};
 mode(fraction0,C)->C#{gleam_layer=>#{structured_fraction=>0}};
 mode(fraction1,C)->C#{seeds=>typed_seeds(),gleam_layer=>#{structured_fraction=>1}};

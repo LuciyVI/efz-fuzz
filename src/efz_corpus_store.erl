@@ -4,10 +4,14 @@
 -export([identity/1, restore/3, restore/4, save/4]).
 -define(MAX_META, 67108864).
 
-identity(#{target := M, coverage := Mode, manifests := Ms}) ->
-    #{target => atom_to_binary(M, utf8), callback => {<<"run">>, 1},
+identity(#{target := M, coverage := Mode, manifests := Ms}=C) ->
+    I=#{target => atom_to_binary(M, utf8), callback => {<<"run">>, 1},
       target_md5 => M:module_info(md5), coverage => Mode,
-      builds => efz_recipe:build_ids(maps:from_list([{maps:get(module, X), maps:get(build_id, X)} || X <- Ms]))}.
+      builds => efz_recipe:build_ids(maps:from_list([{maps:get(module, X), maps:get(build_id, X)} || X <- Ms]))},
+    case maps:get(gleam_layer,C,false) of
+        #{adapter_identity:=SI}=P -> case maps:get(legacy_qs,P,false) of
+            true->I;false->I#{semantic_identity=>SI} end;
+        _->I end.
 
 restore(Dir, Identity, Policy) -> restore(Dir, Identity, Policy, efz_input:default_limit()).
 restore(Dir0, Identity, Policy, Max) -> protect(fun() ->
@@ -185,7 +189,8 @@ valid_discovery(3,#{semantic:=S,retention_reason:=Reason}=D,Ps) ->
 valid_discovery(_,_,_) -> error(invalid_discovery).
 valid_identity(#{target := M, callback := {<<"run">>, 1}, target_md5 := MD5,
                  coverage := Mode, builds := Bs} = I) ->
-    check(map_size(I) =:= 5 andalso is_binary(M) andalso byte_size(M) > 0 andalso
+    check((map_size(I) =:= 5 orelse (map_size(I)=:=6 andalso
+          efz_gleam_adapter:identity_valid(maps:get(semantic_identity,I,#{})))) andalso is_binary(M) andalso byte_size(M) > 0 andalso
           is_binary(MD5) andalso byte_size(MD5) =:= 16 andalso
           lists:member(Mode, [automatic, manual]) andalso is_list(Bs), invalid_target_identity),
     check(lists:all(fun({Name, H}) -> is_binary(Name) andalso byte_size(Name) > 0 andalso hash(H);

@@ -13,7 +13,9 @@ mkdir -p "$dest"
 shipment=gleam/efz_semantic/build/erlang-shipment/efz_semantic/ebin
 # EFZ calls the model directly. Gleam's generated command-line launcher is not
 # part of this runtime and references optional stdlib inspection helpers.
-cp "$shipment/efz_qs_model.beam" "$dest/"
+for model in efz_qs_model efz_term_model efz_xmlrpc_model; do
+  cp "$shipment/$model.beam" "$dest/"
+done
 if test -f "$dest/efz_semantic@@main.beam"; then
   inactive_dir=$(mktemp -d "${REBAR_BUILD_DIR:-$project_root/_build/gleam}/gleam-unused.XXXXXX")
   mv "$dest/efz_semantic@@main.beam" "$inactive_dir/"
@@ -21,9 +23,9 @@ fi
 erl -noshell -eval '
   [Source, Destination] = init:get_plain_arguments(),
   {ok, [{application, efz_semantic, Props}]} = file:consult(Source),
-  true = lists:sort(proplists:get_value(modules, Props)) =:= [efz_qs_model, efz_semantic@@main],
+  true = lists:sort(proplists:get_value(modules, Props)) =:= lists:sort([efz_qs_model, efz_term_model, efz_xmlrpc_model, efz_semantic@@main]),
   [] = proplists:get_value(applications, Props),
-  Runtime = {application, efz_semantic, lists:keyreplace(modules, 1, Props, {modules, [efz_qs_model]})},
+  Runtime = {application, efz_semantic, lists:keyreplace(modules, 1, Props, {modules, [efz_qs_model, efz_term_model, efz_xmlrpc_model]})},
   ok = file:write_file(Destination, io_lib:format("~tp.~n", [Runtime])),
   halt().
 ' -extra "$shipment/efz_semantic.app" "$dest/efz_semantic.app"

@@ -7,7 +7,7 @@
 
 portable(#{module:=M}=I) -> (maps:with([beam_md5,attributes_sha256,build_id],I))#{module=>atom_to_binary(M,utf8)}.
 harness_identity(M) ->
-    _=code:ensure_loaded(M),
+    _=case code:is_loaded(M) of false->code:ensure_loaded(M);_->ok end,
     case efz_cov_integrity:identity(M) of {ok,I}->{ok,portable(I)};Error->Error end.
 pin(Target,Ms,Expected) ->
     case efz_cov_integrity:selected(Ms) of

@@ -1,0 +1,15 @@
+#{timeout => 1000,artifacts => [],coverage_backend => none,
+  mutation_mode => staged,
+  mutation => #{seed => {17,23,41},stages => [havoc]},
+  random_seed => {17,23,41},
+  selection_seed => {29,31,37},
+  max_input_bytes => 4096,max_iterations => 100,target => efz_qs_target,
+  seeds => [<<"a=1&b=2">>],
+  gleam_layer =>
+      #{adapter => efz_qs_adapter,
+        adapter_options => #{fields => 32,component => 128},
+        structured_fraction => 10,feedback => guided,oracle => inline,
+        oracle_budget => 64,
+        limits =>
+            #{nodes => 128,depth => 8,bytes => 4096,collection => 32,
+              operations => 1}}}.

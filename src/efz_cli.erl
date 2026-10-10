@@ -18,6 +18,7 @@ main_local(Args) ->
 help() ->
     "Usage: escript scripts/fuzz.escript --target MODULE --out DIR --artifacts DIR [--seeds DIR | --corpus-dir DIR] [options]\n"
     "\nTarget contract: MODULE:run(binary()) -> term(). Coverage is automatic.\n"
+    "  --config FILE            Trusted campaign map (efz:start schema); requires --out\n"
     "  --target MODULE          Harness or instrumented target exporting run/1 (required)\n"
     "  --seeds DIR              Read raw seed files (required unless --corpus-dir is supplied)\n"
     "  --corpus-dir DIR         Load/store reusable successful corpus, not a campaign checkpoint\n"
@@ -31,7 +32,7 @@ help() ->
     "  --timeout MS             Per-input timeout, nonnegative integer (default: 100)\n"
     "  --max-iterations N       Mutation execution limit (default: 1000)\n"
     "  --max-input-bytes N      Campaign/replay input bound, 0..1048576 (default: 4096)\n"
-    "  --gleam-layer            Enable optional native query-string layer (build profile gleam)\n"
+    "  --gleam-layer            Enable legacy optional QS layer; new adapters use --config (build profile gleam)\n"
     "  --structured-fraction N  Structured branch percent 0..100 (default: 10)\n"
     "  --semantic-feedback disabled|observation_only|guided (default: disabled)\n"
     "  --semantic-oracle disabled|inline (default: disabled)\n"
@@ -77,6 +78,7 @@ parse([Option | Rest], Options) ->
                 end
             end
     end.
+option("--config") -> config_file;
 option("--runtime-runs") -> runtime_runs;
 option("--structured-fraction") -> structured_fraction;
 option("--semantic-feedback") -> semantic_feedback;
@@ -135,6 +137,40 @@ flag(timeout) -> "--timeout";
 flag(max_iterations) -> "--max-iterations";
 flag(max_input_bytes) -> "--max-input-bytes".
 
+launch(#{config_file:=Path}=O) ->
+    lists:foreach(fun add_code_path/1,maps:get(code_paths,O,[])),
+    case efz_fs:read_bounded(Path,1048576) of {ok,_}->ok;{error,E}->fail("Cannot read config: ~tp",[E]) end,
+    C0=case file:consult(Path) of {ok,[C]} when is_map(C)->C;
+        Other->fail("Config must contain one campaign map: ~tp",[Other]) end,
+    case maps:find(out,O) of error->fail("--config requires --out",[]);{ok,_}->ok end,
+    C1=maps:merge(C0,maps:with([corpus_dir,corpus_build_policy,coverage_policy,coverage_feedback,
+        mutation_mode,timeout,max_iterations,max_input_bytes],O)),
+    C2=case maps:find(artifacts,O) of error->C1;{ok,Dir}->
+        C1#{artifacts=>require(efz_instrument:discover(Dir),"Invalid artifacts")} end,
+    C3=case maps:find(target,O) of error->C2;{ok,Name}->
+        C2#{target=>require(local_target(Name,maps:get(artifacts,C2,[])),"Invalid target")} end,
+    C4=case maps:find(seeds,O) of error->C3;{ok,Dir2}->
+        C3#{seeds=>read_seeds(Dir2,maps:get(max_input_bytes,C3,efz_input:default_limit()))} end,
+    Keys=[gleam_enabled,structured_fraction,semantic_feedback,semantic_oracle,oracle_budget],
+    C5=case maps:with(Keys,O) of
+        None when map_size(None)=:=0->C4;
+        _->Layer0=maps:get(gleam_layer,C4,#{}),
+            Layer=case Layer0 of false->#{};_->Layer0 end,
+            Pairs=[{case K of semantic_feedback->feedback;semantic_oracle->oracle;_->K end,V}
+                ||{K,V}<-maps:to_list(maps:with(tl(Keys),O))],
+            C4#{gleam_layer=>maps:merge(Layer,maps:from_list(Pairs))}
+    end,
+    RuntimeKeys=[runtime_enabled,runtime_runs,verification_budget,sample_interval],
+    C6=case maps:with(RuntimeKeys,O) of
+        NoneRuntime when map_size(NoneRuntime)=:=0->C5;
+        _->C5#{runtime_oracles=>runtime_options(O)}
+    end,
+    Out=filename:absname(maps:get(out,O)),Crashes=filename:join(Out,"crashes"),
+    writable_directory(Out),writable_directory(Crashes),
+    try case efz:start(C6#{crash_dir=>Crashes}) of
+        {ok,_}->finish(efz:await(infinity),Out);
+        {error,Why}->fail("Cannot start campaign: ~ts",[start_error(Why)]) end
+    after _=efz:stop() end;
 launch(O) ->
     lists:foreach(fun(K) ->
         case maps:is_key(K, O) of
@@ -248,6 +284,8 @@ start_error({module_unavailable, Kind, M, Why}) ->
     io_lib:format("~p module ~p could not be loaded (~tp); use --code-path for ordinary BEAM files", [Kind, M, Why]);
 start_error({missing_callback, Kind, M, F, A}) ->
     io_lib:format("~p module ~p must export ~p/~B", [Kind, M, F, A]);
+start_error({gleam_configuration,unsupported_gleam_target}) ->
+    "This target requires an explicit gleam_layer.adapter in --config; the implicit QS adapter is legacy-only";
 start_error(Why) -> io_lib:format("~tp", [Why]).
 require({ok, Value}, _) -> Value;
 require({error, Why}, Context) -> fail("~ts: ~tp", [Context, Why]).

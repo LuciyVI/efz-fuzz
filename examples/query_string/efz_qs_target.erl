@@ -1,6 +1,7 @@
 %% Ordinary Cowlib parser harness. It has no Gleam dependency.
 -module(efz_qs_target).
--export([run/1]).
+-export([run/1, semantic_contract/0]).
+semantic_contract() -> #{kind=>query_string,outcome=>accepted_pairs}.
 run(Input) when is_binary(Input) ->
     try cow_qs:parse_qs(Input) of Pairs -> {accepted,Pairs}
     catch

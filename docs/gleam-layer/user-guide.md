@@ -1,3 +1,6 @@
+> This document describes the historical QS compatibility interface. The current
+> public plugin and generic API guide is [Connecting Erlang libraries](connecting-erlang-libraries.md).
+
 # Optional native Gleam layer
 
 Default `rebar3 compile` and all ordinary EFZ targets require no Gleam.
@@ -97,6 +100,10 @@ An oracle finding retains `.input`, `.term`, `.replay`, optional `.recipe`, and
 checksummed `.semantic`. Property replay requires Gleam and explicit unchanged
 target/native artifacts; recipe regeneration and ordinary raw replay need none.
 Replay/minimize the artificial fixture used in tests (not a real Cowlib defect):
+
+The following five-positional-argument command is the QS legacy helper. New
+adapters use the explicit `--config` interface in the
+[library connection guide](connecting-erlang-libraries.md#8-проверить-persistence-replay-и-минимизацию).
 
 ```sh
 escript scripts/gleam_replay.escript ARTIFACT_PREFIX NATIVE_ARTIFACT_DIR \

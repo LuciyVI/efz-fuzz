@@ -77,7 +77,7 @@ runtime_shipment() ->
     Dir = filename:dirname(code:which(efz_qs_model)),
     ?assertNot(filelib:is_file(filename:join(Dir, "efz_semantic@@main.beam"))),
     {ok, [{application, efz_semantic, Props}]} = file:consult(filename:join(Dir, "efz_semantic.app")),
-    ?assertEqual([efz_qs_model], proplists:get_value(modules, Props)),
+    ?assertEqual([efz_qs_model,efz_term_model,efz_xmlrpc_model], proplists:get_value(modules, Props)),
     ?assertEqual([], proplists:get_value(applications, Props)),
     ?assertNot(lists:keymember(efz_semantic, 1, application:which_applications())).
 

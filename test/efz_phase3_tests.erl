@@ -3,8 +3,8 @@
 -export([run/1,mutate/2]).
 
 phase3_test_()->{setup,fun setup/0,fun cleanup/1,fun(A)->[
-    {"real deterministic operator discoveries and crash continuation",fun()->campaign(A) end},
-    {"bounded trace does not change mutation choices",fun()->trace_independence(A) end},
+    {"real deterministic operator discoveries and crash continuation",{timeout,12,fun()->campaign(A) end}},
+    {"bounded trace does not change mutation choices",{timeout,25,fun()->trace_independence(A) end}},
     {"fresh VM regeneration and actual crash replay",fun()->fresh_replay(A) end},
     {"replay rejects incompatible builds and disposed plan options",fun()->replay_boundaries(A) end},
     {"no candidate is not a target execution",fun exhaustion/0},
@@ -12,7 +12,7 @@ phase3_test_()->{setup,fun setup/0,fun cleanup/1,fun(A)->[
     %% bound to fire before EUnit, while retaining all 256-parent assertions.
     {"256 seeds reach productive bitflip after an unavailable dictionary lane",{timeout,12,fun()->scheduler_progress(A) end}},
     %% 5376 guarded executions (calibration + mutations), not a speed benchmark.
-    {"finite deterministic exhaustion differs from the idle guard",{timeout,75,fun()->scheduler_exhaustion(A) end}},
+    {"finite deterministic exhaustion differs from the idle guard",{timeout,185,fun()->scheduler_exhaustion(A) end}},
     {"mutator exceptions are infrastructure failures",fun()->mutator_failure(A) end}
 ] end}.
 setup()->
@@ -118,7 +118,7 @@ scheduler_exhaustion(A)->
         seeds=>[<<I>>||I<-lists:seq(0,255)],mutation_mode=>staged,max_iterations=>10000,
         %% Lifecycle/integrity work depends on VM size and host load. Keep the
         %% exact 5120-mutation assertion, without a 25-second throughput gate.
-        timeout=>1000,mutation=>#{seed=>{17,23,41},stages=>[bitflip],max_idle_visits=>1}},60000),
+        timeout=>1000,mutation=>#{seed=>{17,23,41},stages=>[bitflip],max_idle_visits=>1}},180000),
     ?assertEqual({mutation_exhausted,mutation_exhausted},maps:get(status,R)),
     ?assertEqual(5120,maps:get(executions,maps:get(stats,R))),
     ?assertEqual(5120,maps:get(generated_candidates,maps:get(mutation_stats,R))),

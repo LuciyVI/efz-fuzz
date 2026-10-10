@@ -6,7 +6,8 @@ off_config_test()->
     ?assertEqual(false,maps:get(gleam_layer,efz_config:defaults())).
 namespace_test()->
     ?assert(efz_semantic:valid([{<<"cow_qs">>,1,0}])),
-    ?assertNot(efz_semantic:valid([{<<"cow_qs">>,2,0}])),
+    ?assert(efz_semantic:valid([{<<"cow_qs">>,2,0}])),
+    ?assertEqual(2,maps:get(schema_version,efz_semantic:metadata([{<<"cow_qs">>,2,0}]))),
     ?assertNot(efz_semantic:valid([{<<"cow_qs">>,1,12}])),
     ?assertNot(efz_semantic:valid([0|improper])).
 boundary_test()->

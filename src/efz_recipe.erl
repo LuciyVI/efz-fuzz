@@ -1,13 +1,17 @@
 %% EFZR v1: checksummed, bounded, data-only recipes. Never dispatches artifact code.
 -module(efz_recipe).
 -export([make/4, regenerate/1, regenerate/2, encode/1, decode/1, save/2, load/1,
-         execute/5, execute_file/5, build_ids/1]).
+         execute/5, execute_file/5, build_ids/1, regenerate_semantic/2]).
 -define(MAX_FILE, 41943040).
+%% OTP exsplus deliberately exports the seed as an improper two-word list.
+%% state_from_words validates both words before reconstructing that OTP format.
+-dialyzer({no_improper_lists, state_from_words/1}).
 
 make(P,B,C,Builds)->
     OperationVersion=case lists:any(fun({structured_replace,_,_,_,_})->true;(_)->false end,maps:get(operations,P)) of
-        true->2;false->1 end,
-    Version=case maps:is_key(structured,P) of true->3;false->OperationVersion end,
+        true->case lists:any(fun({structured_replace,2,_,_,_})->true;(_)->false end,maps:get(operations,P)) of
+            true->3;false->2 end;false->1 end,
+    Version=case maps:is_key(structured,P) of true->case OperationVersion of 3->4;_->3 end;false->OperationVersion end,
     P#{schema_version=>Version,engine_version=>1,operation_version=>OperationVersion,
        limits=>maps:with([max_input_bytes,max_block_bytes,max_token_bytes,max_delta],C),
        output_size=>byte_size(B),output_hash=>efz_mutation:hash(B),target_builds=>build_ids(Builds),
@@ -44,8 +48,8 @@ regenerate_checked(#{schema_version:=Version,engine_version:=1,operation_version
     output_hash:=Expected,config_id:=ConfigId,dictionary_id:=DictId,stage:=Stage,
     target_builds:=Bs,rng:=#{algorithm:=exsplus,seed:={A,B,D}},parent:=Parent}=R)
   when Version=:=1,OperationVersion=:=1;Version=:=2,OperationVersion=:=2;
-       Version=:=3,OperationVersion=:=2 ->
-    Extra=case Version of 3->[source_kind,structured];_->[] end,
+       Version=:=3,OperationVersion=:=2;Version=:=4,OperationVersion=:=3 ->
+    Extra=case Version of N when N>=3->[source_kind,structured];_->[] end,
     true=lists:sort(maps:keys(R))=:=lists:sort(Extra++[schema_version,engine_version,operation_version,
         primary,primary_id,operations,limits,output_size,output_hash,config_id,dictionary_id,stage,target_builds,rng,parent]),
     true=is_binary(Primary) andalso byte_size(Primary)=<efz_input:hard_limit(),
@@ -54,7 +58,7 @@ regenerate_checked(#{schema_version:=Version,engine_version:=1,operation_version
     true=lists:all(fun(X)->is_binary(X) andalso byte_size(X)=:=32 end,[Id,Expected,ConfigId,DictId]),
     true=efz_mutation:hash(Primary)=:=Id,
     true=is_list(Ops) andalso length(Ops)>0 andalso length(Ops)=<32,
-    true=OperationVersion=:=2 orelse not lists:any(fun({structured_replace,_,_,_,_})->true;(_)->false end,Ops),
+    true=OperationVersion>=2 orelse not lists:any(fun({structured_replace,_,_,_,_})->true;(_)->false end,Ops),
     true=lists:member(Stage,maps:get(stages,efz_mutation_plan:defaults())),
     true=lists:all(fun(X)->is_integer(X) andalso X>=0 andalso X<1 bsl 64 end,[A,B,D]),
     true=lists:sort(maps:keys(maps:get(rng,R)))=:=[algorithm,seed],
@@ -66,7 +70,7 @@ regenerate_checked(#{schema_version:=Version,engine_version:=1,operation_version
         lists:sort([max_input_bytes,max_block_bytes,max_token_bytes,max_delta]),
     {ok,C}=efz_mutation_plan:prepare(Limits#{seed=>{A,B,D}},[Primary]),
     true=Size=<maps:get(max_input_bytes,C),
-    case Version of 3->validate_structured(R,C);_->ok end,
+    case Version of SV when SV>=3->validate_structured(R,C);_->ok end,
     case efz_mutation:apply_operations(Primary,Ops,C) of
         {ok,Candidate} when byte_size(Candidate)=:=Size ->
             case efz_mutation:hash(Candidate)=:=Expected of
@@ -98,7 +102,25 @@ validate_structured(#{source_kind:=structured,structured:=P,operations:=
     {Branch,R1}=rand:uniform_s(100,R0),true=Branch=<Fraction,
     {Choice,R2}=rand:uniform_s(6,R1),true=Choice=:=Op+1,
     {exsplus,[NextA|NextB]}=rand:export_seed_s(R2),true=After=:=[NextA,NextB],
-    ok.
+    ok;
+validate_structured(#{source_kind:=structured,structured:=P,operations:=
+    [{structured_replace,2,I,Op,Out}]},C)->
+    #{schema_version:=2,identity:=I,operation:=Op,params:=#{choice:=Param}=Params,
+      recipe:=Recipe,limits:=Limits,fraction:=Fraction,rng_before:=Before,rng_after:=After}=P,
+    true=lists:sort(maps:keys(P))=:=lists:sort([schema_version,identity,operation,params,recipe,
+        limits,fraction,rng_before,rng_after]),
+    true=efz_gleam_adapter:identity_valid(I),true=Limits=:=maps:get(limits,I),
+    true=maps:get(bytes,Limits)=<maps:get(max_input_bytes,C),
+    true=is_integer(Fraction) andalso Fraction>=1 andalso Fraction=<100,
+    true=is_binary(Out) andalso byte_size(Out)=<maps:get(bytes,Limits),
+    true=is_integer(Param) andalso Param>=0 andalso Param=<65535 andalso map_size(Params)=:=1,
+    true=is_binary(Recipe) andalso byte_size(Recipe)=<4096,
+    Catalogue=maps:get(operations,maps:get(descriptor,I)),true=lists:member(Op,Catalogue),
+    R0=state_from_words(Before),_=state_from_words(After),
+    {Branch,R1}=rand:uniform_s(100,R0),true=Branch=<Fraction,
+    {Index,R2}=rand:uniform_s(length(Catalogue),R1),true=lists:nth(Index,Catalogue)=:=Op,
+    {Choice,R3}=rand:uniform_s(65536,R2),true=Choice=:=Param+1,
+    {exsplus,[NextA|NextB]}=rand:export_seed_s(R3),true=After=:=[NextA,NextB],ok.
 state_from_words([A,B]) when is_integer(A),A>=0,A<1 bsl 58,
                             is_integer(B),B>=0,B<1 bsl 58,A+B>0 ->
     rand:seed_s({exsplus,[A|B]});
@@ -121,7 +143,8 @@ decode(B) when is_binary(B),byte_size(B)=< ?MAX_FILE ->
         %% container declarations, deep nesting and excessive term counts.
         {<<>>,_}=scan(Term,0,20000),
         _=code:ensure_loaded(efz_mutation),_=code:ensure_loaded(efz_mutation_plan),
-        R=binary_to_term(Payload,[safe]),
+        _=code:ensure_loaded(efz_gleam_adapter),
+        R=binary_to_term(Payload,[safe]),true=is_map(R),
         case regenerate(R) of {ok,_}->{ok,R};Error->Error end
     catch error:_->{error,invalid_recipe_encoding} end;
 decode(_) -> {error,recipe_size_limit}.
@@ -138,7 +161,7 @@ read_bounded(Path,Max)->efz_fs:read_bounded(Path,Max).
 execute(Input,Target,Artifacts,ExpectedBuilds,Opts) when is_binary(Input),is_atom(Target),is_map(Opts)->
     case maps:keys(maps:without([timeout,coverage_backend,max_input_bytes,expected_harness],Opts)) of
         []->Timeout=maps:get(timeout,Opts,100),Backend=maps:get(coverage_backend,Opts,ets),
-            case is_integer(Timeout) andalso Timeout>=0 andalso lists:member(Backend,[ets,ets_member,otp_native_public]) of
+            case is_integer(Timeout) andalso Timeout>=0 andalso lists:member(Backend,[ets,ets_member,otp_native_public,none]) of
                 true->Max=maps:get(max_input_bytes,Opts,efz_input:default_limit()),
                     case efz_input:check(Input,Max,replay) of
                         ok->execute_checked(Input,Target,Artifacts,ExpectedBuilds,Timeout,Backend,Max,maps:get(expected_harness,Opts,undefined));
@@ -150,7 +173,7 @@ execute(Input,Target,Artifacts,ExpectedBuilds,Opts) when is_binary(Input),is_ato
     end;
 execute(_,_,_,_,_)->{error,invalid_replay_arguments}.
 execute_checked(Input,Target,Artifacts,Expected,Timeout,Backend,Max,Harness)->
-    Preflight=case Backend of otp_native_public->efz_cov_native_public:preflight(Artifacts);
+    Preflight=case Backend of none when Artifacts=:=[]->{ok,[]}; otp_native_public->efz_cov_native_public:preflight(Artifacts);
         _->efz_instrument:preflight(Artifacts) end,
     case Preflight of
         {ok,Ms}->Actual=build_ids(maps:from_list([{maps:get(module,M),maps:get(build_id,M)}||M<-Ms])),
@@ -170,6 +193,9 @@ execute_checked(Input,Target,Artifacts,Expected,Timeout,Backend,Max,Harness)->
             end;
         Error->Error
     end.
+execute_pinned(Input,Target,Timeout,none,Max,Pins,Ms)->
+    {ok,efz_executor:run(Target,Input,Timeout,#{coverage=>automatic,
+        coverage_backend=>none,manifests=>Ms,max_input_bytes=>Max,execution_identities=>Pins})};
 execute_pinned(Input,Target,Timeout,otp_native_public,Max,Pins,Ms)->
     Schema=efz_cov_native_public:prepare(Ms),
     {ok,efz_executor:run(Target,Input,Timeout,#{coverage=>automatic,
@@ -188,6 +214,7 @@ execute_file(_,_,_,_,_)->{error,invalid_replay_arguments}.
 
 scan(_,D,_) when D>24 -> error(recipe_depth);
 scan(_,_,Budget) when Budget=<0 -> error(recipe_terms);
+scan(<<70,_:64,Rest/binary>>,_,B)->{Rest,B-1};
 scan(<<97,_:8,Rest/binary>>,_,B)->{Rest,B-1};
 scan(<<98,_:32,Rest/binary>>,_,B)->{Rest,B-1};
 scan(<<110,N:8,S:8,_:N/binary,Rest/binary>>,_,B) when N=<8,S=<1->{Rest,B-1};
@@ -204,3 +231,18 @@ scan(<<116,N:32,Rest/binary>>,D,B) when N=<64->scan_n(N*2,Rest,D+1,B-1);
 scan(_,_,_)->error(unsupported_recipe_term).
 scan_n(0,Rest,_,B)->{Rest,B};
 scan_n(N,Data,D,B)->{Rest,B1}=scan(Data,D,B),scan_n(N-1,Rest,D,B1).
+
+%% Explicit model regeneration. Caller prepares trusted plugin config; the
+%% stored artifact never chooses executable code. Ordinary regenerate/1 keeps
+%% using replacement bytes and needs no optional runtime modules.
+regenerate_semantic(#{schema_version:=4,primary:=B,structured:=#{identity:=I,
+    operation:=Op,params:=Params,recipe:=Recipe}}=R,#{adapter_identity:=I}=P)->
+    case regenerate(R) of
+        {ok,Expected}->case efz_gleam_adapter:mutate(B,Op,Params,P) of
+            {ok,Expected,Data}->case term_to_binary(Data,[deterministic])=:=Recipe of
+                true->{ok,Expected};false->{error,semantic_recipe_data_mismatch} end;
+            {ok,_,_}->{error,semantic_recipe_output_mismatch};
+            {skip,Why}->{error,{semantic_recipe_unsupported,Why}};
+            {error,Why}->{error,{semantic_layer_error,Why}} end;
+        Error->Error end;
+regenerate_semantic(_,_) -> {error,semantic_recipe_identity_mismatch}.
