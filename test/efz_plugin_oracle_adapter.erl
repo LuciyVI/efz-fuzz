@@ -7,5 +7,6 @@ descriptor() -> #{id=><<"fixture.oracle">>,api_version=>1,model_version=>1,
     capabilities=>[oracle],operations=>[],model_modules=>[],
     properties=>[{fixture_property,1}]}.
 prepare(_,Options,_) -> {ok,Options}.
+oracle(_,_,#{fail:=true}) -> {fail,{fixture_property,1}};
 oracle(_,_,#{skip:=true}) -> {skip,unsupported};
 oracle(_,_,_) -> {pass,{fixture_property,1}}.

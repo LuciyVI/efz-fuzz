@@ -183,7 +183,7 @@ legacy(Args) ->
     Helper=filename:join(filename:dirname(filename:absname(escript:script_name())),
         "gleam_replay_legacy.escript"),
     case os:find_executable("escript") of
-        false->io:format(standard_error,"escript executable unavailable~n"),halt(2);
+        false->io:format(standard_error,"escript executable unavailable~n",[]),halt(2);
         Exe->Port=open_port({spawn_executable,Exe},[binary,exit_status,use_stdio,
             stderr_to_stdout,{args,[Helper|Args]}]),legacy_output(Port)
     end.

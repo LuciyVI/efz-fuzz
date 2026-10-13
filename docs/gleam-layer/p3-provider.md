@@ -1,5 +1,8 @@
 # P3 structured provider — PASS
 
+Current P5 acceptance is recorded in [p5-validation.md](p5-validation.md).
+The handoff and pending-status statements below describe the historical phase run.
+
 Requirements **2.0-native**; contract/model/codec/mutator/feature/property vector
 **{1,1,1,1,1,1}**. Cold generator **2**, package **1.1.0**. New structured
 recipe schema **3**, operation version **2**, EFZR envelope **1**; legacy recipe

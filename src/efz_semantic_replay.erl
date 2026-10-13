@@ -22,6 +22,9 @@ load(Path)->
             <<"EFZS",1,N:32,H:32/binary,P:N/binary>>=B,
             true=crypto:hash(sha256,P)=:=H,<<131,116,_/binary>>=P,
             _=code:ensure_loaded(efz_replay),_=code:ensure_loaded(efz_gleam_adapter),
+            %% Register the fixed schema-1 vocabulary before safe ETF decoding.
+            %% Artifact data still cannot introduce atoms or choose code.
+            _=code:ensure_loaded(efz_qs_legacy),
             E=binary_to_term(P,[safe]),true=valid(E),{ok,E}
         catch error:_->{error,invalid_semantic_expectation} end;
         Error->Error

@@ -8,7 +8,10 @@ main(["prepare", Out]) -> load_paths(), prepare(filename:absname(Out));
 main(["campaign", KindText, ModeText, RepeatText, Out]) ->
     load_paths(),
     Kind = kind(KindText), Mode = mode(ModeText), Repeat = repeat(RepeatText),
-    campaign(Kind, Mode, Repeat, filename:absname(Out));
+    campaign(Kind, Mode, Repeat, 17, 100, filename:absname(Out));
+main(["campaign", K, M, R, Seed, Count, Out]) ->
+    load_paths(),campaign(kind(K),mode(M),repeat(R),list_to_integer(Seed),list_to_integer(Count),filename:absname(Out));
+main(["stateful-counts", Run, _Out]) -> load_paths(),stateful_counts(filename:absname(Run));
 main(["callbacks", KindText, Out]) ->
     load_paths(), callbacks(kind(KindText), filename:absname(Out));
 main(_) -> io:format(standard_error,
@@ -70,9 +73,11 @@ configuration(qs) -> consult_config("cow_qs").
 consult_config(Name) ->
     {ok, [C]} = file:consult(filename:join([root(), "examples", "semantic_configs", Name ++ ".term"])), C.
 
-campaign(Kind, Mode, Repeat, Out) ->
+campaign(Kind, Mode, Repeat, Seed, Count, Out) ->
+    true=Count>=1 andalso Count=<1000, true=Seed>=1 andalso Seed=<1000000,
+    RNG={Seed,Seed+6,Seed+24},
     false = Kind =:= qs,
-    Run = filename:join(Out, atom_to_list(Kind) ++ "-" ++ atom_to_list(Mode) ++ "-" ++ integer_to_list(Repeat)),
+    Run = filename:join(Out, atom_to_list(Kind) ++ "-" ++ atom_to_list(Mode) ++ "-" ++ integer_to_list(Repeat) ++ "-s" ++ integer_to_list(Seed)),
     false = filelib:is_dir(Run),
     ok = filelib:ensure_dir(filename:join(Run, "placeholder")),
     {ok, [Artifacts]} = file:consult(filename:join(Out, "target-artifacts.term")),
@@ -86,9 +91,10 @@ campaign(Kind, Mode, Repeat, Out) ->
     end,
     Layer = case Mode of off -> false; on -> maps:get(gleam_layer, C0) end,
     C = C0#{coverage_backend => Backend, artifacts => Selected, gleam_layer => Layer,
-        max_iterations => 100, timeout => 1000,
-        random_seed => {17,23,41}, selection_seed => {17,23,41},
-        mutation => #{seed => {17,23,41}, stages => [havoc], trace_limit => 100},
+        max_iterations => Count, timeout => 1000,
+        corpus_dir => filename:join(Run,"durable-corpus"),
+        random_seed => RNG, selection_seed => RNG,
+        mutation => #{seed => RNG, stages => [havoc], trace_limit => Count},
         crash_dir => filename:join(Run, "target-outcomes")},
     Start = erlang:monotonic_time(microsecond),
     {Result, Wall} = try
@@ -106,9 +112,9 @@ campaign(Kind, Mode, Repeat, Out) ->
     Counts = maps:get(structured_stats, Result, #{}), Callback = maps:get(gleam_stats, Result, #{}),
     Corpus = maps:get(corpus, Result),
     Summary0 = #{kind => Kind, mode => Mode, repeat => Repeat, settings => settings(),
-        requested_mutation_executions => 100, target_timeout_ms => 1000,
+        rng_seed => RNG, requested_mutation_executions => Count, target_timeout_ms => 1000,
         campaign_deadline_ms => 30000, wall_us => Wall,
-        completed => maps:get(status, Result) =:= completed andalso Mutations =:= 100,
+        completed => maps:get(status, Result) =:= completed andalso Mutations =:= Count,
         status => maps:get(status, Result), primary_executions => Primary,
         mutation_executions => Mutations, calibration_executions => Calibrations,
         total_target_executions => Primary + Extra, extra_target_executions => Extra,
@@ -162,6 +168,38 @@ scenario_counts(C, R) ->
       source => canonical_seed_and_recipe_packet_decoding_without_target_execution,
       limitation => planned_operations_actual_completion_requires_zero_timeouts_and_crashes}.
 
+%% Cold diagnostic: execute the recorded packet workload in a separate VM.
+%% Counts come from actual completed target outcomes, not codec reconstruction.
+stateful_counts(Run) ->
+    {ok,[C]}=file:consult(filename:join(Run,"configuration.term")),
+    {ok,ReportBytes}=file:read_file(filename:join(Run,"report.term")),
+    R=binary_to_term(ReportBytes),
+    Inputs=maps:get(seeds,C)++[begin {ok,B}=efz_recipe:regenerate(Q),B end || Q<-maps:get(mutation_trace,R)],
+    true=length(Inputs)=:=maps:get(executions,maps:get(stats,R))+maps:get(calibrations,maps:get(stats,R)),
+    {ok,H}=efz_replay:harness_identity(efz_stateful_target),
+    Rows=[begin
+        {Us,{ok,Result}}=timer:tc(fun()->efz_recipe:execute(B,efz_stateful_target,[],[],
+            #{coverage_backend=>none,timeout=>1000,expected_harness=>H}) end),
+        #{status:=confirmed,survivors:=[],violations:=[]}=maps:get(cleanup,Result),
+        case maps:get(outcome,Result) of
+            {ok,#{scenario_executions:=1,library_operations:=N,trace:=Trace}} ->
+                true=N=:=length(Trace),#{accepted=>true,operations=>N,wall_us=>Us};
+            {ok,{efz_term_input_rejected,_}} -> #{accepted=>false,operations=>0,wall_us=>Us};
+            Other->error({stateful_diagnostic_failure,Other})
+        end
+    end || B<-Inputs],
+    Accepted=[X||X<-Rows,maps:get(accepted,X)],
+    Summary=#{schema_version=>1,source=>actual_guarded_target_outcomes_in_separate_diagnostic_vm,
+        primary_input_executions=>length(Rows),accepted_scenarios=>length(Accepted),
+        rejected_packets=>length(Rows)-length(Accepted),
+        completed_library_operations=>lists:sum([maps:get(operations,X)||X<-Rows]),
+        accepted_scenario_wall_us=>lists:sum([maps:get(wall_us,X)||X<-Accepted]),
+        rejected_packet_wall_us=>lists:sum([maps:get(wall_us,X)||X<-Rows,not maps:get(accepted,X)]),
+        rows=>Rows,limitations=>[includes_executor_and_scenario_setup_cleanup,
+            no_isolated_per_operation_latency_claim,no_original_campaign_timeouts_or_crashes_required]},
+    0=maps:get(timeouts,maps:get(stats,R),0),0=maps:get(crashes,maps:get(stats,R),0),
+    write_json(filename:join(Run,"stateful-actual.json"),Summary).
+
 callbacks(Kind, Out) ->
     true = lists:member(Kind, [generic, qs, xmlrpc]),
     C = configuration(Kind),
@@ -214,7 +252,7 @@ loop(N, F) -> _ = F(), loop(N - 1, F).
 settings() -> #{otp => erlang:system_info(otp_release), erts => erlang:system_info(version),
     schedulers_online => erlang:system_info(schedulers_online),
     architecture => erlang:system_info(system_architecture),
-    rng_algorithm => exsplus, rng_seed => {17,23,41},
+    rng_algorithm => exsplus,
     efz_beam => beam_identity(efz), model_compiler => gleam_1_10_0_optional_profile}.
 beam_identity(M) -> {M, B, _} = code:get_object_code(M), crypto:hash(sha256, B).
 bounded(R) -> case erlang:external_size(R) =< 2048 of true -> R; false -> truncated_error end.

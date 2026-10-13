@@ -1,5 +1,8 @@
 # P4 oracle and corpus feedback — PASS
 
+Current P5 acceptance is recorded in [p5-validation.md](p5-validation.md).
+The handoff and pending-status statements below describe the historical phase run.
+
 Requirements **2.0-native**; contract/model/codec/mutator/feature/property vector
 **{1,1,1,1,1,1}**. Package **1.1.0**, cold generator **2**, recipe schemas **1/2/3**
 are unchanged. Date: 2026-10-08. Toolchain: OTP **27.0** / ERTS **15.0**,

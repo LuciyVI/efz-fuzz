@@ -1,5 +1,8 @@
 # P2 optional native BEAM integration
 
+Current P5 acceptance is recorded in [p5-validation.md](p5-validation.md).
+The handoff and pending-status statements below describe the historical phase run.
+
 Requirements **2.0-native**; contract **v1**, vector `{1,1,1,1,1,1}`.
 **P2 functional gate: PASS.** Evidence is under
 `artifacts/gleam-layer/20261008-p2-native/`; `gates.json` indexes commands,

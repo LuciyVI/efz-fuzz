@@ -1,5 +1,9 @@
 # Ownership and gate order
 
+Current status (13 October 2026): P5 PASS for the supported contract; see
+[p5-validation.md](p5-validation.md). The ownership/no-publication notes below
+record historical runs; subsequent branch updates were user-authorized.
+
 Contract v1, requirements 2.0-native (2026-10-07).
 Single lead owns all changes in this session. No subagents were launched: the
 user supplied COMMON_CONTEXT, without explicitly invoking the package's separate
@@ -56,3 +60,10 @@ exercised; no scheduler, worker, build/package/version or target changes are add
 in this pass. P4 acceptance and limitations are recorded in p4-feedback.md and
 20261008-p4-feedback/gates.json. P5 final regression, discovery experiments and
 same-engine performance conclusions remain open.
+
+## P5 final acceptance (2026-10-13)
+
+Replay CLI, native legacy compatibility, full regression, isolated multi-seed
+comparisons, actual stateful operation accounting and controlled discovery
+trials completed. Source/evidence hashes and limits are in p5-validation.md.
+No separate reviewer or subagent is claimed; no performance superiority is claimed.

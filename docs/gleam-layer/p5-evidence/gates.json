@@ -1,0 +1,961 @@
+{
+  "campaigns": 84,
+  "semantic_campaigns": 36,
+  "qs_campaigns": 48,
+  "actual_stateful_diagnostics": 12,
+  "mutation_executions": 42000,
+  "source_hashes_match": true,
+  "disabled_raw_trace_equivalence_pairs": 6,
+  "observation_neutrality_pairs": 6,
+  "driver_failures": 0,
+  "actual_stateful": [
+    {
+      "label": "stateful-off-1-s43",
+      "accepted_scenario_wall_us": 13612,
+      "accepted_scenarios": 2,
+      "completed_library_operations": 6,
+      "limitations": [
+        "includes_executor_and_scenario_setup_cleanup",
+        "no_isolated_per_operation_latency_claim",
+        "no_original_campaign_timeouts_or_crashes_required"
+      ],
+      "primary_input_executions": 501,
+      "rejected_packet_wall_us": 1151720,
+      "rejected_packets": 499,
+      "schema_version": 1,
+      "source": "actual_guarded_target_outcomes_in_separate_diagnostic_vm"
+    },
+    {
+      "label": "stateful-on-1-s29",
+      "accepted_scenario_wall_us": 61411,
+      "accepted_scenarios": 24,
+      "completed_library_operations": 83,
+      "limitations": [
+        "includes_executor_and_scenario_setup_cleanup",
+        "no_isolated_per_operation_latency_claim",
+        "no_original_campaign_timeouts_or_crashes_required"
+      ],
+      "primary_input_executions": 501,
+      "rejected_packet_wall_us": 1027842,
+      "rejected_packets": 477,
+      "schema_version": 1,
+      "source": "actual_guarded_target_outcomes_in_separate_diagnostic_vm"
+    },
+    {
+      "label": "stateful-on-2-s29",
+      "accepted_scenario_wall_us": 72062,
+      "accepted_scenarios": 24,
+      "completed_library_operations": 83,
+      "limitations": [
+        "includes_executor_and_scenario_setup_cleanup",
+        "no_isolated_per_operation_latency_claim",
+        "no_original_campaign_timeouts_or_crashes_required"
+      ],
+      "primary_input_executions": 501,
+      "rejected_packet_wall_us": 1195031,
+      "rejected_packets": 477,
+      "schema_version": 1,
+      "source": "actual_guarded_target_outcomes_in_separate_diagnostic_vm"
+    },
+    {
+      "label": "stateful-off-1-s17",
+      "accepted_scenario_wall_us": 10378,
+      "accepted_scenarios": 1,
+      "completed_library_operations": 3,
+      "limitations": [
+        "includes_executor_and_scenario_setup_cleanup",
+        "no_isolated_per_operation_latency_claim",
+        "no_original_campaign_timeouts_or_crashes_required"
+      ],
+      "primary_input_executions": 501,
+      "rejected_packet_wall_us": 1163528,
+      "rejected_packets": 500,
+      "schema_version": 1,
+      "source": "actual_guarded_target_outcomes_in_separate_diagnostic_vm"
+    },
+    {
+      "label": "stateful-on-2-s43",
+      "accepted_scenario_wall_us": 107792,
+      "accepted_scenarios": 35,
+      "completed_library_operations": 106,
+      "limitations": [
+        "includes_executor_and_scenario_setup_cleanup",
+        "no_isolated_per_operation_latency_claim",
+        "no_original_campaign_timeouts_or_crashes_required"
+      ],
+      "primary_input_executions": 501,
+      "rejected_packet_wall_us": 1268652,
+      "rejected_packets": 466,
+      "schema_version": 1,
+      "source": "actual_guarded_target_outcomes_in_separate_diagnostic_vm"
+    },
+    {
+      "label": "stateful-on-1-s43",
+      "accepted_scenario_wall_us": 99494,
+      "accepted_scenarios": 35,
+      "completed_library_operations": 106,
+      "limitations": [
+        "includes_executor_and_scenario_setup_cleanup",
+        "no_isolated_per_operation_latency_claim",
+        "no_original_campaign_timeouts_or_crashes_required"
+      ],
+      "primary_input_executions": 501,
+      "rejected_packet_wall_us": 1232993,
+      "rejected_packets": 466,
+      "schema_version": 1,
+      "source": "actual_guarded_target_outcomes_in_separate_diagnostic_vm"
+    },
+    {
+      "label": "stateful-off-2-s43",
+      "accepted_scenario_wall_us": 14210,
+      "accepted_scenarios": 2,
+      "completed_library_operations": 6,
+      "limitations": [
+        "includes_executor_and_scenario_setup_cleanup",
+        "no_isolated_per_operation_latency_claim",
+        "no_original_campaign_timeouts_or_crashes_required"
+      ],
+      "primary_input_executions": 501,
+      "rejected_packet_wall_us": 1326907,
+      "rejected_packets": 499,
+      "schema_version": 1,
+      "source": "actual_guarded_target_outcomes_in_separate_diagnostic_vm"
+    },
+    {
+      "label": "stateful-on-1-s17",
+      "accepted_scenario_wall_us": 86456,
+      "accepted_scenarios": 30,
+      "completed_library_operations": 92,
+      "limitations": [
+        "includes_executor_and_scenario_setup_cleanup",
+        "no_isolated_per_operation_latency_claim",
+        "no_original_campaign_timeouts_or_crashes_required"
+      ],
+      "primary_input_executions": 501,
+      "rejected_packet_wall_us": 1138018,
+      "rejected_packets": 471,
+      "schema_version": 1,
+      "source": "actual_guarded_target_outcomes_in_separate_diagnostic_vm"
+    },
+    {
+      "label": "stateful-on-2-s17",
+      "accepted_scenario_wall_us": 81256,
+      "accepted_scenarios": 30,
+      "completed_library_operations": 92,
+      "limitations": [
+        "includes_executor_and_scenario_setup_cleanup",
+        "no_isolated_per_operation_latency_claim",
+        "no_original_campaign_timeouts_or_crashes_required"
+      ],
+      "primary_input_executions": 501,
+      "rejected_packet_wall_us": 1161168,
+      "rejected_packets": 471,
+      "schema_version": 1,
+      "source": "actual_guarded_target_outcomes_in_separate_diagnostic_vm"
+    },
+    {
+      "label": "stateful-off-2-s17",
+      "accepted_scenario_wall_us": 11618,
+      "accepted_scenarios": 1,
+      "completed_library_operations": 3,
+      "limitations": [
+        "includes_executor_and_scenario_setup_cleanup",
+        "no_isolated_per_operation_latency_claim",
+        "no_original_campaign_timeouts_or_crashes_required"
+      ],
+      "primary_input_executions": 501,
+      "rejected_packet_wall_us": 1281650,
+      "rejected_packets": 500,
+      "schema_version": 1,
+      "source": "actual_guarded_target_outcomes_in_separate_diagnostic_vm"
+    },
+    {
+      "label": "stateful-off-1-s29",
+      "accepted_scenario_wall_us": 16689,
+      "accepted_scenarios": 3,
+      "completed_library_operations": 9,
+      "limitations": [
+        "includes_executor_and_scenario_setup_cleanup",
+        "no_isolated_per_operation_latency_claim",
+        "no_original_campaign_timeouts_or_crashes_required"
+      ],
+      "primary_input_executions": 501,
+      "rejected_packet_wall_us": 1416941,
+      "rejected_packets": 498,
+      "schema_version": 1,
+      "source": "actual_guarded_target_outcomes_in_separate_diagnostic_vm"
+    },
+    {
+      "label": "stateful-off-2-s29",
+      "accepted_scenario_wall_us": 15906,
+      "accepted_scenarios": 3,
+      "completed_library_operations": 9,
+      "limitations": [
+        "includes_executor_and_scenario_setup_cleanup",
+        "no_isolated_per_operation_latency_claim",
+        "no_original_campaign_timeouts_or_crashes_required"
+      ],
+      "primary_input_executions": 501,
+      "rejected_packet_wall_us": 1263698,
+      "rejected_packets": 498,
+      "schema_version": 1,
+      "source": "actual_guarded_target_outcomes_in_separate_diagnostic_vm"
+    }
+  ],
+  "semantic_summary": {
+    "completed": true,
+    "preparation": {
+      "label": "preparation",
+      "command": [
+        "escript",
+        "scripts/semantic_bench.escript",
+        "prepare",
+        "/workspace/scratch/p5-semantic-verified"
+      ],
+      "exit_code": 0,
+      "driver_wall_s": 0.5177494090003165,
+      "driver_timeout": false
+    },
+    "campaigns": {
+      "generic-off": {
+        "samples": 6,
+        "completed_samples": 6,
+        "median_wall_us": 1289265.0,
+        "median_primary_per_second": 388.71687765885474,
+        "coverage_counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "semantic_only_novelty": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "provider_successes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "provider_fallbacks": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "generic-on": {
+        "samples": 6,
+        "completed_samples": 6,
+        "median_wall_us": 1284232.0,
+        "median_primary_per_second": 390.27457843058824,
+        "coverage_counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "semantic_only_novelty": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "provider_successes": [
+          22,
+          19,
+          19,
+          20,
+          22,
+          20
+        ],
+        "provider_fallbacks": [
+          25,
+          21,
+          21,
+          25,
+          25,
+          25
+        ]
+      },
+      "xmlrpc-off": {
+        "samples": 6,
+        "completed_samples": 6,
+        "median_wall_us": 1565836.0,
+        "median_primary_per_second": 319.97060887609075,
+        "coverage_counts": [
+          27,
+          27,
+          25,
+          30,
+          30,
+          25
+        ],
+        "semantic_only_novelty": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "provider_successes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "provider_fallbacks": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "xmlrpc-on": {
+        "samples": 6,
+        "completed_samples": 6,
+        "median_wall_us": 1653286.0,
+        "median_primary_per_second": 303.03618023604906,
+        "coverage_counts": [
+          41,
+          41,
+          43,
+          46,
+          46,
+          43
+        ],
+        "semantic_only_novelty": [
+          4,
+          4,
+          3,
+          4,
+          4,
+          3
+        ],
+        "provider_successes": [
+          31,
+          31,
+          34,
+          30,
+          30,
+          34
+        ],
+        "provider_fallbacks": [
+          14,
+          14,
+          13,
+          20,
+          20,
+          13
+        ]
+      },
+      "stateful-off": {
+        "samples": 6,
+        "completed_samples": 6,
+        "median_wall_us": 1309166.0,
+        "median_primary_per_second": 382.71818988192126,
+        "coverage_counts": [
+          6,
+          6,
+          6,
+          6,
+          6,
+          6
+        ],
+        "semantic_only_novelty": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "provider_successes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "provider_fallbacks": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "stateful-on": {
+        "samples": 6,
+        "completed_samples": 6,
+        "median_wall_us": 1282111.5,
+        "median_primary_per_second": 390.7620623235466,
+        "coverage_counts": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "semantic_only_novelty": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "provider_successes": [
+          23,
+          23,
+          34,
+          34,
+          27,
+          27
+        ],
+        "provider_fallbacks": [
+          19,
+          19,
+          22,
+          22,
+          25,
+          25
+        ]
+      }
+    },
+    "callback_jobs": [
+      {
+        "label": "generic-callbacks",
+        "command": [
+          "escript",
+          "scripts/semantic_bench.escript",
+          "callbacks",
+          "generic",
+          "/workspace/scratch/p5-semantic-verified"
+        ],
+        "exit_code": 0,
+        "driver_wall_s": 0.4668187419993046,
+        "driver_timeout": false
+      },
+      {
+        "label": "qs-callbacks",
+        "command": [
+          "escript",
+          "scripts/semantic_bench.escript",
+          "callbacks",
+          "qs",
+          "/workspace/scratch/p5-semantic-verified"
+        ],
+        "exit_code": 0,
+        "driver_wall_s": 0.517100737999499,
+        "driver_timeout": false
+      },
+      {
+        "label": "xmlrpc-callbacks",
+        "command": [
+          "escript",
+          "scripts/semantic_bench.escript",
+          "callbacks",
+          "xmlrpc",
+          "/workspace/scratch/p5-semantic-verified"
+        ],
+        "exit_code": 0,
+        "driver_wall_s": 0.4667389259993797,
+        "driver_timeout": false
+      }
+    ],
+    "stateful_diagnostics": [
+      {
+        "label": "stateful-off-1-s43-actual",
+        "command": [
+          "escript",
+          "scripts/semantic_bench.escript",
+          "stateful-counts",
+          "/workspace/scratch/p5-semantic-verified/stateful-off-1-s43",
+          "/workspace/scratch/p5-semantic-verified"
+        ],
+        "exit_code": 0,
+        "driver_wall_s": 1.6207886820002386,
+        "driver_timeout": false
+      },
+      {
+        "label": "stateful-on-1-s29-actual",
+        "command": [
+          "escript",
+          "scripts/semantic_bench.escript",
+          "stateful-counts",
+          "/workspace/scratch/p5-semantic-verified/stateful-on-1-s29",
+          "/workspace/scratch/p5-semantic-verified"
+        ],
+        "exit_code": 0,
+        "driver_wall_s": 1.5200837030006369,
+        "driver_timeout": false
+      },
+      {
+        "label": "stateful-on-2-s29-actual",
+        "command": [
+          "escript",
+          "scripts/semantic_bench.escript",
+          "stateful-counts",
+          "/workspace/scratch/p5-semantic-verified/stateful-on-2-s29",
+          "/workspace/scratch/p5-semantic-verified"
+        ],
+        "exit_code": 0,
+        "driver_wall_s": 1.7202288130001762,
+        "driver_timeout": false
+      },
+      {
+        "label": "stateful-off-1-s17-actual",
+        "command": [
+          "escript",
+          "scripts/semantic_bench.escript",
+          "stateful-counts",
+          "/workspace/scratch/p5-semantic-verified/stateful-off-1-s17",
+          "/workspace/scratch/p5-semantic-verified"
+        ],
+        "exit_code": 0,
+        "driver_wall_s": 1.62006712099992,
+        "driver_timeout": false
+      },
+      {
+        "label": "stateful-on-2-s43-actual",
+        "command": [
+          "escript",
+          "scripts/semantic_bench.escript",
+          "stateful-counts",
+          "/workspace/scratch/p5-semantic-verified/stateful-on-2-s43",
+          "/workspace/scratch/p5-semantic-verified"
+        ],
+        "exit_code": 0,
+        "driver_wall_s": 1.8224832009991587,
+        "driver_timeout": false
+      },
+      {
+        "label": "stateful-on-1-s43-actual",
+        "command": [
+          "escript",
+          "scripts/semantic_bench.escript",
+          "stateful-counts",
+          "/workspace/scratch/p5-semantic-verified/stateful-on-1-s43",
+          "/workspace/scratch/p5-semantic-verified"
+        ],
+        "exit_code": 0,
+        "driver_wall_s": 1.820688235000489,
+        "driver_timeout": false
+      },
+      {
+        "label": "stateful-off-2-s43-actual",
+        "command": [
+          "escript",
+          "scripts/semantic_bench.escript",
+          "stateful-counts",
+          "/workspace/scratch/p5-semantic-verified/stateful-off-2-s43",
+          "/workspace/scratch/p5-semantic-verified"
+        ],
+        "exit_code": 0,
+        "driver_wall_s": 1.7702118269999119,
+        "driver_timeout": false
+      },
+      {
+        "label": "stateful-on-1-s17-actual",
+        "command": [
+          "escript",
+          "scripts/semantic_bench.escript",
+          "stateful-counts",
+          "/workspace/scratch/p5-semantic-verified/stateful-on-1-s17",
+          "/workspace/scratch/p5-semantic-verified"
+        ],
+        "exit_code": 0,
+        "driver_wall_s": 1.669880393999847,
+        "driver_timeout": false
+      },
+      {
+        "label": "stateful-on-2-s17-actual",
+        "command": [
+          "escript",
+          "scripts/semantic_bench.escript",
+          "stateful-counts",
+          "/workspace/scratch/p5-semantic-verified/stateful-on-2-s17",
+          "/workspace/scratch/p5-semantic-verified"
+        ],
+        "exit_code": 0,
+        "driver_wall_s": 1.6699405800000022,
+        "driver_timeout": false
+      },
+      {
+        "label": "stateful-off-2-s17-actual",
+        "command": [
+          "escript",
+          "scripts/semantic_bench.escript",
+          "stateful-counts",
+          "/workspace/scratch/p5-semantic-verified/stateful-off-2-s17",
+          "/workspace/scratch/p5-semantic-verified"
+        ],
+        "exit_code": 0,
+        "driver_wall_s": 1.7199257669999497,
+        "driver_timeout": false
+      },
+      {
+        "label": "stateful-off-1-s29-actual",
+        "command": [
+          "escript",
+          "scripts/semantic_bench.escript",
+          "stateful-counts",
+          "/workspace/scratch/p5-semantic-verified/stateful-off-1-s29",
+          "/workspace/scratch/p5-semantic-verified"
+        ],
+        "exit_code": 0,
+        "driver_wall_s": 1.870940709000024,
+        "driver_timeout": false
+      },
+      {
+        "label": "stateful-off-2-s29-actual",
+        "command": [
+          "escript",
+          "scripts/semantic_bench.escript",
+          "stateful-counts",
+          "/workspace/scratch/p5-semantic-verified/stateful-off-2-s29",
+          "/workspace/scratch/p5-semantic-verified"
+        ],
+        "exit_code": 0,
+        "driver_wall_s": 1.72235217799971,
+        "driver_timeout": false
+      }
+    ],
+    "limits": "500 mutation executions per campaign; semantic counts are adapter-local",
+    "claim": "measurement only; no performance superiority or discovery acceptance claim"
+  },
+  "qs_summary": {
+    "completed": true,
+    "campaigns": {
+      "baseline": {
+        "samples": 6,
+        "completed_samples": 6,
+        "median_wall_us": 1270311.0,
+        "median_primary_per_second": 398.36245948244243,
+        "coverage_counts": [
+          48,
+          48,
+          48,
+          48,
+          48,
+          48
+        ],
+        "semantic_only_novelty": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "provider_successes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "provider_fallbacks": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "old": {
+        "samples": 6,
+        "completed_samples": 6,
+        "median_wall_us": 1301659.5,
+        "median_primary_per_second": 388.7369722492914,
+        "coverage_counts": [
+          46,
+          48,
+          47,
+          47,
+          48,
+          46
+        ],
+        "semantic_only_novelty": [
+          1,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "provider_successes": [
+          16,
+          23,
+          23,
+          23,
+          23,
+          16
+        ],
+        "provider_fallbacks": [
+          53,
+          25,
+          25,
+          25,
+          25,
+          53
+        ]
+      },
+      "new": {
+        "samples": 6,
+        "completed_samples": 6,
+        "median_wall_us": 1331461.0,
+        "median_primary_per_second": 380.32192241696225,
+        "coverage_counts": [
+          48,
+          46,
+          48,
+          48,
+          48,
+          46
+        ],
+        "semantic_only_novelty": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "provider_successes": [
+          18,
+          22,
+          18,
+          15,
+          15,
+          22
+        ],
+        "provider_fallbacks": [
+          31,
+          24,
+          31,
+          38,
+          38,
+          24
+        ]
+      },
+      "off": {
+        "samples": 6,
+        "completed_samples": 6,
+        "median_wall_us": 1249498.5,
+        "median_primary_per_second": 405.04808199148727,
+        "coverage_counts": [
+          48,
+          48,
+          48,
+          48,
+          48,
+          48
+        ],
+        "semantic_only_novelty": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "provider_successes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "provider_fallbacks": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "seeds": {
+        "samples": 6,
+        "completed_samples": 6,
+        "median_wall_us": 1227366.5,
+        "median_primary_per_second": 412.2728106208085,
+        "coverage_counts": [
+          48,
+          48,
+          48,
+          48,
+          48,
+          48
+        ],
+        "semantic_only_novelty": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "provider_successes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "provider_fallbacks": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "structured": {
+        "samples": 6,
+        "completed_samples": 6,
+        "median_wall_us": 1311291.5,
+        "median_primary_per_second": 385.9058773533771,
+        "coverage_counts": [
+          48,
+          48,
+          48,
+          48,
+          48,
+          48
+        ],
+        "semantic_only_novelty": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "provider_successes": [
+          23,
+          13,
+          23,
+          13,
+          20,
+          20
+        ],
+        "provider_fallbacks": [
+          25,
+          34,
+          25,
+          34,
+          26,
+          26
+        ]
+      },
+      "observation": {
+        "samples": 6,
+        "completed_samples": 6,
+        "median_wall_us": 1350253.0,
+        "median_primary_per_second": 374.7774015039447,
+        "coverage_counts": [
+          48,
+          48,
+          48,
+          48,
+          48,
+          48
+        ],
+        "semantic_only_novelty": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "provider_successes": [
+          23,
+          20,
+          13,
+          23,
+          13,
+          20
+        ],
+        "provider_fallbacks": [
+          25,
+          26,
+          34,
+          25,
+          34,
+          26
+        ]
+      },
+      "oracle": {
+        "samples": 6,
+        "completed_samples": 6,
+        "median_wall_us": 1342710.0,
+        "median_primary_per_second": 377.8541551438762,
+        "coverage_counts": [
+          48,
+          47,
+          46,
+          47,
+          46,
+          48
+        ],
+        "semantic_only_novelty": [
+          0,
+          1,
+          1,
+          1,
+          1,
+          0
+        ],
+        "provider_successes": [
+          23,
+          23,
+          16,
+          23,
+          16,
+          23
+        ],
+        "provider_fallbacks": [
+          25,
+          25,
+          53,
+          25,
+          53,
+          25
+        ]
+      }
+    },
+    "limitations": "Finite 500-execution samples; adapter-local semantic counts; includes corpus and startup costs"
+  }
+}

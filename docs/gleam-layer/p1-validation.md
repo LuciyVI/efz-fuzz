@@ -1,5 +1,8 @@
 # P1 contract validation and handoff
 
+Current P5 acceptance is recorded in [p5-validation.md](p5-validation.md).
+The handoff and pending-status statements below describe the historical phase run.
+
 Requirements **2.0-native**, contract **v1**, vector `{1,1,1,1,1,1}`.
 Run artifacts: `artifacts/gleam-layer/20261008-p1-contract/` (repository root).
 P1 contract and executable acceptance checks are implemented and tested.

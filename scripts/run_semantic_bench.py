@@ -19,8 +19,14 @@ def digest(path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", required=True)
-    parser.add_argument("--run-timeout", type=int, default=45)
+    parser.add_argument("--run-timeout", type=int, default=90)
+    parser.add_argument("--executions",type=int,default=500)
+    parser.add_argument("--seeds",default="17,29,43")
+    parser.add_argument("--repetitions",type=int,default=2)
     args = parser.parse_args()
+    seeds=[int(x) for x in args.seeds.split(",")]
+    assert seeds and all(1 <= s <= 1000000 for s in seeds)
+    assert 1 <= args.executions <= 1000 and 1 <= args.repetitions <= 3
     assert 35 <= args.run_timeout <= 180
     root = Path(__file__).resolve().parents[1]
     out = Path(args.out).resolve()
@@ -33,7 +39,7 @@ def main():
                    "gleam/efz_semantic/src", "examples/semantic_configs"):
         source_paths.extend(p for p in (root / folder).rglob("*") if p.is_file()
                             and p.suffix in (".erl", ".gleam", ".term", ".escript"))
-    jobs = [(kind, mode, repetition) for repetition in range(1, 4)
+    jobs = [(kind, mode, repetition, seed) for seed in seeds for repetition in range(1, args.repetitions+1)
             for kind in ("generic", "xmlrpc", "stateful") for mode in ("off", "on")]
     random.Random(20261010).shuffle(jobs)
     manifest = {
@@ -51,8 +57,8 @@ def main():
         "cpu_models": sorted({line.partition(":")[2].strip()
                               for line in Path("/proc/cpuinfo").read_text().splitlines()
                               if line.startswith("model name")}),
-        "scheduler_flags": "+S 2:2", "rng_seed": [17, 23, 41],
-        "mutation_executions_per_campaign": 100, "repetitions": 3,
+        "scheduler_flags": "+S 2:2", "rng_seeds": [[s,s+6,s+24] for s in seeds],
+        "mutation_executions_per_campaign": args.executions, "repetitions": args.repetitions,
         "target_timeout_ms": 1000, "campaign_deadline_ms": 30000,
         "driver_run_timeout_s": args.run_timeout,
         "jobs": jobs, "order_seed": 20261010,
@@ -88,14 +94,16 @@ def main():
             "completed": False, "blocked": "target preparation failed; inspect preparation.log"}, indent=2) + "\n")
         raise SystemExit(1)
     results = []
-    for kind, mode, repetition in jobs:
-        label = f"{kind}-{mode}-{repetition}"
-        row = execute(label, ["campaign", kind, mode, str(repetition)])
+    for kind, mode, repetition, seed in jobs:
+        label = f"{kind}-{mode}-{repetition}-s{seed}"
+        row = execute(label, ["campaign", kind, mode, str(repetition),str(seed),str(args.executions)])
         summary_path = out / label / "summary.json"
         if summary_path.exists():
             row["measurement"] = json.loads(summary_path.read_text())
         results.append(row)
         (out / "runs.json").write_text(json.dumps(results, indent=2) + "\n")
+    diagnostics = [execute(f"{label}-actual", ["stateful-counts",str(out/label)])
+                   for label in [r["label"] for r in results if r["label"].startswith("stateful-")]]
     callback_results = [execute(f"{kind}-callbacks", ["callbacks", kind])
                         for kind in ("generic", "qs", "xmlrpc")]
     groups = {}
@@ -114,12 +122,12 @@ def main():
                 "provider_successes": [m["provider_successes"] for m in measured],
                 "provider_fallbacks": [m["provider_fallbacks"] for m in measured],
             }
-    completed = (len(results) == 18 and all(r["exit_code"] == 0 and not r["driver_timeout"]
+    completed = (len(results) == len(jobs) and all(r["exit_code"] == 0 and not r["driver_timeout"]
                  and r.get("measurement", {}).get("completed", False) for r in results)
-                 and all(r["exit_code"] == 0 for r in callback_results))
+                 and all(r["exit_code"] == 0 and not r["driver_timeout"] for r in callback_results+diagnostics))
     final = {"completed": completed, "preparation": preparation, "campaigns": groups,
-             "callback_jobs": callback_results,
-             "limits": "100 mutation executions per campaign; semantic counts are adapter-local",
+             "callback_jobs": callback_results,"stateful_diagnostics":diagnostics,
+             "limits": f"{args.executions} mutation executions per campaign; semantic counts are adapter-local",
              "claim": "measurement only; no performance superiority or discovery acceptance claim"}
     (out / "summary.json").write_text(json.dumps(final, indent=2) + "\n")
     print(json.dumps(final, indent=2))
