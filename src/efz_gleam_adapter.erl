@@ -133,12 +133,12 @@ invoke(Cap,F,Args,#{adapter:=M,adapter_context:=C,adapter_descriptor:=D,limits:=
     case has(Cap,D) of
         false->case Cap of oracle->{inconclusive,capability_disabled};_->{skip,capability_disabled} end;
         true->case F=:=generate orelse (is_binary(hd(Args)) andalso byte_size(hd(Args))=<maps:get(bytes,L)) of
-            false->{skip,limit};
+            false->case Cap of oracle->{inconclusive,limit};_->{skip,limit} end;
             true->try validate(F,apply(M,F,Args++[C]),P)
                 catch Class:Why->{error,{semantic_layer_error,Class,bounded_reason(Class,Why)}} end
         end
     end.
-validate(_, {skip,R},_) when is_atom(R) -> {skip,R};
+validate(F, {skip,R},_) when F=/=oracle,is_atom(R) -> {skip,R};
 validate(_, {error,R},_) -> {error,bounded_reason(error,R)};
 validate(generate,{ok,B},P) -> require(valid_bytes(B,P),invalid_generated_input),{ok,B};
 validate(mutate,{ok,B,R},P) ->
