@@ -110,3 +110,32 @@ On OTP 27.3.4.1 / Rebar3 3.25.0:
 
 These checks establish the supported single-VM dashboard behavior, not a
 performance-neutral monitoring claim or support for every terminal emulator.
+
+## Continuous mode
+
+```sh
+python3 scripts/tui.py --demo --continuous --out _build/tui-continuous-1
+```
+
+This demo runs without a mutation execution limit and durably admits corpus
+entries into OUTPUT/corpus. The budget is shown as ∞. Press `s` to stop scheduling
+new inputs, finish the current bounded target execution and save report.term.
+The screen stays open with `stopped_by_user`; `q` still detaches without stopping.
+An attached monitor can also request a stop. Pending stop/refresh requests are
+coalesced while a target is busy.
+
+For a custom campaign, set `max_iterations => infinity` in its trusted config.
+Set `corpus_dir` if corpus entries must survive abrupt process termination.
+Staged continuous mode retains its RNG, content cursors, working corpus and
+Gleam configuration; it adds a havoc lane if none was selected. When the ordinary
+planner exhausts an idle sweep, a guaranteed size-bounded insertion/bit flip
+creates a real, replayable candidate instead of a CPU-only retry loop. Input
+limit zero is rejected for continuous staged campaigns: there is no distinct
+legal mutation of the sole empty input.
+
+Per-execution target timeouts, oracle budgets, runtime verification budgets,
+input limits, infrastructure failures and existing quarantine rules still apply.
+The latest 1,024 explanatory decisions are retained in continuous reports with a
+`decisions_dropped` count; this does not discard working corpus or finding groups.
+Trace limits remain bounded. Actual corpus growth and distinct findings still
+consume storage/memory; unlimited execution does not mean unlimited resources.

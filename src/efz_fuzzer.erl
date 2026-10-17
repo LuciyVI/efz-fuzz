@@ -1,6 +1,6 @@
 -module(efz_fuzzer).
 -behaviour(gen_server).
--export([start_link/1, stop/0, stats/0, await/1,
+-export([start_link/1, stop/0, request_stop/0, status/0, stats/0, await/1,
          monitor_snapshot/0, benchmark_snapshot/0, benchmark_coverage/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
@@ -12,6 +12,8 @@ start_link(C0) ->
         end;
         Pid -> {error, {already_started, Pid}}
     end.
+request_stop()->gen_server:call(?MODULE,request_stop).
+status()->gen_server:call(?MODULE,status).
 stop() -> gen_server:stop(?MODULE).
 stats() -> efz_stats:get().
 await(Timeout) -> gen_server:call(?MODULE, await, Timeout).
@@ -35,9 +37,15 @@ init(C) ->
     WorkerRef = monitor(process, Worker),
     {ok, #{children => [Workers, Stats, Corpus], waiters => [], report => pending,
            worker => Worker, worker_monitor => WorkerRef,execution_context=>undefined,
-           monitor_pending=>false,monitor_snapshot=>#{schema_version=>1,target=>maps:get(target,C),
+           stop_requested=>false,monitor_pending=>false,monitor_snapshot=>#{schema_version=>1,target=>maps:get(target,C),
              status=>running,max_iterations=>maps:get(max_iterations,C),elapsed_ms=>0,stats=>#{},last=>null},
            execution_identities=>maps:get(execution_identities,C),max_input_bytes=>maps:get(max_input_bytes,C)}}.
+handle_call(request_stop,_,#{stop_requested:=true}=S)->{reply,ok,S};
+handle_call(request_stop,_,#{report:=pending,worker:=W}=S)->
+    gen_server:cast(W,request_stop),{reply,ok,S#{stop_requested=>true}};
+handle_call(request_stop,_,S)->{reply,ok,S};
+handle_call(status,_,#{report:=R}=S)->
+    {reply,case R of pending->running;_->finished end,S};
 handle_call(await, From, #{report := pending, waiters := Ws} = S) ->
     {noreply, S#{waiters => [From | Ws]}};
 handle_call(await, _, #{report := R} = S) -> {reply, R, S};

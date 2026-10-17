@@ -96,7 +96,7 @@ configuration_test()->
     {ok,Generated}=efz_mutation_plan:prepare(#{},[<<>>]),?assertMatch({_,_,_},maps:get(seed,Generated)),
     ?assertNotEqual(maps:get(config_id,config()),maps:get(config_id,config(#{max_delta=>1}))),
     ?assertEqual(maps:get(config_id,config()),maps:get(config_id,config(#{trace_limit=>10}))),
-    ?assertMatch({error,_},efz_config:prepare(#{target=>efz_example_target,seeds=>[<<0>>],
+    ?assertMatch({ok,_},efz_config:prepare(#{target=>efz_example_target,seeds=>[<<0>>],
         coverage=>manual,mutation_mode=>staged,max_iterations=>infinity})).
 
 sequence(C,B,N)->collect(efz_mutation_plan:new(C),[#{id=>1,input=>B}],N,[]).

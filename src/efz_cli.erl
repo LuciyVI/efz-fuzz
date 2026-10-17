@@ -30,7 +30,8 @@ help() ->
     "  --code-path DIR          Ordinary harness/dependency BEAM directory (repeatable)\n"
     "  --mutation staged|random Default: staged\n"
     "  --timeout MS             Per-input timeout, nonnegative integer (default: 100)\n"
-    "  --max-iterations N       Mutation execution limit (default: 1000)\n"
+    "  --max-iterations N|infinity  Mutation limit; infinity runs until stopped\n"
+    "                           Stop infinity campaigns with OUT/stop.request\n"
     "  --max-input-bytes N      Campaign/replay input bound, 0..1048576 (default: 4096)\n"
     "  --gleam-layer            Enable legacy optional QS layer; new adapters use --config (build profile gleam)\n"
     "  --structured-fraction N  Structured branch percent 0..100 (default: 10)\n"
@@ -121,6 +122,7 @@ value(coverage_policy, _) -> fail("--coverage-policy must be diagnostic or stric
 value(coverage_feedback, "presence") -> presence;
 value(coverage_feedback, "hit_count") -> hit_count;
 value(coverage_feedback, _) -> fail("--coverage-feedback must be presence or hit_count", []);
+value(max_iterations,"infinity")->infinity;
 value(K, Text) when K =:= timeout; K =:= max_iterations; K =:= max_input_bytes; K =:= runtime_runs; K =:= verification_budget; K =:= sample_interval; K=:=structured_fraction; K=:=oracle_budget ->
     case Text =/= [] andalso lists:all(fun(C) -> C >= $0 andalso C =< $9 end, Text) of
         true -> list_to_integer(Text);
@@ -168,7 +170,7 @@ launch(#{config_file:=Path}=O) ->
     Out=filename:absname(maps:get(out,O)),Crashes=filename:join(Out,"crashes"),
     writable_directory(Out),writable_directory(Crashes),
     try case efz:start(C6#{crash_dir=>Crashes}) of
-        {ok,_}->finish(efz:await(infinity),Out);
+        {ok,_}->finish(await_campaign(C6,Out),Out);
         {error,Why}->fail("Cannot start campaign: ~ts",[start_error(Why)]) end
     after _=efz:stop() end;
 launch(O) ->
@@ -204,10 +206,25 @@ launch(O) ->
     writable_directory(Out), writable_directory(Crashes),
     try
         case efz:start(maps:merge(C#{crash_dir => Crashes}, maps:with([corpus_dir,corpus_build_policy,coverage_policy,coverage_feedback],O))) of
-            {ok, _} -> finish(efz:await(infinity), Out);
+            {ok, _} -> finish(await_campaign(C,Out), Out);
             {error, Why} -> fail("Cannot start campaign: ~ts", [start_error(Why)])
         end
     after _ = efz:stop() end.
+
+await_campaign(C,Out)->
+    Default=case maps:get(mutation_mode,C,random) of staged->1000;random->infinity end,
+    case maps:get(max_iterations,C,Default) of
+        infinity->await_continuous(Out);
+        _->efz:await(infinity)
+    end.
+await_continuous(Out)->
+    case filelib:is_regular(filename:join(Out,"stop.request")) of
+        true->ok=efz:request_stop(),efz:await(infinity);
+        false->case efz_fuzzer:status() of
+            finished->efz:await(infinity);
+            running->receive after 250->await_continuous(Out) end
+        end
+    end.
 
 gleam_options(O)->
     Keys=[structured_fraction,semantic_feedback,semantic_oracle,oracle_budget],
@@ -273,6 +290,7 @@ finish(Report, Out) ->
     end,
     case Status of
         completed -> 0;
+        stopped_by_user -> 0;
         {mutation_exhausted, _} -> 0;
         {mutation_stopped, idle_budget_exhausted} -> 0;
         _ -> io:format(standard_error, "EFZ infrastructure failure: ~tp~n", [Status]), 1

@@ -17,6 +17,8 @@ main([ConfigPath,Out|Paths]) ->
     after efz:stop() end;
 main(_) -> io:format(standard_error,"Usage: tui_bridge.escript CONFIG NEW_OUTPUT [CODE_PATH ...]~n",[]),halt(2).
 loop(Out) ->
+    case filelib:is_regular(filename:join(Out,"stop.request")) of
+        true->ok=efz:request_stop();false->ok end,
     S=efz_fuzzer:monitor_snapshot(),
     ok=efz_fs:atomic_file(filename:join(Out,"snapshot.json"),json:encode(portable(S))),
     case maps:get(status,S) of
@@ -25,6 +27,8 @@ loop(Out) ->
             ok=efz_fs:atomic_file(filename:join(Out,"report.term"),term_to_binary(R)),
             case maps:get(infrastructure_failures,maps:get(stats,R),0) of 0->ok;_->halt(1) end
     end.
+configuration("--demo-continuous",Root,Out)->
+    (configuration("--demo",Root,Out))#{max_iterations=>infinity,corpus_dir=>filename:join(Out,"corpus")};
 configuration("--demo",Root,Out)->
     Source=filename:join([Root,"examples","simple_parser","efz_example_parser.erl"]),
     {ok,A}=efz_instrument:compile(Source,#{modules=>[efz_example_parser],source_root=>Root,

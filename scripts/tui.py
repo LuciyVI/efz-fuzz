@@ -129,6 +129,8 @@ def screen(stdscr, directory, process=None):
             put(6, 1, 'COVERAGE  ' + coverage, accent)
             put(8, 1, chart(samples.coverage, left_width))
             limit = snap.get('max_iterations', '∞')
+            if limit == 'infinity':
+                limit = '∞'
             put(10, 1, f"Mutations   {stats.get('executions', 0):,} / {limit}")
             put(11, 1, f"Calibration {stats.get('calibrations', 0):,}")
             put(12, 1, f"Corpus      {snap.get('corpus_size', 0):,}")
@@ -160,7 +162,7 @@ def screen(stdscr, directory, process=None):
             put(h - 7, x, 'FUNCTIONS · ' + scope, accent)
             for row, func in enumerate(functions[:3] or ['Unavailable for this backend / no probes reached'], h - 6):
                 put(row, x, func)
-        put(h - 2, 1, 'Space Freeze input   ↑↓ Scroll bytes   q Exit monitor (campaign continues)', accent)
+        put(h - 2, 1, 'Space Freeze input   ↑↓ Scroll   s Stop + save   q Detach', accent)
         age = time.monotonic() - sample_changed
         stale = f'Sample unchanged {age:.0f}s; worker may be busy · ' if age > 2 and status == 'running' else ''
         put(h - 1, 1, error or (stale + str(directory)))
@@ -168,6 +170,11 @@ def screen(stdscr, directory, process=None):
         key = stdscr.getch()
         if key in (ord('q'), ord('Q')):
             return
+        if key in (ord('s'), ord('S')):
+            try:
+                (directory / 'stop.request').touch(exist_ok=True)
+            except OSError as exc:
+                error = str(exc)
         if key == ord(' '):
             pinned = None if pinned is not None else snap.get('last')
             offset = 0
@@ -183,9 +190,12 @@ def main():
     mode.add_argument('--config', type=Path, help='Launch a trusted Erlang campaign map')
     mode.add_argument('--demo', action='store_true', help='Instrument and run the bundled demonstration target')
     mode.add_argument('--attach', type=Path, help='Monitor an existing TUI output directory')
+    parser.add_argument('--continuous', action='store_true', help='Run the demo without an execution limit')
     parser.add_argument('--out', type=Path, help='New output directory for --config')
     parser.add_argument('--code-path', type=Path, action='append', default=[])
     args = parser.parse_args()
+    if args.continuous and not args.demo:
+        parser.error('--continuous applies to --demo; set max_iterations => infinity in your config')
     if (args.config or args.demo) and not args.out:
         parser.error('--config / --demo require --out')
     if args.attach and (args.out or args.code_path):
@@ -201,7 +211,7 @@ def main():
             directory.mkdir(parents=True, exist_ok=False)
         except FileExistsError:
             parser.error('Output directory must be new')
-        command = ['escript', str(ROOT / 'scripts/tui_bridge.escript'), '--demo' if args.demo else str(args.config.resolve()),
+        command = ['escript', str(ROOT / 'scripts/tui_bridge.escript'), ('--demo-continuous' if args.continuous else '--demo') if args.demo else str(args.config.resolve()),
                    str(directory), *(str(p.resolve()) for p in args.code_path)]
         with (directory / 'campaign.log').open('w') as log:
             process = subprocess.Popen(command, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT,

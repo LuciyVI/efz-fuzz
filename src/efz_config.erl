@@ -47,15 +47,20 @@ prepare_mutation(#{mutation_mode:=random}=C) ->
         false->prepare_coverage(C)
     end;
 prepare_mutation(#{mutation_mode:=staged,max_iterations:=N,mutator:=efz_mutator_random}=C)
-  when is_integer(N),N>=0,N=<1000000 ->
-    Options = maps:get(mutation,C,#{}),
-    case maps:is_key(max_input_bytes,Options) of
+  when N=:=infinity; is_integer(N),N>=0,N=<1000000 ->
+    Options0 = maps:get(mutation,C,#{}),
+    Stages=maps:get(stages,Options0,maps:get(stages,efz_mutation_plan:defaults())),
+    Options=case N=:=infinity andalso is_list(Stages) andalso Stages=/=[] andalso not lists:member(havoc,Stages) of
+        true->Options0#{stages=>Stages++[havoc]};false->Options0 end,
+    case N=:=infinity andalso maps:get(max_input_bytes,C)=:=0 of
+        true->{error,continuous_requires_nonzero_input_limit};
+        false->case maps:is_key(max_input_bytes,Options) of
         true -> {error,{campaign_level_option,max_input_bytes}};
         false -> case efz_mutation_plan:prepare(Options#{max_input_bytes=>maps:get(max_input_bytes,C)},maps:get(seeds,C)) of
             {ok,Mutation}->prepare_coverage(C#{mutation=>Mutation});
             Error->Error
         end
-    end;
+    end end;
 prepare_mutation(_) -> {error,invalid_mutation_mode_or_budget}.
 valid_field(target, V) -> is_atom(V);
 valid_field(mutator, V) -> is_atom(V);

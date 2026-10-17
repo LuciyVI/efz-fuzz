@@ -1,6 +1,6 @@
 %% Lazy staged planning. All randomness is state-threaded and owned by this state.
 -module(efz_mutation_plan).
--export([prepare/2, defaults/0, new/1, next/2, deterministic/4, config_identity/1]).
+-export([prepare/2, defaults/0, new/1, next/2, next_continuous/2, deterministic/4, config_identity/1]).
 
 defaults()->#{max_input_bytes=>efz_input:default_limit(),max_block_bytes=>128,max_token_bytes=>128,
     max_tokens=>256,max_dictionary_bytes=>16384,max_delta=>8,attempts_per_visit=>8,
@@ -69,6 +69,29 @@ next(S=#{config:=C,corpus_size:=Size},Entries) ->
             end
         end
     end.
+%% Finite planning stays unchanged. A continuous idle sweep yields a guaranteed
+%% real mutation, preserving RNG, all content cursors and admission history.
+next_continuous(S=#{config:=#{max_input_bytes:=0}},_)->
+    {error,continuous_requires_nonzero_input_limit,S};
+next_continuous(S,Entries)->
+    case next(S,Entries) of
+        {done,Why,Next} when Why=:=idle_budget_exhausted;Why=:=mutation_exhausted ->
+            continuous_fallback(Next,Entries);
+        Other->Other
+    end.
+continuous_fallback(S=#{config:=C,rng:=R},Entries)->
+    {E,R1}=choose(Entries,R),B=maps:get(input,E),
+    {Op,R2}=case B of
+        <<>>->{Byte,RR}=zero(255,R1),{{insert,0,<<Byte>>},RR};
+        _->{Bit,RR}=zero(bit_size(B)-1,R1),{{flip_bits,Bit,1},RR}
+    end,
+    {ok,Out}=efz_mutation:apply_operation(B,Op,C),
+    P=#{primary=>B,primary_id=>efz_mutation:hash(B),parent=>maps:get(id,E),stage=>havoc,
+        operations=>[Op],config_id=>maps:get(config_id,C),dictionary_id=>maps:get(dictionary_id,C)},
+    Next=inc(continuous_fallbacks,inc(generated_candidates,inc(mutation_attempts,
+        inc(operation_attempts,progress(S#{rng=>R2}))))),
+    {candidate,Out,P,Next}.
+
 random_stage(Stage)->Stage=:=havoc orelse Stage=:=splice.
 deterministic_pending(#{config:=C,cursors:=Cs},Es)->
     lists:any(fun(E)->B=maps:get(input,E),Key={efz_mutation:hash(B),maps:get(config_id,C)},
@@ -277,6 +300,6 @@ det_op(dictionary_overwrite,N,I,C)->{Token,Off}=locate([{T,max(0,N-byte_size(T)+
     {dictionary_overwrite,Off,Token}.
 locate([{Key,N}|_],I) when I<N->{Key,I};
 locate([{_,N}|Rest],I)->locate(Rest,I-N).
-inc(K,S=#{counts:=Counts})->S#{counts=>Counts#{K=>maps:get(K,Counts)+1}}.
+inc(K,S=#{counts:=Counts})->S#{counts=>Counts#{K=>maps:get(K,Counts,0)+1}}.
 reason(Why,S=#{counts:=Counts})->Rs=maps:get(skip_reasons,Counts),S#{counts=>Counts#{skip_reasons=>Rs#{Why=>maps:get(Why,Rs,0)+1}}}.
 skip(Why,S)->reason(Why,inc(skipped_operations,S)).
