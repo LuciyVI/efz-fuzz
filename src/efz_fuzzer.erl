@@ -1,7 +1,7 @@
 -module(efz_fuzzer).
 -behaviour(gen_server).
 -export([start_link/1, stop/0, stats/0, await/1,
-         benchmark_snapshot/0, benchmark_coverage/0]).
+         monitor_snapshot/0, benchmark_snapshot/0, benchmark_coverage/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 start_link(C0) ->
@@ -16,6 +16,7 @@ stop() -> gen_server:stop(?MODULE).
 stats() -> efz_stats:get().
 await(Timeout) -> gen_server:call(?MODULE, await, Timeout).
 %% Sampled by external benchmarks; never called from the execution hot path.
+monitor_snapshot() -> gen_server:call(?MODULE,monitor_snapshot,15000).
 benchmark_snapshot() -> gen_server:call(?MODULE, benchmark_snapshot, 15000).
 benchmark_coverage() -> gen_server:call(?MODULE, benchmark_coverage, 15000).
 init(C) ->
@@ -34,10 +35,20 @@ init(C) ->
     WorkerRef = monitor(process, Worker),
     {ok, #{children => [Workers, Stats, Corpus], waiters => [], report => pending,
            worker => Worker, worker_monitor => WorkerRef,execution_context=>undefined,
+           monitor_pending=>false,monitor_snapshot=>#{schema_version=>1,target=>maps:get(target,C),
+             status=>running,max_iterations=>maps:get(max_iterations,C),elapsed_ms=>0,stats=>#{},last=>null},
            execution_identities=>maps:get(execution_identities,C),max_input_bytes=>maps:get(max_input_bytes,C)}}.
 handle_call(await, From, #{report := pending, waiters := Ws} = S) ->
     {noreply, S#{waiters => [From | Ws]}};
 handle_call(await, _, #{report := R} = S) -> {reply, R, S};
+handle_call(monitor_snapshot, _, #{worker:=Worker,report:=Report}=S) ->
+    %% Never wait for a worker currently executing a slow target. Coalesce polls.
+    Pending=maps:get(monitor_pending,S),
+    Request=Report=:=pending andalso not Pending,
+    case Request of true->gen_server:cast(Worker,monitor_sample);false->ok end,
+    Cached=maps:get(monitor_snapshot,S),
+    Reply=case Report of pending->Cached;_->Cached#{status=>maps:get(status,Report),stats=>maps:remove(primary_infrastructure_failure,maps:get(stats,Report))} end,
+    {reply,Reply,S#{monitor_pending=>Pending orelse Request}};
 handle_call(benchmark_snapshot, _, #{worker := Worker, report := Report} = S) ->
     Reply = case Report of
         pending -> gen_server:call(Worker, benchmark_snapshot, 10000);
@@ -57,6 +68,8 @@ handle_call(benchmark_coverage, _, #{worker := Worker, report := Report} = S) ->
     {reply, Reply, S};
 handle_call(_, _, S) -> {reply, ok, S}.
 handle_cast(_, S) -> {noreply, S}.
+handle_info({monitor_sample,Worker,Snapshot},#{worker:=Worker}=S)->
+    {noreply,S#{monitor_snapshot=>Snapshot,monitor_pending=>false}};
 handle_info({execution_context,Worker,Context},#{worker:=Worker}=S)->
     {noreply,S#{execution_context=>Context}};
 handle_info({campaign_done, Worker, Report}, #{worker := Worker, waiters := Ws} = S) ->

@@ -5,7 +5,7 @@ defaults() -> #{max_input_bytes => efz_input:default_limit(), timeout => 100, wo
                 coverage => automatic, coverage_backend => ets, coverage_feedback => presence,
                 coverage_bitmap_bits => 65536,
                 coverage_validation => prepared, coverage_policy => diagnostic, max_iterations => infinity,
-                performance_profile => false, gleam_layer => false,
+                performance_profile => false, gleam_layer => false, monitoring => false,
                 runtime_oracles => efz_runtime_config:defaults(),
                 crash_dir => "_build/efz-crashes",crash_policy=>efz_crash:defaults()}.
 prepare(C0) when is_map(C0) ->
@@ -76,6 +76,7 @@ valid_field(coverage_bitmap_bits, V) -> is_integer(V) andalso V > 0 andalso
 valid_field(coverage_feedback, V) -> lists:member(V, [presence, hit_count]);
 valid_field(coverage_validation, V) -> lists:member(V, [per_execution, prepared]);
 valid_field(coverage_policy, V) -> lists:member(V, [diagnostic, strict]);
+valid_field(monitoring, V) -> is_boolean(V);
 valid_field(performance_profile, V) -> is_boolean(V);
 valid_field(runtime_oracles,V) -> is_map(V);
 valid_field(gleam_layer,V) -> V=:=false orelse is_map(V);

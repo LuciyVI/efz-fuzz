@@ -8,6 +8,8 @@ EFZ — фаззер на Erlang с управлением корпусом, с�
 Опциональный semantic/Gleam layer: [подключение Erlang-библиотек](docs/gleam-layer/connecting-erlang-libraries.md) ·
 [финальная проверка P5](docs/gleam-layer/p5-validation.md).
 
+TUI: [терминальная панель кампании](docs/tui.md) — `python3 scripts/tui.py --demo --out _build/tui-demo-1`.
+
 Документация: [архитектура и UML](docs/architecture.md) ·
 [карта всех директорий и файлов](docs/repository-map.md).
 

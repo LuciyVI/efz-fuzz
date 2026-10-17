@@ -1,0 +1,7 @@
+%% Dependency-free example. Build with `rebar3 compile` first.
+#{target=>efz_example_target,
+  artifacts=>[],coverage_backend=>none,
+  seeds=>[<<"abc">>,<<"TOKEN">>,<<"BOOM!">>],
+  max_iterations=>10000,timeout=>1000,mutation_mode=>staged,
+  mutation=>#{seed=>{17,23,41},stages=>[havoc]},
+  random_seed=>{17,23,41},selection_seed=>{17,23,41}}.

@@ -48,7 +48,7 @@ init(C) ->
     ok=efz_external_worker:ready(),
     self() ! iterate,
     Replay=maps:get(benchmark_replay_inputs,C,undefined),
-    {ok, C1#{pending_seeds => case Replay of undefined -> efz_corpus:all(); _ -> [] end,
+    {ok, C1#{monitor_index=>efz_monitor:prepare(C1),pending_seeds => case Replay of undefined -> efz_corpus:all(); _ -> [] end,
             replay_remaining=>Replay,
             feedback => ProfileFeedback,
             bitmap_reuse_map=>ReuseMap,bitmap_map_arms=>0,
@@ -322,7 +322,8 @@ input_bucket(N) when N=<256 -> '65_256';
 input_bucket(N) when N=<1024 -> '257_1024';
 input_bucket(N) when N=<4096 -> '1025_4096';
 input_bucket(_) -> 'over_4096'.
-accepted(Input, Result, Meta1, F1, S) ->
+accepted(Input, Result, Meta1, F1, S0) ->
+    S=efz_monitor:record(Input,Result,Meta1,S0),
     case maps:get(target_failure_recorded,S,false) of
         true->runtime_check(Input,Result,Meta1,S#{feedback=>F1});
         false->case record_failure(Input, Result, Meta1, S#{feedback => F1}) of
@@ -575,6 +576,9 @@ finish(Status0, S) ->
             semantic_features=>case maps:get(feedback,P) of guided->efz_corpus:semantic_state();_->[] end,
             oracle_extra_executions=>0}
     end,
+    case maps:get(monitoring,S) of
+        true->maps:get(coordinator,S)!{monitor_sample,self(),efz_monitor:snapshot(S)},ok;
+        false->ok end,
     maps:get(coordinator, S) ! {campaign_done, self(), Report},
     {noreply, S}.
 handle_call(benchmark_snapshot, _, S) ->
@@ -596,6 +600,9 @@ handle_call(benchmark_coverage, _, S) ->
     Global = maps:get(global, maps:get(feedback, S)),
     {reply, efz_coverage:global_snapshot(Global), S};
 handle_call(_, _, S) -> {reply, ok, S}.
+handle_cast(monitor_sample,S)->
+    maps:get(coordinator,S)!{monitor_sample,self(),efz_monitor:snapshot(S)},
+    {noreply,S};
 handle_cast(_, S) -> {noreply, S}.
 terminate(_, S) ->
     case maps:find(coverage_schema, S) of
