@@ -58,7 +58,7 @@ See [TUI controls](tui.md#continuous-mode) for continuous demonstration and the
 
 ## Validation
 
-- Default EUnit: 316 passed; full Gleam/XML-RPC EUnit: 383 passed.
+- Default EUnit: 319 passed; focused continuous tests with Gleam: 9 passed.
 - Common Test: 3 passed; xref and Dialyzer passed; Python TUI checks: 2 passed.
 - Focused tests cover infinity configuration, replayable fallback for empty and
   nonempty parents, idle exhaustion without cursor reset, continued progress,
@@ -74,3 +74,18 @@ See [TUI controls](tui.md#continuous-mode) for continuous demonstration and the
 Continuous operation is established by removing the execution cap and testing
 progress/stop boundaries; these finite acceptance runs do not claim that an
 infinite duration or unlimited storage has been tested.
+
+## Long-running client lifecycle
+
+Timed-out `efz:await/1` calls release their pending coordinator entries. Callers
+that die while waiting are monitored and removed as well; successful completion
+replies to the remaining callers and releases their monitors.
+
+Stop requests remain responsive while a target is executing and repeated requests
+queue a single worker stop. Graceful stop waits for that execution to return or
+reach its configured timeout. Worker failure during a pending stop remains an
+infrastructure failure in the final report.
+
+A stopped continuous campaign can restart using the same `corpus_dir` and
+`seeds => []`: saved inputs are restored and recalibrated before mutation resumes.
+This restores the corpus, not the previous random-generator position.

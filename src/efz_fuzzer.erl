@@ -16,7 +16,15 @@ request_stop()->gen_server:call(?MODULE,request_stop).
 status()->gen_server:call(?MODULE,status).
 stop() -> gen_server:stop(?MODULE).
 stats() -> efz_stats:get().
-await(Timeout) -> gen_server:call(?MODULE, await, Timeout).
+%% A continuous campaign may outlive polling clients and their call timeouts.
+%% Cancel timed-out calls explicitly; monitors clean up callers killed in await.
+await(Timeout) ->
+    Token = make_ref(),
+    try gen_server:call(?MODULE, {await, Token}, Timeout)
+    catch exit:Reason ->
+        gen_server:cast(?MODULE, {cancel_await, Token}),
+        exit(Reason)
+    end.
 %% Sampled by external benchmarks; never called from the execution hot path.
 monitor_snapshot() -> gen_server:call(?MODULE,monitor_snapshot,15000).
 benchmark_snapshot() -> gen_server:call(?MODULE, benchmark_snapshot, 15000).
@@ -35,7 +43,7 @@ init(C) ->
     {ok, Workers} = efz_worker_sup:start_link(WorkerC#{coordinator => self()}),
     [{efz_worker, Worker, worker, _}] = supervisor:which_children(Workers),
     WorkerRef = monitor(process, Worker),
-    {ok, #{children => [Workers, Stats, Corpus], waiters => [], report => pending,
+    {ok, #{children => [Workers, Stats, Corpus], waiters => #{}, report => pending,
            worker => Worker, worker_monitor => WorkerRef,execution_context=>undefined,
            stop_requested=>false,monitor_pending=>false,monitor_snapshot=>#{schema_version=>1,target=>maps:get(target,C),
              status=>running,max_iterations=>maps:get(max_iterations,C),elapsed_ms=>0,stats=>#{},last=>null},
@@ -46,9 +54,10 @@ handle_call(request_stop,_,#{report:=pending,worker:=W}=S)->
 handle_call(request_stop,_,S)->{reply,ok,S};
 handle_call(status,_,#{report:=R}=S)->
     {reply,case R of pending->running;_->finished end,S};
-handle_call(await, From, #{report := pending, waiters := Ws} = S) ->
-    {noreply, S#{waiters => [From | Ws]}};
-handle_call(await, _, #{report := R} = S) -> {reply, R, S};
+handle_call({await, Token}, From = {Caller, _}, #{report := pending, waiters := Ws} = S) ->
+    Ref = monitor(process, Caller),
+    {noreply, S#{waiters => Ws#{Token => {From, Ref}}}};
+handle_call({await, _}, _, #{report := R} = S) -> {reply, R, S};
 handle_call(monitor_snapshot, _, #{worker:=Worker,report:=Report}=S) ->
     %% Never wait for a worker currently executing a slow target. Coalesce polls.
     Pending=maps:get(monitor_pending,S),
@@ -75,14 +84,19 @@ handle_call(benchmark_coverage, _, #{worker := Worker, report := Report} = S) ->
     end,
     {reply, Reply, S};
 handle_call(_, _, S) -> {reply, ok, S}.
+handle_cast({cancel_await, Token}, #{waiters := Ws} = S) ->
+    case maps:take(Token, Ws) of
+        {{_, Ref}, Rest} -> demonitor(Ref, [flush]), {noreply, S#{waiters => Rest}};
+        error -> {noreply, S}
+    end;
 handle_cast(_, S) -> {noreply, S}.
 handle_info({monitor_sample,Worker,Snapshot},#{worker:=Worker}=S)->
     {noreply,S#{monitor_snapshot=>Snapshot,monitor_pending=>false}};
 handle_info({execution_context,Worker,Context},#{worker:=Worker}=S)->
     {noreply,S#{execution_context=>Context}};
 handle_info({campaign_done, Worker, Report}, #{worker := Worker, waiters := Ws} = S) ->
-    lists:foreach(fun(W) -> gen_server:reply(W, Report) end, Ws),
-    {noreply, S#{report => Report, waiters => []}};
+    reply_waiters(Ws, Report),
+    {noreply, S#{report => Report, waiters => #{}}};
 handle_info({'DOWN', Ref, process, Worker, Reason},
             #{worker_monitor := Ref, worker := Worker, report := pending, waiters := Ws} = S) ->
     Why={worker_down,Reason},Primary=efz_stats:failure(Why),
@@ -90,8 +104,10 @@ handle_info({'DOWN', Ref, process, Worker, Reason},
                stats => efz_stats:get(), corpus => efz_corpus:all(),
                execution_identities=>maps:get(execution_identities,S),max_input_bytes=>maps:get(max_input_bytes,S)},
     Report=case maps:get(execution_context,S) of undefined->Base;Ctx->Base#{failure_context=>Ctx} end,
-    lists:foreach(fun(W) -> gen_server:reply(W, Report) end, Ws),
-    {noreply, S#{report => Report, waiters => []}};
+    reply_waiters(Ws, Report),
+    {noreply, S#{report => Report, waiters => #{}}};
+handle_info({'DOWN', Ref, process, _, _}, #{waiters := Ws} = S) ->
+    {noreply, S#{waiters => maps:filter(fun(_, {_, R}) -> R =/= Ref end, Ws)}};
 handle_info({'EXIT', Pid, Reason}, S) -> {stop, {campaign_child_exit, Pid, Reason}, S};
 handle_info(_, S) -> {noreply, S}.
 terminate(_, #{children := Children}) ->
@@ -100,3 +116,8 @@ terminate(_, #{children := Children}) ->
         receive {'DOWN', Ref, process, P, _} -> ok end
     end, Children), ok.
 code_change(_, S, _) -> {ok, S}.
+
+reply_waiters(Ws, Report) ->
+    maps:foreach(fun(_, {From, Ref}) ->
+        demonitor(Ref, [flush]), gen_server:reply(From, Report)
+    end, Ws).
