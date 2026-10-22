@@ -100,6 +100,55 @@ scaffolder отклоняет с `resource_harness_required`: lifecycle след
 observer-only plugin; отсутствующая модель не выдаёт успешный oracle.
 Инструкции компиляции и CLI находятся в сгенерированном `README.md`.
 
+### Автоматическое описание API из BEAM
+
+Режим `inspect` читает экспорты, `-spec` и локальные `-type` из BEAM,
+собранного с `+debug_info`. Он печатает одну Erlang map schema version 1:
+точки входа со статусом `supported`/`unsupported`, исходные сигнатуры,
+`options` для term/API adapter и diagnostics с code, argument path и location.
+BEAM библиотеки при анализе не загружается; `on_load` и target не выполняются.
+Читается только стандартный Erlang debug backend, без загрузки remote types.
+
+```sh
+ERL_FLAGS='+S 2:2' rebar3 compile
+escript scripts/semantic_scaffold.escript inspect \
+  _build/default/lib/efz/ebin/efz_term_tuple_library.beam
+
+component_dir=$(mktemp -d "$PWD/_build/efz-from-spec.XXXXXX")
+escript scripts/semantic_scaffold.escript spec \
+  "$component_dir/harness" efz_inferred_tuple_target \
+  _build/default/lib/efz/ebin/efz_term_tuple_library.beam combine 2
+```
+
+Режим `spec` передаёт выведенные `entrypoint`/`arguments` существующему generic
+scaffold. Помимо harness, campaign и seed он сохраняет `options.term` и
+`spec-report.term` с SHA-256 исходного BEAM, limits, сигнатурой и diagnostics.
+Oracle выключен, structural coverage не включается. Compile/run описаны в
+сгенерированном README; добавьте code paths библиотеки и её dependencies.
+После изменения исходников пересоберите ordinary и optional profiles.
+
+| Входной тип/ограничение | Автоматический вывод |
+| --- | --- |
+| Integer и literal range, finite float, boolean, finite atom union | Схемы codec; явный range должен помещаться в int64 |
+| `binary()`, nonempty binary, byte-aligned fixed size | Raw bytes с явным предупреждением: UTF-8/JSON/grammar не выводятся |
+| Proper/nonempty list, fixed tuple, `string()` | Bounded схемы элементов; string сохраняется как list of `char()` integers |
+| `#{K => V}`, `#{}` | Однородная map либо пустая map |
+| Локальный nonrecursive `-type`, параметры и однозначный `when T :: Type` | Раскрываются с сохранением scope |
+| Overload, смешанный union, обязательные/несколько map fields | Отказ: контракт нельзя сохранить существующей схемой |
+| Unbound variables, `atom()`/`term()`, remote/opaque/recursive types, PID/ref/port/fun, bitstrings/size strides, integer expressions кроме unary `+`/`-` | Отказ с причиной и переходом на manual schema/harness |
+
+Генерируется ограниченное подмножество сигнатуры: default integers/finite floats
+±1000000, collection 32, bytes 4096, depth 8, nodes 128. Область задаётся codec,
+а не выводится как требование библиотеки; diagnostics явно это сообщают.
+Начальный seed выбирается из первых 32 детерминированных индексов adapter;
+если они не помещаются в envelope, генерация отклоняется. При отказе до создания
+scaffold файлы не пишутся; существующие файлы не перезаписываются.
+
+Сигнатура не задаёт инварианты, допустимые исключения, stateful setup/reset/cleanup
+или независимый correctness oracle. Эти части остаются ручными. Неподдерживаемый
+тип не заменяется молча на `term()`. Для выбранного вручную контракта используйте
+прежний режим `generic ... options.term`; для protocol/stateful API — свой harness.
+
 ## 3. Описать аргументы, сценарии и capabilities
 
 Generic codec schema 1 использует собственный binary envelope, а не ETF:

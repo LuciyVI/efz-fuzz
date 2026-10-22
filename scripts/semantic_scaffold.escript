@@ -10,12 +10,44 @@ main(["generic", Dir, Name, OptionsFile]) ->
         {ok, [Options]} when is_map(Options) -> generic(Dir, Name, Options);
         Failure -> fail({invalid_options_file, OptionsFile, Failure})
     end;
+main(["inspect", Beam]) ->
+    load_efz(),
+    case efz_spec_schema:inspect(Beam) of
+        {ok, API} -> io:put_chars(term(API));
+        {error, Diagnostic} -> spec_fail(Diagnostic)
+    end;
+main(["spec", Dir, Name, Beam, Function, ArityText]) ->
+    load_efz(),
+    Arity = try list_to_integer(ArityText) catch error:badarg -> fail(invalid_arity) end,
+    case Arity >= 0 andalso Arity =< 255 of true -> ok; false -> fail(invalid_arity) end,
+    case efz_spec_schema:inspect(Beam) of
+        {ok, #{entries := Entries} = API} ->
+            Matches = [E || #{entrypoint := {_, F, A}} = E <- Entries,
+                atom_to_list(F) =:= Function, A =:= Arity],
+            case Matches of
+                [#{status := supported, options := Options, diagnostics := Notes} = Entry] ->
+                    lists:foreach(fun(Note) -> io:format(standard_error, "Semantic scaffold: ~ts~n",
+                        [efz_spec_schema:format_diagnostic(Note)]) end, Notes),
+                    Report = (maps:without([entries], API))#{entry => Entry},
+                    generic(Dir, Name, Options, [{"options.term", term(Options)},
+                        {"spec-report.term", term(Report)}]);
+                [#{diagnostics := [Diagnostic | _]}] -> spec_fail(Diagnostic);
+                [] -> fail({not_exported, Function, Arity})
+            end;
+        {error, Diagnostic} -> spec_fail(Diagnostic)
+    end;
 main(["domain", Dir]) -> domain(Dir, "efz_generated_target");
 main(["domain", Dir, Name]) -> domain(Dir, Name);
 main(_) ->
     io:format(standard_error,
         "Usage: semantic_scaffold.escript generic OUTDIR [HARNESS_MODULE [OPTIONS.term]]~n"
+        "       semantic_scaffold.escript inspect LIBRARY.beam~n"
+        "       semantic_scaffold.escript spec OUTDIR HARNESS_MODULE LIBRARY.beam FUNCTION ARITY~n"
         "       semantic_scaffold.escript domain OUTDIR [HARNESS_MODULE]~n", []), halt(2).
+
+spec_fail(Diagnostic) ->
+    io:format(standard_error, "Semantic scaffold: ~ts~n", [efz_spec_schema:format_diagnostic(Diagnostic)]),
+    halt(2).
 
 default_options() -> #{entrypoint => {lists, reverse, 1},
     arguments => [#{kind => list, item => #{kind => integer}}]}.
@@ -30,12 +62,15 @@ module(Name) ->
 
 load_efz() ->
     Root = filename:dirname(filename:dirname(filename:absname(escript:script_name()))),
-    true = code:add_patha(filename:join([Root, "_build", "default", "lib", "efz", "ebin"])),
-    case code:ensure_loaded(efz_term_codec) of
-        {module, efz_term_codec} -> ok;
+    %% Explicit emulator -pa paths take precedence (also used by test builds).
+    _ = code:add_pathz(filename:join([Root, "_build", "default", "lib", "efz", "ebin"])),
+    lists:foreach(fun(M) -> case code:ensure_loaded(M) of
+        {module, M} -> ok;
         _ -> fail(build_efz_with_rebar3_compile_first)
-    end.
+    end end, [efz_term_codec, efz_term_api_adapter, efz_spec_schema]).
 generic(Dir, Name, Options) ->
+    generic(Dir, Name, Options, []).
+generic(Dir, Name, Options, ExtraFiles) ->
     M = module(Name), load_efz(),
     case Options of
         #{entrypoint := {Library, Function, Arity}, arguments := Specs}
@@ -53,7 +88,7 @@ generic(Dir, Name, Options) ->
                 [] -> ok;
                 Handles -> fail({resource_harness_required, Handles})
             end,
-            Seed = case efz_term_api_adapter:seed(0, Options, limits()) of
+            Seed = case initial_seed(Options, 0) of
                 {ok, Bytes} -> Bytes;
                 Failure -> fail({unable_to_generate_initial_seed, Failure})
             end,
@@ -65,8 +100,18 @@ generic(Dir, Name, Options) ->
                 "run(Raw) -> efz_term_codec:execute(Raw, options()).\n", [M, Options]),
             Config = campaign(M, [Seed], efz_term_api_adapter, Options, 10),
             create(Dir, [{Name ++ ".erl", Source}, {"campaign.term", term(Config)},
-                {"seeds/00", Seed}, {"README.md", readme(Name, generic)}]);
+                {"seeds/00", Seed}, {"README.md", readme(Name, generic)}] ++ ExtraFiles);
         _ -> fail(invalid_entrypoint_or_argument_count)
+    end.
+
+%% The adapter can skip a particular index (for example, duplicate finite map
+%% keys). Probe a small deterministic range before refusing the scaffold.
+initial_seed(_, 32) -> {skip, no_seed_within_32_attempts};
+initial_seed(Options, I) ->
+    case efz_term_api_adapter:seed(I, Options, limits()) of
+        {ok, _} = Seed -> Seed;
+        {skip, _} -> initial_seed(Options, I + 1);
+        Failure -> Failure
     end.
 
 domain(Dir, Name) ->
@@ -131,6 +176,11 @@ readme(Name, Kind) ->
         "Harness: `~s`. Generic mode uses the shared term adapter and optional\n"
         "Gleam build; domain mode advertises observation only and requires no\n"
         "model BEAM. Neither skeleton declares a correctness oracle.\n\n"
+        "Add the library and execution dependencies to the campaign code path.\n"
+        "Spec mode also writes `options.term` and `spec-report.term` with the\n"
+        "source BEAM hash, inferred bounds and diagnostics. Review them before\n"
+        "running: signatures do not infer invariants, expected exceptions,\n"
+        "stateful lifecycle, binary formats or correctness properties.\n\n"
         "`coverage_backend => none` makes this an execution/semantic smoke test.\n"
         "Prepare target-only coverage artifacts before measuring coverage; do not\n"
         "include the adapter or models. Existing files are never overwritten.\n",
