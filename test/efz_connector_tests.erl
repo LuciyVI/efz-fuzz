@@ -26,6 +26,19 @@ integration() ->
     {ok, [Evidence]} = file:consult(D ++ "/good/inference.term"),
     {ok, RawBeam} = file:read_file(Beam),
     ?assertEqual(crypto:hash(sha256, RawBeam), maps:get(beam_sha256, Evidence)),
+    {ok, [Options]} = file:consult(D ++ "/good/options.term"),
+    {ok, [Report]} = file:consult(D ++ "/good/spec-report.term"),
+    ?assertEqual(O, Options),
+    ?assertEqual(O, maps:get(options, maps:get(entry, Report))),
+    ?assertEqual(maps:get(arguments, O), maps:get(inferred_arguments, Evidence)),
+    ?assertEqual(maps:get(beam, Report), maps:get(source, Evidence)),
+    %% Both public commands share schemas, seeds and diagnostics. The old
+    %% command additionally keeps its inference.term provenance artifact.
+    {0, _} = run_scaffold("spec", [D ++ "/canonical", "efz_canonical_target", Beam, "combine", "2"]),
+    {ok, [Canonical]} = file:consult(D ++ "/canonical/campaign.term"),
+    ?assertEqual(O, maps:get(adapter_options, maps:get(gleam_layer, Canonical))),
+    ?assertEqual(maps:get(seeds, C), maps:get(seeds, Canonical)),
+    ?assertEqual({ok, [Report]}, file:consult(D ++ "/canonical/spec-report.term")),
     {2, Conflict} = scaffold([D ++ "/conflict", "efz_connector_fixture", Beam, "combine", "2"]),
     ?assert(string:find(Conflict, "harness_module_conflicts_with_entrypoint") =/= nomatch),
     ?assertNot(filelib:is_dir(D ++ "/conflict")),
@@ -33,15 +46,16 @@ integration() ->
     ?assert(string:find(Existing, "already_exists") =/= nomatch),
     {0, _} = scaffold([D ++ "/strings", "efz_string_target", Beam, "strings", "2"]),
     {ok, [Strings]} = file:consult(D ++ "/strings/campaign.term"),
-    ?assertMatch([#{kind := binary}, #{kind := charlist, min_length := 1}],
+    ?assertMatch([#{kind := binary}, #{kind := list, min_length := 1,
+        item := #{kind := integer, min := 0, max := 16#10ffff}}],
         maps:get(arguments, maps:get(adapter_options, maps:get(gleam_layer, Strings)))),
     lists:foreach(fun({F, Why}) ->
         Out = D ++ "/reject-" ++ F,
         {2, Error} = scaffold([Out, "efz_rejected_target", Beam, F, "1"]),
         ?assert(string:find(Error, Why) =/= nomatch),
         ?assertNot(filelib:is_dir(Out))
-    end, [{"union", "unsupported_union"}, {"broad", "unsupported_type"},
-        {"recursive", "recursive_type"}, {"overloaded", "overloaded_or_constrained_spec"}]),
+    end, [{"union", "ambiguous_union"}, {"broad", "ambiguous_type"},
+        {"recursive", "recursive_type"}, {"overloaded", "overloaded_spec"}]),
     OnLoadSource = D ++ "/efz_connector_onload.erl",
     Marker = filename:absname(D ++ "/onload-executed"),
     ok = file:write_file(OnLoadSource, io_lib:format(
@@ -53,12 +67,13 @@ integration() ->
     ?assertNot(filelib:is_file(Marker)),
     {ok, efz_connector_fixture} = compile:file("test/efz_connector_fixture.erl", [{outdir, D}]),
     {2, NoDebug} = scaffold([D ++ "/no-debug", "efz_rejected_target", Beam, "combine", "2"]),
-    ?assert(string:find(NoDebug, "missing_debug_info") =/= nomatch).
+    ?assert(string:find(NoDebug, "missing_abstract_code") =/= nomatch).
 
-scaffold(Args) ->
+scaffold(Args) -> run_scaffold("from-beam", Args).
+run_scaffold(Mode, Args) ->
     Es = os:find_executable("escript"),
     Port = open_port({spawn_executable, Es}, [binary, exit_status, stderr_to_stdout,
-        {args, ["scripts/semantic_scaffold.escript", "from-beam" | Args]}]),
+        {args, ["scripts/semantic_scaffold.escript", Mode | Args]}]),
     collect(Port, <<>>).
 collect(Port, Bytes) ->
     receive

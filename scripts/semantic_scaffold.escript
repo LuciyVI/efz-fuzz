@@ -10,15 +10,59 @@ main(["generic", Dir, Name, OptionsFile]) ->
         {ok, [Options]} when is_map(Options) -> generic(Dir, Name, Options);
         Failure -> fail({invalid_options_file, OptionsFile, Failure})
     end;
-main(["from-beam", Dir, Name, Beam, Function, Arity]) ->
-    from_beam(Dir, Name, Beam, Function, Arity);
+main(["inspect", Beam]) ->
+    load_efz(),
+    case efz_spec_schema:inspect(Beam) of
+        {ok, API} -> io:put_chars(term(API));
+        {error, Diagnostic} -> spec_fail(Diagnostic)
+    end;
+main(["spec", Dir, Name, Beam, Function, ArityText]) ->
+    infer_connector(Dir, Name, Beam, Function, ArityText, spec);
+main(["from-beam", Dir, Name, Beam, Function, ArityText]) ->
+    infer_connector(Dir, Name, Beam, Function, ArityText, from_beam);
 main(["domain", Dir]) -> domain(Dir, "efz_generated_target");
 main(["domain", Dir, Name]) -> domain(Dir, Name);
 main(_) ->
     io:format(standard_error,
         "Usage: semantic_scaffold.escript generic OUTDIR [HARNESS_MODULE [OPTIONS.term]]~n"
-        "       semantic_scaffold.escript domain OUTDIR [HARNESS_MODULE]~n"
-        "       semantic_scaffold.escript from-beam OUTDIR HARNESS_MODULE BEAM FUNCTION ARITY~n", []), halt(2).
+        "       semantic_scaffold.escript inspect LIBRARY.beam~n"
+        "       semantic_scaffold.escript spec OUTDIR HARNESS_MODULE LIBRARY.beam FUNCTION ARITY~n"
+        "       semantic_scaffold.escript from-beam OUTDIR HARNESS_MODULE LIBRARY.beam FUNCTION ARITY~n"
+        "       semantic_scaffold.escript domain OUTDIR [HARNESS_MODULE]~n", []), halt(2).
+
+infer_connector(Dir, Name, Beam, Function, ArityText, Mode) ->
+    load_efz(),
+    Arity = try list_to_integer(ArityText) catch error:badarg -> fail(invalid_arity) end,
+    case Arity >= 0 andalso Arity =< 255 of true -> ok; false -> fail(invalid_arity) end,
+    case efz_spec_schema:inspect(Beam) of
+        {ok, #{entries := Entries} = API} ->
+            Matches = [E || #{entrypoint := {_, F, A}} = E <- Entries,
+                atom_to_list(F) =:= Function, A =:= Arity],
+            case Matches of
+                [#{status := supported, options := Options, diagnostics := Notes} = Entry] ->
+                    lists:foreach(fun(Note) -> io:format(standard_error, "Semantic scaffold: ~ts~n",
+                        [efz_spec_schema:format_diagnostic(Note)]) end, Notes),
+                    Report = (maps:without([entries], API))#{entry => Entry},
+                    generic(Dir, Name, Options, [{"options.term", term(Options)},
+                        {"spec-report.term", term(Report)}] ++ compatibility_files(Mode, Report));
+                [#{diagnostics := [Diagnostic | _]}] -> spec_fail(Diagnostic);
+                [] -> fail({not_exported, Function, Arity})
+            end;
+        {error, Diagnostic} -> spec_fail(Diagnostic)
+    end.
+
+%% Preserve the from-beam evidence contract without a second inference engine.
+compatibility_files(spec, _) -> [];
+compatibility_files(from_beam, #{entry := #{options := Options}} = Report) ->
+    Evidence = #{schema_version => 1, entrypoint => maps:get(entrypoint, Options),
+        beam_sha256 => maps:get(beam_sha256, Report), source => maps:get(beam, Report),
+        limits => maps:get(limits, Report), inferred_arguments => maps:get(arguments, Options),
+        limitations => [bounded_defaults, no_semantic_preconditions, no_correctness_oracle]},
+    [{"inference.term", term(Evidence)}].
+
+spec_fail(Diagnostic) ->
+    io:format(standard_error, "Semantic scaffold: ~ts~n", [efz_spec_schema:format_diagnostic(Diagnostic)]),
+    halt(2).
 
 default_options() -> #{entrypoint => {lists, reverse, 1},
     arguments => [#{kind => list, item => #{kind => integer}}]}.
@@ -33,12 +77,14 @@ module(Name) ->
 
 load_efz() ->
     Root = filename:dirname(filename:dirname(filename:absname(escript:script_name()))),
-    true = code:add_patha(filename:join([Root, "_build", "default", "lib", "efz", "ebin"])),
-    case code:ensure_loaded(efz_term_codec) of
-        {module, efz_term_codec} -> ok;
+    %% Explicit emulator -pa paths take precedence (also used by test builds).
+    _ = code:add_pathz(filename:join([Root, "_build", "default", "lib", "efz", "ebin"])),
+    lists:foreach(fun(M) -> case code:ensure_loaded(M) of
+        {module, M} -> ok;
         _ -> fail(build_efz_with_rebar3_compile_first)
-    end.
-generic(Dir, Name, Options) -> generic(Dir, Name, Options, []).
+    end end, [efz_term_codec, efz_term_api_adapter, efz_spec_schema]).
+generic(Dir, Name, Options) ->
+    generic(Dir, Name, Options, []).
 generic(Dir, Name, Options, ExtraFiles) ->
     M = module(Name), load_efz(),
     case Options of
@@ -61,7 +107,7 @@ generic(Dir, Name, Options, ExtraFiles) ->
                 [] -> ok;
                 Handles -> fail({resource_harness_required, Handles})
             end,
-            Seed = case efz_term_api_adapter:seed(0, Options, limits()) of
+            Seed = case initial_seed(Options, 0) of
                 {ok, Bytes} -> Bytes;
                 Failure -> fail({unable_to_generate_initial_seed, Failure})
             end,
@@ -77,100 +123,15 @@ generic(Dir, Name, Options, ExtraFiles) ->
         _ -> fail(invalid_entrypoint_or_argument_count)
     end.
 
-%% Inspect trusted BEAM metadata only. Loading the library is deliberately left
-%% to the caller; extracting a spec must not run its on_load callback.
-from_beam(Dir, Name, Beam, Function, ArityText) ->
-    try
-        Arity = list_to_integer(ArityText),
-        true = Arity >= 0 andalso Arity =< 32,
-        {ok, {Library, Chunks}} = beam_lib:chunks(Beam, [abstract_code, exports]),
-        Forms = case proplists:get_value(abstract_code, Chunks) of
-            {raw_abstract_v1, Fs} -> Fs;
-            _ -> throw(missing_debug_info)
-        end,
-        Matches = [{F, A} || {F, A} <- proplists:get_value(exports, Chunks),
-            atom_to_list(F) =:= Function, A =:= Arity],
-        F = case Matches of [{Found, Arity}] -> Found; _ -> throw(entrypoint_not_exported) end,
-        Signatures = [Ts || {attribute, _, spec, {{SF, SA}, Ts}} <- Forms,
-            SF =:= F, SA =:= Arity],
-        Args = case Signatures of
-            [[{type, _, 'fun', [{type, _, product, As}, _Return]}]] -> As;
-            [] -> throw(missing_spec);
-            _ -> throw(overloaded_or_constrained_spec)
-        end,
-        Types = maps:from_list([{{T, length(Vars)}, {Body, Vars}} ||
-            {attribute, _, type, {T, Body, Vars}} <- Forms]),
-        Specs = [infer_type(A, Types, #{}, [], 0) || A <- Args],
-        %% Both metadata and source remain reviewable without copying executable
-        %% library code. Bounded defaults are a test envelope, not inferred API
-        %% preconditions or a correctness oracle.
-        Options = #{entrypoint => {Library, F, Arity}, arguments => Specs},
-        {ok, Bytes} = file:read_file(Beam),
-        Evidence = #{schema_version => 1, entrypoint => {Library, F, Arity},
-            beam_sha256 => crypto:hash(sha256, Bytes), source => filename:absname(Beam),
-            limits => limits(), inferred_arguments => Specs,
-            limitations => [bounded_defaults, no_semantic_preconditions, no_correctness_oracle]},
-        generic(Dir, Name, Options, [{"inference.term", term(Evidence)}])
-    catch
-        throw:Why -> fail({cannot_infer_connector, Why});
-        error:{badmatch, _} -> fail({cannot_infer_connector, invalid_beam_or_arity});
-        error:badarg -> fail({cannot_infer_connector, invalid_beam_or_arity})
+%% The adapter can skip a particular index (for example, duplicate finite map
+%% keys). Probe a small deterministic range before refusing the scaffold.
+initial_seed(_, 32) -> {skip, no_seed_within_32_attempts};
+initial_seed(Options, I) ->
+    case efz_term_api_adapter:seed(I, Options, limits()) of
+        {ok, _} = Seed -> Seed;
+        {skip, _} -> initial_seed(Options, I + 1);
+        Failure -> Failure
     end.
-
-infer_type(_, _, _, _, Depth) when Depth > 8 -> throw(type_depth_exceeded);
-infer_type({ann_type, _, [_, T]}, Types, Vars, Stack, D) -> infer_type(T, Types, Vars, Stack, D);
-infer_type({var, _, V}, _, Vars, _, _) ->
-    case maps:find(V, Vars) of
-        {ok, {schema, S}} -> S;
-        error -> throw({unbound_type_variable, V})
-    end;
-infer_type({user_type, _, Name, Args}, Types, Vars, Stack, D) ->
-    Key = {Name, length(Args)},
-    case lists:member(Key, Stack) of true -> throw({recursive_type, Key}); false -> ok end,
-    case maps:find(Key, Types) of
-        {ok, {Body, Params}} ->
-            Resolved = [infer_type(A, Types, Vars, Stack, D + 1) || A <- Args],
-            Bindings = maps:from_list([{V, {schema, S}} || {{var, _, V}, S} <- lists:zip(Params, Resolved)]),
-            infer_type(Body, Types, Bindings, [Key | Stack], D + 1);
-        error -> throw({unknown_or_opaque_type, Key})
-    end;
-infer_type({type, _, integer, []}, _, _, _, _) -> integer_schema(-1000000, 1000000);
-infer_type({type, _, non_neg_integer, []}, _, _, _, _) -> integer_schema(0, 1000000);
-infer_type({type, _, pos_integer, []}, _, _, _, _) -> integer_schema(1, 1000000);
-infer_type({type, _, neg_integer, []}, _, _, _, _) -> integer_schema(-1000000, -1);
-infer_type({type, _, byte, []}, _, _, _, _) -> integer_schema(0, 255);
-infer_type({type, _, char, []}, _, _, _, _) -> integer_schema(0, 16#10ffff);
-infer_type({type, _, range, [A, B]}, _, _, _, _) -> integer_schema(integer_literal(A), integer_literal(B));
-infer_type({integer, _, N}, _, _, _, _) -> integer_schema(N, N);
-infer_type({op, _, '-', {integer, _, N}}, _, _, _, _) -> integer_schema(-N, -N);
-infer_type({type, _, float, []}, _, _, _, _) -> #{kind => float, min => -1000000.0, max => 1000000.0};
-infer_type({type, _, boolean, []}, _, _, _, _) -> #{kind => boolean};
-infer_type({type, _, binary, []}, _, _, _, _) -> sized(binary, 0);
-infer_type({type, _, binary, [{integer, _, 0}, {integer, _, 8}]}, _, _, _, _) -> sized(binary, 0);
-infer_type({type, _, string, []}, _, _, _, _) -> sized(charlist, 0);
-infer_type({type, _, nonempty_string, []}, _, _, _, _) -> sized(charlist, 1);
-infer_type({type, _, nil, []}, _, _, _, _) -> #{kind => list, item => integer_schema(0, 0), max_length => 0};
-infer_type({type, _, K, [T]}, Types, Vars, Stack, D) when K =:= list; K =:= nonempty_list ->
-    (sized(list, case K of list -> 0; nonempty_list -> 1 end))#{item => infer_type(T, Types, Vars, Stack, D + 1)};
-infer_type({type, _, tuple, Ts}, Types, Vars, Stack, D) when is_list(Ts) ->
-    #{kind => tuple, items => [infer_type(T, Types, Vars, Stack, D + 1) || T <- Ts]};
-infer_type({atom, _, A}, _, _, _, _) -> #{kind => atom, values => [A]};
-infer_type({type, _, union, Ts}, _, _, _, _) ->
-    case lists:all(fun({atom, _, _}) -> true; (_) -> false end, Ts) of
-        true -> #{kind => atom, values => lists:usort([A || {atom, _, A} <- Ts])};
-        false -> throw(unsupported_union)
-    end;
-infer_type({remote_type, _, _}, _, _, _, _) -> throw(remote_type_requires_explicit_schema);
-infer_type({type, _, Name, _}, _, _, _, _) -> throw({unsupported_type, Name});
-infer_type(_, _, _, _, _) -> throw(unsupported_type_expression).
-
-integer_literal({integer, _, N}) -> N;
-integer_literal({op, _, '-', {integer, _, N}}) -> -N;
-integer_literal(_) -> throw(unsupported_range_bound).
-integer_schema(Min, Max) when Min >= -9223372036854775808, Max =< 9223372036854775807, Min =< Max ->
-    #{kind => integer, min => Min, max => Max};
-integer_schema(_, _) -> throw(integer_range_outside_codec).
-sized(Kind, Min) -> #{kind => Kind, min_length => Min, max_length => maps:get(collection, limits())}.
 
 domain(Dir, Name) ->
     case length(Name) =< 48 of true -> ok; false -> fail(domain_module_name_exceeds_48_characters) end,
@@ -234,11 +195,17 @@ readme(Name, Kind) ->
         "Harness: `~s`. Generic mode uses the shared term adapter and optional\n"
         "Gleam build; domain mode advertises observation only and requires no\n"
         "model BEAM. Neither skeleton declares a correctness oracle.\n\n"
+        "Add the library and execution dependencies to the campaign code path.\n"
+        "Spec mode also writes `options.term` and `spec-report.term` with the\n"
+        "source BEAM hash, inferred bounds and diagnostics. Review them before\n"
+        "running: signatures do not infer invariants, expected exceptions,\n"
+        "stateful lifecycle, binary formats or correctness properties.\n\n"
+        "`from-beam` uses the same generator and additionally preserves the\n"
+        "`inference.term` compatibility artifact. The harness module name must\n"
+        "differ from the library module name.\n\n"
         "`coverage_backend => none` makes this an execution/semantic smoke test.\n"
         "Prepare target-only coverage artifacts before measuring coverage; do not\n"
-        "include the adapter or models. Add `--code-path LIBRARY_EBIN` when the API\n"
-        "module is not already available. Review inferred bounded constraints and\n"
-        "add any semantic preconditions explicitly. Existing files are never overwritten.\n",
+        "include the adapter or models. Existing files are never overwritten.\n",
         [Kind, Build, ModelPath, Name]).
 
 create(Dir0, Files) ->
