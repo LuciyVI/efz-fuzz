@@ -48,7 +48,7 @@ init(C) ->
     ok=efz_external_worker:ready(),
     self() ! iterate,
     Replay=maps:get(benchmark_replay_inputs,C,undefined),
-    {ok, C1#{pending_seeds => case Replay of undefined -> efz_corpus:all(); _ -> [] end,
+    {ok, C1#{monitor_index=>efz_monitor:prepare(C1),pending_seeds => case Replay of undefined -> efz_corpus:all(); _ -> [] end,
             replay_remaining=>Replay,
             feedback => ProfileFeedback,
             bitmap_reuse_map=>ReuseMap,bitmap_map_arms=>0,
@@ -61,6 +61,7 @@ init(C) ->
             profile=>#{},input_size_buckets=>#{},input_bytes_total=>0,input_count=>0,
             calibration_started_at => erlang:monotonic_time(microsecond)}}.
 
+handle_info(iterate, #{campaign_finished:=true}=S) -> {noreply,S};
 handle_info(iterate, #{phase:=replay,replay_remaining:=[Input|Rest],iteration:=N}=S) ->
     execute(Input,#{id=>1},mutation,begin_iteration(S#{replay_remaining=>Rest,
                                                        iteration=>N+1}));
@@ -95,7 +96,9 @@ handle_info(_, S) -> {noreply, S}.
 staged_iteration(S=#{mutation_state:=Plan,iteration:=N}) ->
     Profile=maps:get(performance_profile,S),
     {Choice,MutationUs}=efz_perf_profile:measure(Profile,fun() ->
-        try efz_mutation_plan:next(Plan,efz_corpus:mutation_entries())
+        try case maps:get(max_iterations,S) of
+            infinity->efz_mutation_plan:next_continuous(Plan,efz_corpus:mutation_entries());
+            _->efz_mutation_plan:next(Plan,efz_corpus:mutation_entries()) end
         catch Class:Reason->{error,{mutation_engine,Class,Reason},Plan} end
     end),
     S0=efz_perf_profile:add_state(S,mutation,MutationUs),
@@ -322,7 +325,8 @@ input_bucket(N) when N=<256 -> '65_256';
 input_bucket(N) when N=<1024 -> '257_1024';
 input_bucket(N) when N=<4096 -> '1025_4096';
 input_bucket(_) -> 'over_4096'.
-accepted(Input, Result, Meta1, F1, S) ->
+accepted(Input, Result, Meta1, F1, S0) ->
+    S=efz_monitor:record(Input,Result,Meta1,S0),
     case maps:get(target_failure_recorded,S,false) of
         true->runtime_check(Input,Result,Meta1,S#{feedback=>F1});
         false->case record_failure(Input, Result, Meta1, S#{feedback => F1}) of
@@ -443,9 +447,14 @@ accepted_success(Meta1,S1) ->
         end;
         _ -> S1#{decisions => [decision_metadata(Meta1) | maps:get(decisions, S1)]}
     end,
-    notify_context(undefined,S2),
+    S3=case maps:get(max_iterations,S2) of
+        infinity->Ds=maps:get(decisions,S2),case length(Ds)>1024 of
+            true->S2#{decisions=>lists:sublist(Ds,1024),decisions_dropped=>maps:get(decisions_dropped,S2,0)+1};
+            false->S2 end;
+        _->S2 end,
+    notify_context(undefined,S3),
     self() ! iterate,
-    {noreply, maps:without([current_recipe,failure_context,crash_decision,target_failure_recorded],S2)}.
+    {noreply, maps:without([current_recipe,failure_context,crash_decision,target_failure_recorded],S3)}.
 notify_context(Context,S)->maps:get(coordinator,S)!{execution_context,self(),Context},ok.
 decision_metadata(#{mutation:=Recipe}=Meta)->
     Meta#{mutation=>maps:with([stage,primary_id,config_id,output_hash],Recipe)};
@@ -534,6 +543,9 @@ finish(Status0, S) ->
                crash_policy=>maps:get(crash_policy,S),
                crashes => [maps:get(Id,maps:get(crash_groups,S))||Id<-lists:reverse(maps:get(crash_order,S))],
                coverage => efz_coverage:global_snapshot(maps:get(global, maps:get(feedback, S)))},
+    Base1=case maps:get(max_iterations,S) of
+        infinity->Base0#{decisions_dropped=>maps:get(decisions_dropped,S,0)};
+        _->Base0 end,
     ProfileReport=case maps:get(performance_profile,S) of
         true -> #{performance_profile=>efz_perf_profile:summary(maps:get(profile,S)),
                   input_size_buckets=>maps:get(input_size_buckets,S)};
@@ -555,7 +567,7 @@ finish(Status0, S) ->
                  execution_map_arms=>maps:get(bitmap_map_arms,S),
                  normal_reuses=>max(0,maps:get(bitmap_map_arms,S)-1)}}
     end,
-    Base = maps:merge(maps:merge(maps:merge(maps:merge(maps:merge(Base0,CoverageReport),RuntimeReport),BitmapReport),ProfileReport),
+    Base = maps:merge(maps:merge(maps:merge(maps:merge(maps:merge(Base1,CoverageReport),RuntimeReport),BitmapReport),ProfileReport),
                       maps:with([failure_context,runtime_storage_error],S)),
     WithCorpus=case maps:find(corpus_store,S) of
         error->Base;
@@ -575,8 +587,11 @@ finish(Status0, S) ->
             semantic_features=>case maps:get(feedback,P) of guided->efz_corpus:semantic_state();_->[] end,
             oracle_extra_executions=>0}
     end,
+    case maps:get(monitoring,S) of
+        true->maps:get(coordinator,S)!{monitor_sample,self(),efz_monitor:snapshot(S)},ok;
+        false->ok end,
     maps:get(coordinator, S) ! {campaign_done, self(), Report},
-    {noreply, S}.
+    {noreply, S#{campaign_finished=>true}}.
 handle_call(benchmark_snapshot, _, S) ->
     Global = maps:get(global, maps:get(feedback, S)),
     {reply, #{stats => efz_stats:get(),
@@ -596,6 +611,11 @@ handle_call(benchmark_coverage, _, S) ->
     Global = maps:get(global, maps:get(feedback, S)),
     {reply, efz_coverage:global_snapshot(Global), S};
 handle_call(_, _, S) -> {reply, ok, S}.
+handle_cast(request_stop,#{campaign_finished:=true}=S)->{noreply,S};
+handle_cast(request_stop,S)->finish(stopped_by_user,S);
+handle_cast(monitor_sample,S)->
+    maps:get(coordinator,S)!{monitor_sample,self(),efz_monitor:snapshot(S)},
+    {noreply,S};
 handle_cast(_, S) -> {noreply, S}.
 terminate(_, S) ->
     case maps:find(coverage_schema, S) of
