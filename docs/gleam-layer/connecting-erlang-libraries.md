@@ -30,6 +30,13 @@ harness и отдельной проверки execution environment.
 
 ## 2. Создать harness
 
+Если у API есть `-spec` и BEAM собран с `debug_info`, harness, конфигурацию и
+seed можно [сгенерировать автоматически](connector-generation.md) командой
+`semantic_scaffold.escript from-beam OUT HARNESS LIBRARY.beam FUNCTION ARITY`.
+Поддерживаемые типы преобразуются в схему общего адаптера; ручное описание
+аргументов для них не требуется.
+
+
 Готовый generic пример:
 
 ```erlang

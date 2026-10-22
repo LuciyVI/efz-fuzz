@@ -6,7 +6,8 @@ EFZ — фаззер на Erlang с управлением корпусом, с�
 исходного кода. EFZ не зависит от других движков фаззинга.
 
 Опциональный semantic/Gleam layer: [подключение Erlang-библиотек](docs/gleam-layer/connecting-erlang-libraries.md) ·
-[финальная проверка P5](docs/gleam-layer/p5-validation.md).
+[финальная проверка P5](docs/gleam-layer/p5-validation.md) ·
+[автогенерация коннекторов из `-spec`](docs/gleam-layer/connector-generation.md).
 
 Непрерывный режим: [staged/Gleam без лимита исполнений](docs/continuous.md).
 
