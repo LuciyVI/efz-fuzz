@@ -32,6 +32,7 @@ unavailable in a fresh checkout.
 | EFZ coverage tracking: audit and comparison with AFL++ | [English](../coverage-tracking-audit.md) | [Русский](ru/coverage-tracking-audit.md) | [Español](es/coverage-tracking-audit.md) | [简体中文](zh-CN/coverage-tracking-audit.md) |
 | Automatic coverage contract | [English](../coverage.md) | [Русский](ru/coverage.md) | [Español](es/coverage.md) | [简体中文](zh-CN/coverage.md) |
 | Long Cowboy benchmark: ETS, bitmap-v2 and OTP-public | [English](../cowboy-long-benchmark.md) | [Русский](ru/cowboy-long-benchmark.md) | [Español](es/cowboy-long-benchmark.md) | [简体中文](zh-CN/cowboy-long-benchmark.md) |
+| Cowboy data-flow harnesses | [English](../cowboy-harness-suite.md) | [Русский](ru/cowboy-harness-suite.md) | [Español](es/cowboy-harness-suite.md) | [简体中文](zh-CN/cowboy-harness-suite.md) |
 | EFZ UML diagrams | [English](../diagrams/README.md) | [Русский](ru/diagrams/README.md) | [Español](es/diagrams/README.md) | [简体中文](zh-CN/diagrams/README.md) |
 | DWARF/native coverage results | [English](../dwarf-native-coverage-results.md) | [Русский](ru/dwarf-native-coverage-results.md) | [Español](es/dwarf-native-coverage-results.md) | [简体中文](zh-CN/dwarf-native-coverage-results.md) |
 | DWARF/native coverage: feasibility checkpoint | [English](../dwarf-native-coverage.md) | [Русский](ru/dwarf-native-coverage.md) | [Español](es/dwarf-native-coverage.md) | [简体中文](zh-CN/dwarf-native-coverage.md) |

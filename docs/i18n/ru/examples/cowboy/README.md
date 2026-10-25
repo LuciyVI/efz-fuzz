@@ -2,6 +2,8 @@
 
 [English](../../../../../examples/cowboy/README.md) · **Русский** · [Español](../../../es/examples/cowboy/README.md) · [简体中文](../../../zh-CN/examples/cowboy/README.md) · [Все языки](../../../README.md)
 
+Новый набор из одиннадцати харнессов проверяет потоки данных с выключенным Gleam, наблюдением и semantic-guided feedback. См. [харнессы потоков данных Cowboy](../../cowboy-harness-suite.md): зависимости закреплены в этом репозитории, покрытие библиотеки записывается для каждого запуска.
+
 `efz_cowboy_target:run/1` принимает **байты query string без начального `?`**,
 например `<<"q=hello+world&edit">>`, и вызывает `cowboy_req:parse_qs/1`.
 Результат — `{ok, Pairs}` либо `{invalid, qs | limit_reached}` для штатного

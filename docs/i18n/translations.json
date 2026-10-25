@@ -72,6 +72,10 @@
       "localized": "cowboy-long-benchmark.md"
     },
     {
+      "source": "docs/cowboy-harness-suite.md",
+      "localized": "cowboy-harness-suite.md"
+    },
+    {
       "source": "docs/diagrams/README.md",
       "localized": "diagrams/README.md"
     },

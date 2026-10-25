@@ -2,6 +2,8 @@
 
 [English](../../../../../examples/cowboy/README.md) · [Русский](../../../ru/examples/cowboy/README.md) · [Español](../../../es/examples/cowboy/README.md) · **简体中文** · [所有语言](../../../README.md)
 
+新的十一目标测试集以关闭 Gleam、仅观察和语义引导三种模式检查数据流。请参阅 [Cowboy 数据流测试工具](../../cowboy-harness-suite.md)：依赖版本固定在本仓库中，每次运行都会记录库代码覆盖率。
+
 `efz_cowboy_target:run/1` 接受**不含开头 `?` 的查询字符串字节**，例如
 `<<"q=hello+world&edit">>`，并调用 `cowboy_req:parse_qs/1`。结果为
 `{ok, Pairs}`，或在 Cowboy 预期拒绝时为 `{invalid, qs | limit_reached}`。

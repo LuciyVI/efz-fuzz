@@ -10,6 +10,12 @@ itself converts its parser exceptions to `request_error`, so this harness tests
 the public API with its error semantics rather than preserving every internal
 cause.
 
+For the newer eleven-target data-flow suite (request fields, routing, HTTP/1
+body delivery, protocol and compression round trips), see
+[Cowboy data-flow harnesses](../../docs/cowboy-harness-suite.md). It runs the same
+targets with Gleam disabled, observation-only, and semantic-guided feedback,
+using pinned dependencies from this repository and recording target coverage.
+
 Execution is synchronous in the target process. A minimal Req containing the
 `qs` field is used; no listener, connection or Cowboy application is started.
 The scope is query string decoding in Cowboy/Cowlib. HTTP framing, headers,
