@@ -1,7 +1,7 @@
 classDiagram
     direction TB
-    accTitle: EFZ — процессы и владельцы ETS
-    accDescr: Supervisor children, обычные links и monitors различаются. Feedback и scheduler являются состоянием worker, а не отдельными серверами.
+    accTitle: EFZ — processes and ETS owners
+    accDescr: Supervisor children, ordinary links and monitors are distinguished. Feedback and scheduling are worker state, not separate servers.
     class efz_sup {
         <<supervisor>>
         one_for_all

@@ -1,0 +1,97 @@
+classDiagram
+    direction TB
+    accTitle: EFZ — 进程与 ETS 所有者
+    accDescr: 区分监督器子进程、普通链接与监控。反馈和调度是工作进程状态，不是独立服务器。
+    class efz_sup {
+        <<监督器>>
+        one_for_all
+        intensity = 0
+    }
+    class efz_fuzzer {
+        <<gen_server>>
+        waiters
+        final_report
+        worker_monitor
+    }
+    class efz_worker_sup {
+        <<监督器>>
+        one_for_one
+        intensity = 5
+        period = 10
+    }
+    class efz_worker {
+        <<gen_server>>
+        feedback.global
+        mutation_state
+        decisions / failure_context
+    }
+    class efz_corpus {
+        <<gen_server>>
+        entries / next_id
+        可选存储配置
+    }
+    class efz_stats {
+        <<gen_server>>
+        活动计数器
+    }
+    class ValidationPlan["验证计划"] {
+        <<ETS>>
+        efz_coverage_plan
+        protected 集合
+        允许的探针 / 构建
+    }
+    class ExecutionGuardian["执行守护者"] {
+        <<进程>>
+        efz_guardian
+        独立用户 IO 组
+        生命周期 / 跟踪屏障
+    }
+    class ExecutionCoordinator["执行协调器"] {
+        <<进程>>
+        efz_executor coordinate
+        每输入一个
+        根与 guardian 监控
+    }
+    class TargetProcess["目标进程"] {
+        <<进程>>
+        每输入一个
+        M run(Input)
+        进程字典中的上下文
+    }
+    class ExecutionCoverage["执行覆盖率"] {
+        <<ETS>>
+        efz_execution_coverage
+        public 集合
+        已观测探针身份
+    }
+    class IntegrityRegistry["完整性注册表"] {
+        <<ETS>>
+        efz_coverage_observers
+        命名 protected 集合
+        PID → 预期上下文 / 固定身份
+    }
+    class Descendants["后代进程"] {
+        <<进程组>>
+        受控 spawn API
+        启动门处继承上下文
+    }
+    efz_sup *-- efz_fuzzer : 临时子进程
+    efz_fuzzer -- efz_corpus : start_link / shutdown
+    efz_fuzzer -- efz_stats : start_link / shutdown
+    efz_fuzzer -- efz_worker_sup : start_link / shutdown
+    efz_worker_sup *-- efz_worker : 一个临时子进程
+    efz_fuzzer ..> efz_worker : monitor
+    efz_worker *-- ValidationPlan : 预备模式下拥有
+    efz_worker ..> ExecutionGuardian : spawn_monitor
+    ExecutionGuardian ..> efz_worker : monitor 调用者
+    ExecutionGuardian ..> ExecutionCoordinator : spawn_monitor
+    ExecutionCoordinator ..> TargetProcess : monitor 根进程
+    ExecutionGuardian ..> TargetProcess : 带门的 spawn_monitor
+    ExecutionGuardian ..> Descendants : 带门的 spawn_monitor
+    ExecutionGuardian *-- ExecutionCoverage : 拥有 / 清理后删除
+    ExecutionGuardian *-- IntegrityRegistry : 逐执行拥有
+    TargetProcess ..> IntegrityRegistry : 钩子检查自身上下文
+    Descendants ..> IntegrityRegistry : 钩子检查自身上下文
+    ExecutionGuardian ..> ValidationPlan : 读取允许列表
+    TargetProcess ..> ExecutionCoverage : 钩子写入探针
+    Descendants ..> ExecutionCoverage : 同一执行上下文

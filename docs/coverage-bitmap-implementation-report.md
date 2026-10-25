@@ -1,5 +1,7 @@
 # Bitmap coverage backend: implementation report
 
+**English** · [Русский](i18n/ru/coverage-bitmap-implementation-report.md) · [Español](i18n/es/coverage-bitmap-implementation-report.md) · [简体中文](i18n/zh-CN/coverage-bitmap-implementation-report.md) · [All languages](i18n/README.md)
+
 Historical bitmap-v1 baseline. The current campaign path reuses a sealed map;
 see the [bitmap-v2 follow-up](coverage-bitmap-v2-results.md). Measurements and
 the no-reuse statements below describe v1 at the time of this report.

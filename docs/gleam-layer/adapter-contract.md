@@ -1,5 +1,7 @@
 # Semantic adapter API 1
 
+**English** · [Русский](../i18n/ru/gleam-layer/adapter-contract.md) · [Español](../i18n/es/gleam-layer/adapter-contract.md) · [简体中文](../i18n/zh-CN/gleam-layer/adapter-contract.md) · [All languages](../i18n/README.md)
+
 This contract is frozen before implementation. EFZ owns execution, RNG, scheduling,
 coverage, corpus and replay. Exactly one explicit adapter is prepared per campaign.
 Callbacks run inline in the EFZ VM and must use finite algorithms. Catching exceptions

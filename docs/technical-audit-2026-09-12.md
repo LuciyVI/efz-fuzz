@@ -1,160 +1,162 @@
-# Технический аудит EFZ — 12 сентября 2026
+# EFZ Technical Audit — September 12, 2026
+
+**English** · [Русский](i18n/ru/technical-audit-2026-09-12.md) · [Español](i18n/es/technical-audit-2026-09-12.md) · [简体中文](i18n/zh-CN/technical-audit-2026-09-12.md) · [All languages](i18n/README.md)
 
 ## 1. Executive Summary
 
-**EFZ уже является работающим coverage-guided fuzzer для синхронного binary target в одном Erlang process. Цикл mutation → execution → coverage → active corpus → следующая mutation замкнут. Это подтверждено реальным запуском, а не только наличием API.**
+**EFZ is already a working coverage-guided fuzzer for a synchronous binary target in a single Erlang process. The mutation → execution → coverage → active corpus → next mutation loop is complete. This is confirmed by an actual run, not merely the presence of an API.**
 
-В отдельном эксперименте штатные efz_mutation_plan, efz_worker, efz_executor, automatic instrumentation и efz_corpus построили цепочку:
+In a separate experiment, the standard efz_mutation_plan, efz_worker, efz_executor, automatic instrumentation and efz_corpus built this chain:
 
 ~~~text
-corpus id=1: <<>>          initial seed из файла
+corpus id=1: <<>>          initial seed from file
     dictionary_insert "A"
-corpus id=2: <<"A">>       новое покрытие; parent=1
-    dictionary_insert "B" в позицию 1
-corpus id=3: <<"AB">>      новое покрытие; parent=2
-    dictionary_insert "C" в позицию 2
-corpus id=4: <<"ABC">>     новое покрытие; parent=3
+corpus id=2: <<"A">>       new coverage; parent=1
+    dictionary_insert "B" at position 1
+corpus id=3: <<"AB">>      new coverage; parent=2
+    dictionary_insert "C" at position 2
+corpus id=4: <<"ABC">>     new coverage; parent=3
 ~~~
 
-Выполнены 40 реальных мутаций, 41 input точно передан отдельному harness, 40 recipes восстановили исходные байты. Получены три discoveries и один crash. Сохранённый input CRASH воспроизвёл error(test_crash), в том числе в новой VM. Доказательства: [e2e.txt](audit-2026-09-12/e2e.txt), [исходник эксперимента](audit-2026-09-12/run.escript), [полный report ETF](audit-2026-09-12/e2e-report.term), [fresh replay](audit-2026-09-12/fresh-replay.log).
+40 real mutations were executed, 41 inputs were delivered exactly to a separate harness, and 40 recipes reconstructed the original bytes. There were three discoveries and one crash. The saved CRASH input reproduced error(test_crash), including in a new VM. Evidence: [e2e.txt](audit-2026-09-12/e2e.txt), [experiment source](audit-2026-09-12/run.escript), [complete ETF report](audit-2026-09-12/e2e-report.term), [fresh replay](audit-2026-09-12/fresh-replay.log).
 
-**Граница работоспособности:** successful corpus существует в памяти одной кампании. Встроенных чтения seed directory, сохранения новых successful inputs на диск, восстановления очереди и универсального fuzz CLI нет. После stop/start в эксперименте осталось исходное множество из одного seed. Готовые escripts сохраняют итоговый report по собственной инициативе; это не persistence corpus service.
+**Operational boundary:** the successful corpus exists in the memory of a single campaign. There is no built-in seed-directory reader, disk persistence for new successful inputs, queue restoration or universal fuzz CLI. After stop/start, the experiment retained the original set of one seed. Existing escripts save the final report themselves; this is not corpus-service persistence.
 
-**Staged mutator действительно интегрирован.** Random mode остаётся default и также использует пополняемый corpus. Утверждения «новый mutator существует отдельно» или «scheduler видит только initial seeds» текущему коду не соответствуют.
+**The staged mutator is integrated.** Random mode remains the default and also uses the growing corpus. Claims that “the new mutator exists separately” or “the scheduler only sees initial seeds” do not match the current code.
 
-Три главных проблемы:
+The three main problems:
 
-1. Не завершён пользовательский жизненный цикл кампании: общий launcher, seed files, долговременный corpus и restart.
-2. Изоляция ограничена корневым target process; child execution не измеряется автоматически, children могут оставаться живыми, глобальное состояние меняет последующие cases. Успешная проверка manifest не доказывает, что выбранный target вообще исполнил инструментированный код.
-3. Staged scheduler может остановиться до доступных мутаций: 256 допустимых seeds, этапы dictionary_overwrite/bitflip, неподходящий словарь и default max_idle_visits дают ноль mutation executions. Штатные тесты не проверяют этот случай и явно не утверждают повторное использование coverage-discovered parent.
+1. The user-facing campaign lifecycle is incomplete: a common launcher, seed files, durable corpus and restart.
+2. Isolation is limited to the root target process; child execution is not measured automatically, children can remain alive, and global state changes later cases. Successful manifest validation does not prove that the selected target executed instrumented code at all.
+3. The staged scheduler can stop before reaching available mutations: 256 valid seeds, dictionary_overwrite/bitflip stages, an unsuitable dictionary and the default max_idle_visits yield zero mutation executions. Standard tests do not cover this case or explicitly assert reuse of a parent discovered through coverage.
 
-Следующая фаза должна довести существующий один-worker loop до воспроизводимого инструмента: закрепить ancestry end-to-end тестом, исправить преждевременную остановку, добавить вход/выход corpus и восстановление, формализовать границы execution/coverage и ошибки хранения. Новый mutation engine, другой coverage backend, distributed scheduling и UI для этого не нужны.
+The next phase should turn the existing single-worker loop into a reproducible tool: establish ancestry with an end-to-end test, fix premature termination, add corpus input/output and restoration, and formalize execution/coverage boundaries and storage errors. This does not require a new mutation engine, another coverage backend, distributed scheduling or a UI.
 
 ## 2. Current Architecture
 
-### Проверенный checkout и область аудита
+### Audited checkout and scope
 
-Основной репозиторий: /home/anonymous_usr/erl:fuzz/efz, ветка main, HEAD ac09c1f3e938c3a79b369fc6a87d61c1ae739db4, «chore: initialize efz OTP project». Родительский workspace не является рабочим Git repository.
+Main repository: /home/anonymous_usr/erl:fuzz/efz, branch main, HEAD ac09c1f3e938c3a79b369fc6a87d61c1ae739db4, “chore: initialize efz OTP project”. The parent workspace is not a working Git repository.
 
-HEAD не описывает проверенную реализацию: большинство src/*.erl, test/, docs/, examples/, fixtures/, bench/, scripts/ — уже существовавшие untracked файлы; README.md, rebar.config, src/efz.app.src изменены. Зафиксированы [исходный status](audit-2026-09-12/status-before.txt) и [SHA-256 всех 83 исходных файлов](audit-2026-09-12/before-sha256.json). Соседний efz.worktrees/agents-condemned-silverfish содержит те же 83 файла с идентичными байтами: это отдельный checkout, а не второй engine в runtime.
+HEAD does not describe the audited implementation: most src/*.erl, test/, docs/, examples/, fixtures/, bench/ and scripts/ files were already untracked; README.md, rebar.config and src/efz.app.src were modified. The [initial status](audit-2026-09-12/status-before.txt) and [SHA-256 hashes of all 83 original files](audit-2026-09-12/before-sha256.json) were recorded. The adjacent efz.worktrees/agents-condemned-silverfish contains the same 83 files with identical bytes: it is a separate checkout, not a second runtime engine.
 
-После аудита SHA-256 всех этих 83 файлов совпадают. Добавлены только данный отчёт и audit-2026-09-12/ с доказательствами и диагностическими исходниками; production-код и штатные tests не менялись, commit/push не выполнялись. Сохранённый комплект повторно запущен из нового temporary directory: diagnostic assertions и fresh replay прошли. [Проверка целостности и структуры отчёта](audit-2026-09-12/verification.json).
+After the audit, the SHA-256 hashes of all 83 files still match. Only this report and audit-2026-09-12/ containing evidence and diagnostic sources were added; production code and standard tests were unchanged, and no commit/push was performed. The saved package was rerun from a new temporary directory: diagnostic assertions and fresh replay passed. [Report integrity and structure verification](audit-2026-09-12/verification.json).
 
-Изучены все модули src, тестовые компоненты, launch/replay scripts, примеры, fixtures, назначение benchmark drivers и документация архитектуры, coverage, mutation, replay и предыдущих фаз. Исторические performance numbers не пересчитывались и не используются как новые доказательства. Документ calibration-readiness.md содержит аудит и предложения; production calibration/stability collector из его плана не реализован.
+All src modules, test components, launch/replay scripts, examples, fixtures, benchmark-driver purposes, and documentation for architecture, coverage, mutation, replay and previous phases were studied. Historical performance numbers were not recalculated and are not used as new evidence. The calibration-readiness.md document contains an audit and proposals; the production calibration/stability collector in its plan is not implemented.
 
-Среда: OTP 27.0 / ERTS 15.0, Rebar3 3.25.0, Linux. rebar.config устанавливает minimum_otp_vsn=27, debug_info, warnings_as_errors, src_dirs=[src,examples/simple_parser], deps=[]. Основное приложение зависит от kernel, stdlib, crypto. Runtime-код Go/Python, NIF coverage, rebar provider для fuzz CLI, CI workflow и дополнительных project profiles не обнаружено.
+Environment: OTP 27.0 / ERTS 15.0, Rebar3 3.25.0, Linux. rebar.config sets minimum_otp_vsn=27, debug_info, warnings_as_errors, src_dirs=[src,examples/simple_parser], deps=[]. The main application depends on kernel, stdlib and crypto. No Go/Python runtime code, NIF coverage, rebar provider for the fuzz CLI, CI workflow or additional project profiles was found.
 
-### Карта каталогов
+### Directory map
 
-| Каталог / файл | Фактическая роль |
+| Directory / file | Actual role |
 |---|---|
-| src/ — 24 Erlang modules и efz.app.src | Единственная production реализация |
-| examples/simple_parser/ | Два module, обычный parser и adapter; входят в обычную сборку |
-| examples/automatic/run.escript | Конкретная random campaign, target/seeds прописаны в script |
-| examples/staged/ | Staged parser, hex dictionary и конкретная campaign с replay |
-| examples/cowboy/ | Отдельный synchronous parse_qs harness, launcher, 14 дополнительных проверок; внешняя зависимость |
-| test/ | EUnit, Common Test и scripted test mutator |
-| fixtures/ | Проверка семантики instrumentation, unsupported AST, include/record/tail cases, performance targets |
-| scripts/replay.escript | CLI только для recipe → bytes |
-| scripts/coverage_bench.escript, bench/ | Benchmark, profiling, отчёты, архивирование; не campaign services |
-| docs/ | Контракты, исторические проверки, планы; сами по себе не реализации |
-| _build/ | Собранные BEAM, сгенерированные manifests/reports/crash artifacts; не source of truth |
+| src/ — 24 Erlang modules and efz.app.src | The only production implementation |
+| examples/simple_parser/ | Two modules, an ordinary parser and adapter; included in the normal build |
+| examples/automatic/run.escript | A specific random campaign with target/seeds hard-coded in the script |
+| examples/staged/ | Staged parser, hex dictionary and a specific campaign with replay |
+| examples/cowboy/ | Separate synchronous parse_qs harness, launcher and 14 additional checks; external dependency |
+| test/ | EUnit, Common Test and scripted test mutator |
+| fixtures/ | Instrumentation semantics, unsupported AST, include/record/tail cases and performance targets |
+| scripts/replay.escript | CLI for recipe → bytes only |
+| scripts/coverage_bench.escript, bench/ | Benchmarks, profiling, reports and archiving; not campaign services |
+| docs/ | Contracts, historical checks and plans; not implementations in themselves |
+| _build/ | Built BEAM files and generated manifests/reports/crash artifacts; not the source of truth |
 
-### Реальное дерево процессов
+### Actual process tree
 
 ~~~text
 application controller
 └── efz_sup                    supervisor: one_for_all, intensity=0, period=1
     └── efz_fuzzer             temporary dynamic child, gen_server
-        ├── efz_corpus         start_link; linked child, НЕ отдельный child spec efz_sup
+        ├── efz_corpus         start_link; linked child, NOT a separate efz_sup child spec
         ├── efz_stats          start_link; linked child
         └── efz_worker_sup     linked supervisor: one_for_one, 5/10
-            └── efz_worker     один temporary child
-                └·· coordinator  spawn_monitor на каждый input; не supervised child
-                    └·· target   spawn_monitor на каждый input; M:run(Input)
+            └── efz_worker     one temporary child
+                └·· coordinator  spawn_monitor per input; not a supervised child
+                    └·· target   spawn_monitor per input; M:run(Input)
 ~~~
 
-Пунктирные отношения обозначают создание/monitor, а не links. efz_fuzzer дополнительно мониторит worker. Реализация: [efz_fuzzer:init/1](../src/efz_fuzzer.erl), строки 17–25; [efz_worker_sup:init/1](../src/efz_worker_sup.erl), строка 2; [efz_executor:coordinate/6](../src/efz_executor.erl), строки 25–60.
+Dotted relationships indicate creation/monitoring, not links. efz_fuzzer also monitors the worker. Implementation: [efz_fuzzer:init/1](../src/efz_fuzzer.erl), lines 17–25; [efz_worker_sup:init/1](../src/efz_worker_sup.erl), line 2; [efz_executor:coordinate/6](../src/efz_executor.erl), lines 25–60.
 
-При нормальном target exception worker продолжает кампанию. Worker не перезапускается: fuzzer возвращает infrastructure_failure/worker_down. Падение corpus/stats/worker supervisor приводит через trapped EXIT к остановке fuzzer; terminate/2 останавливает worker supervisor, затем stats и corpus. Глобальное coverage и mutation cursors при падении worker не восстанавливаются. При campaign completion worker остаётся живым без следующего iterate: освобождение corpus, prepared ETS plan и всех campaign services требует efz:stop/0.
+After an ordinary target exception, the worker continues the campaign. The worker is not restarted: the fuzzer returns infrastructure_failure/worker_down. Failure of the corpus/stats/worker supervisor stops the fuzzer through a trapped EXIT; terminate/2 stops the worker supervisor, then stats and corpus. Global coverage and mutation cursors are not restored after worker failure. At campaign completion the worker remains alive without another iterate: releasing the corpus, prepared ETS plan and all campaign services requires efz:stop/0.
 
-### Владение состоянием
+### State ownership
 
-| Состояние | Владелец / механизм | Время жизни |
+| State | Owner / mechanism | Lifetime |
 |---|---|---|
-| Active corpus, next integer ID, random selection PRNG | efz_corpus gen_server state; PRNG в его process dictionary | Одна campaign |
-| Global successful coverage, builds | efz_worker.feedback: map + sets | Одна campaign |
-| Mutation plan, explicit RNG, cursors, pending IDs | efz_worker.mutation_state | Одна campaign |
-| Prepared allowed probe set | Protected unnamed ETS efz_coverage_plan; owner worker | До смерти worker |
-| Current execution coverage | Public unnamed ETS efz_execution_coverage; owner coordinator | Один input |
-| Pointer к current coverage | Target process dictionary, '$efz_execution_context' | Один target process |
-| Decisions, crash IDs, bounded recipe trace | Worker state | Одна campaign |
-| Counters | efz_stats gen_server | Одна campaign |
-| Final report, await waiters | efz_fuzzer state | До stop |
-| Instrumented BEAM + manifest sidecar | Filesystem; loaded modules — общий code server | За пределами одного input |
-| Crash .input/.term/.recipe | Filesystem, efz_crash:save/4 | Между запусками |
+| Active corpus, next integer ID, random selection PRNG | efz_corpus gen_server state; PRNG in its process dictionary | One campaign |
+| Global successful coverage, builds | efz_worker.feedback: map + sets | One campaign |
+| Mutation plan, explicit RNG, cursors, pending IDs | efz_worker.mutation_state | One campaign |
+| Prepared allowed probe set | Protected unnamed ETS efz_coverage_plan; worker owns it | Until worker death |
+| Current execution coverage | Public unnamed ETS efz_execution_coverage; coordinator owns it | One input |
+| Pointer to current coverage | Target process dictionary, '$efz_execution_context' | One target process |
+| Decisions, crash IDs, bounded recipe trace | Worker state | One campaign |
+| Counters | efz_stats gen_server | One campaign |
+| Final report, await waiters | efz_fuzzer state | Until stop |
+| Instrumented BEAM + manifest sidecar | Filesystem; loaded modules use the shared code server | Beyond a single input |
+| Crash .input/.term/.recipe | Filesystem, efz_crash:save/4 | Across runs |
 
-В production src нет persistent_term. Он используется в benchmark-only efz_perf_replay и может использоваться target, но не очищается executor.
+Production src does not use persistent_term. It is used by the benchmark-only efz_perf_replay and may be used by a target, but the executor does not clear it.
 
 ## 3. Component Inventory
 
-Статус оценивает заявленную функцию компонента, а не только компиляцию. PARTIAL также используется для отсутствующей части пользовательского сценария с явным указанием, что соответствующего модуля нет. STUB обозначал бы существующую заглушку; таких модулей в основном пути не найдено. UNUSED означает отсутствие вызовов из основного runtime, а не разрешение на немедленное удаление.
+Status evaluates a component's claimed function, not just compilation. PARTIAL also denotes a missing part of the user workflow, with an explicit note that the corresponding module does not exist. STUB would denote an existing placeholder; none was found in the main path. UNUSED means there are no calls from the main runtime, not permission for immediate deletion.
 
-В таблице «Реализация / назначение» объединяет Purpose и Current implementation; I/O — Inputs и Outputs. Файл module X находится в src/X.erl, если явно не указан другой путь.
+In the table, “Implementation / purpose” combines Purpose and Current implementation; I/O covers Inputs and Outputs. Module X is in src/X.erl unless another path is explicitly given.
 
-| Component | Relevant modules/files; реализация / назначение | Inputs → Outputs | State ownership | Called by → Calls | Status |
+| Component | Relevant modules/files; implementation / purpose | Inputs → Outputs | State ownership | Called by → Calls | Status |
 |---|---|---|---|---|---|
 | Public entry | efz:start/1, stop/0, stats/0, await/1; OTP API | Config map → {ok,Pid} / error; await → report map | App / fuzzer | Erlang caller, examples → application, supervisor, fuzzer | IMPLEMENTED |
-| Generic CLI | Отдельного efz_cli и общего run TARGET CORPUS нет; examples/*/run.escript содержат конкретные campaigns | Args конкретного примера → API config | Escript main | shell → efz:start | PARTIAL — generic launcher отсутствует |
-| Configuration | efz_config:prepare/1; defaults, callbacks, coverage preflight; mutation schema отдельно | map → {ok,prepared map}/{error,...} | Caller, затем worker | fuzzer → instrument, mutation_plan, code | PARTIAL — верхний уровень нестрогий |
-| Harness contract | efz_target; -callback run(binary()) -> term(); behavior не обязателен для runtime | binary → любой term / exception | Target process | executor → M:run/1 | IMPLEMENTED |
-| Harness / target selection | config target atom; callback фиксирован run/1; проверяет экспорт | target atom, artifacts → loaded callbacks | Code server | config → ensure_loaded/function_exported | PARTIAL — нет MFA/arity/source loader в общем API |
-| Target invocation | efz_executor:run/4, coordinate/6 | Module, Input, timeout, options → result map | Per-case coordinator | worker, recipe → M:run/1 | IMPLEMENTED в scope одного process |
-| Input delivery | worker execute/4 → executor; binary не декодируется | binary + parent → тот же binary в harness | Worker/coordinator/target | corpus/planner → executor/harness | IMPLEMENTED |
-| Worker | efz_worker gen_server, сообщения iterate | prepared config/corpus → executions/report | Worker | worker_sup → mutator, executor, feedback, corpus, crash, stats | IMPLEMENTED |
-| Timeout handling | executor wait_target/5, kill_and_drain/2; deadline + DOWN | timeout integer ms → {timeout,T} | Coordinator | executor → monitor/exit/receive | PARTIAL — root cleanup; descendants не учтены |
-| Exception handling | executor try/catch; infrastructure отделено от target failures | Exception/exit → outcome tuple, stack для error/throw | Coordinator + worker | target → feedback/crash | IMPLEMENTED с оговорками origin |
+| Generic CLI | No separate efz_cli or common run TARGET CORPUS command; examples/*/run.escript contain specific campaigns | Example-specific args → API config | Escript main | shell → efz:start | PARTIAL — generic launcher absent |
+| Configuration | efz_config:prepare/1; defaults, callbacks, coverage preflight; mutation schema handled separately | map → {ok,prepared map}/{error,...} | Caller, then worker | fuzzer → instrument, mutation_plan, code | PARTIAL — top-level schema is permissive |
+| Harness contract | efz_target; -callback run(binary()) -> term(); runtime does not require the behavior | binary → any term / exception | Target process | executor → M:run/1 | IMPLEMENTED |
+| Harness / target selection | Config target atom; callback fixed at run/1; export checked | target atom, artifacts → loaded callbacks | Code server | config → ensure_loaded/function_exported | PARTIAL — no MFA/arity/source loader in the common API |
+| Target invocation | efz_executor:run/4, coordinate/6 | Module, Input, timeout, options → result map | Per-case coordinator | worker, recipe → M:run/1 | IMPLEMENTED within one process |
+| Input delivery | worker execute/4 → executor; binary is not decoded | binary + parent → identical binary in harness | Worker/coordinator/target | corpus/planner → executor/harness | IMPLEMENTED |
+| Worker | efz_worker gen_server, iterate messages | prepared config/corpus → executions/report | Worker | worker_sup → mutator, executor, feedback, corpus, crash, stats | IMPLEMENTED |
+| Timeout handling | executor wait_target/5, kill_and_drain/2; deadline + DOWN | timeout integer ms → {timeout,T} | Coordinator | executor → monitor/exit/receive | PARTIAL — root cleanup; descendants are not tracked |
+| Exception handling | executor try/catch; infrastructure separated from target failures | Exception/exit → outcome tuple, stack for error/throw | Coordinator + worker | target → feedback/crash | IMPLEMENTED with origin caveats |
 | Coverage compiler facade | efz_instrument:compile/2, preflight/1, load/1 | .erl, allowlist, options → BEAM/manifest/artifact map | Filesystem/code server | Caller/config/replay → compiler/PT/manifest | IMPLEMENTED |
-| Coverage instrumentation | efz_instrument_pt:parse_transform/2 | Abstract forms → hook-instrumented forms, manifest attribute | Локальный compile state | compile → efz_cov_rt:hit/1 в сгенерированном коде | PARTIAL — ограниченное AST, strict default |
-| Coverage hook | efz_cov_rt:hit/1; ETS insert / member+insert | Probe identity → ok или tagged error | Per-case ETS через PD context | Instrumented target → ETS | IMPLEMENTED для attached process |
+| Coverage instrumentation | efz_instrument_pt:parse_transform/2 | Abstract forms → hook-instrumented forms, manifest attribute | Local compile state | compile → efz_cov_rt:hit/1 in generated code | PARTIAL — limited AST, strict default |
+| Coverage hook | efz_cov_rt:hit/1; ETS insert / member+insert | Probe identity → ok or tagged error | Per-case ETS through PD context | Instrumented target → ETS | IMPLEMENTED for attached process |
 | Coverage context/collection | efz_cov:open/attach/snapshot/close | Backend/context → exact sorted identities | Coordinator owns ETS | executor → ETS/runtime | IMPLEMENTED |
-| Coverage identity/validation | efz_cov_manifest; source mappings, exact allowlist, prepared plan | manifest/hits → ok/error, builds map | Worker ETS / immutable maps | config/executor/recipe → ETS/sets/beam_lib | PARTIAL — проверяет observed IDs, не непрерывную целостность loaded code |
+| Coverage identity/validation | efz_cov_manifest; source mappings, exact allowlist, prepared plan | manifest/hits → ok/error, builds map | Worker ETS / immutable maps | config/executor/recipe → ETS/sets/beam_lib | PARTIAL — validates observed IDs, not continuous loaded-code integrity |
 | Coverage state/feedback | efz_feedback:new/1,evaluate/3 | Previous set + result + phase → new set + decision | Worker | worker → efz_cov:merge/2 | IMPLEMENTED |
-| Corpus | efz_corpus; entries list, input dedup при add, IDs | [binary], add(binary,meta) → entry/list/{ok,id}/{existing,binary} | Corpus gen_server | fuzzer/worker → rand | PARTIAL — только RAM, initial duplicates остаются |
-| Queue | Тот же entries; отдельного queue service нет | Ordered entries → selectable entries | Corpus | worker/planner → corpus API | IMPLEMENTED базовая очередь |
-| Seed selection | corpus:select/0 random; mutation_plan:visit/2 staged round-robin | Entries → parent entry | Corpus RNG / worker plan | worker → rand либо plan cursor | PARTIAL — idle cutoff может опередить полезный stage |
-| Random mutator | efz_mutator callback; efz_mutator_random:mutate/2, четыре операции | binary, #{iteration=>N} → binary | Worker process PRNG | worker random branch → rand/list operations | IMPLEMENTED, legacy/default path |
-| Staged mutation | efz_mutation_plan:new/1,next/2 | Plan + текущие entries → candidate/skip/done/error | Worker | worker staged branch → efz_mutation, dictionary, rand:*_s | PARTIAL — интегрирован, premature exhaustion |
+| Corpus | efz_corpus; entries list, input dedup on add, IDs | [binary], add(binary,meta) → entry/list/{ok,id}/{existing,binary} | Corpus gen_server | fuzzer/worker → rand | PARTIAL — RAM only, initial duplicates remain |
+| Queue | Same entries; no separate queue service | Ordered entries → selectable entries | Corpus | worker/planner → corpus API | IMPLEMENTED basic queue |
+| Seed selection | corpus:select/0 random; mutation_plan:visit/2 staged round-robin | Entries → parent entry | Corpus RNG / worker plan | worker → rand or plan cursor | PARTIAL — idle cutoff can precede a productive stage |
+| Random mutator | efz_mutator callback; efz_mutator_random:mutate/2, four operations | binary, #{iteration=>N} → binary | Worker process PRNG | worker random branch → rand/list operations | IMPLEMENTED, legacy/default path |
+| Staged mutation | efz_mutation_plan:new/1,next/2 | Plan + current entries → candidate/skip/done/error | Worker | worker staged branch → efz_mutation, dictionary, rand:*_s | PARTIAL — integrated, premature exhaustion |
 | Deterministic stages | mutation_plan:deterministic/4, det_op/4 | Stage, binary, index, config → operation/done | Content/config cursors | Planner → mutation primitives | IMPLEMENTED |
-| Mutation primitives | efz_mutation:apply_operation/3,apply_operations/3 | binary + concrete ops + limits → ok/skip/error | Нет mutable state | Planner/recipe/tests → binary/crypto | IMPLEMENTED |
+| Mutation primitives | efz_mutation:apply_operation/3,apply_operations/3 | binary + concrete ops + limits → ok/skip/error | No mutable state | Planner/recipe/tests → binary/crypto | IMPLEMENTED |
 | Havoc | mutation_plan:random_attempts/5,stack/7 | Primary, active entries, explicit RNG → realized stack | Worker plan | Planner → primitives/random_operation | IMPLEMENTED |
-| Dictionary | efz_dictionary:normalize/2,load/2; EFZ hex format | binary tokens или hex file → normalized tokens + hash | Prepared mutation config | mutation_plan:prepare → bounded file read | IMPLEMENTED |
-| Splicing | mutation_plan:random_operation/6; mutation splice op | Primary + donors из всех entries → prefix/suffix binary, donor bytes/hash | Worker plan | Havoc/splice lane → mutation:apply_operation | IMPLEMENTED |
-| Recipes | efz_recipe:make/4, encode/decode, regenerate | Primary + realized ops → EFZR data / exact output | Metadata corpus/crash; optional bounded trace | worker/replay → mutation, hash | IMPLEMENTED для staged |
-| Replay | recipe:execute/5, execute_file/5; scripts/replay.escript | Explicit target/builds + input → executor result; CLI recipe → file | Fresh prepared plan | Caller/scripts → preflight/executor | PARTIAL — generic execution CLI нет, harness identity не pinned |
-| Crash storage | efz_crash:fingerprint/3,save/4 | Input/result/meta/dir → .input/.term/[.recipe], crash record | Files + worker crash_ids | worker → file/crypto/recipe | PARTIAL — неатомарная запись, errors роняют worker |
-| Statistics | efz_stats:inc/get; worker timing/counts | Counter key → updated counters/map | Stats gen_server | Worker/fuzzer/API → gen_server | PARTIAL — worker_down не увеличивает infra counter |
-| Supervision | efz_app, efz_sup, efz_fuzzer, efz_worker_sup | Start/stop/death → lifecycle/report | OTP processes | efz/application → links/monitors/supervisors | PARTIAL — per-case coordinator не supervised |
-| Parallel workers | config valid принимает только workers=1 | workers>1 → invalid configuration | Нет | config rejects | PARTIAL — функция отсутствует, не dormant pool |
-| Persistent campaign state | Corpus/global coverage/queue cursors/RNG restore не реализованы | — | Нет | — | PARTIAL — только crash artifacts и внешние reports |
-| Manual compatibility | efz_cov:hit/1, executor:run/3; общий executor | Manual ID → {manual,Id}; run/3 → outcome | Тот же execution context | Legacy callers/tests → runtime | LEGACY, доступен явно |
-| Old helper APIs | cov:interesting/2, reset_local/0, snapshot/0 | Direct manual helpers | PD/context | В текущем src/test/examples вызовов нет | UNUSED основным путём |
-| Test prerecorded mutator | test/efz_scripted_mutator | iteration → заранее заданный binary; parent игнорируется | Нет | Phase2/CT/backend tests → lists:nth | UNUSED production |
+| Dictionary | efz_dictionary:normalize/2,load/2; EFZ hex format | binary tokens or hex file → normalized tokens + hash | Prepared mutation config | mutation_plan:prepare → bounded file read | IMPLEMENTED |
+| Splicing | mutation_plan:random_operation/6; mutation splice op | Primary + donors from all entries → prefix/suffix binary, donor bytes/hash | Worker plan | Havoc/splice lane → mutation:apply_operation | IMPLEMENTED |
+| Recipes | efz_recipe:make/4, encode/decode, regenerate | Primary + realized ops → EFZR data / exact output | Corpus/crash metadata; optional bounded trace | worker/replay → mutation, hash | IMPLEMENTED for staged |
+| Replay | recipe:execute/5, execute_file/5; scripts/replay.escript | Explicit target/builds + input → executor result; CLI recipe → file | Fresh prepared plan | Caller/scripts → preflight/executor | PARTIAL — no generic execution CLI, harness identity not pinned |
+| Crash storage | efz_crash:fingerprint/3,save/4 | Input/result/meta/dir → .input/.term/[.recipe], crash record | Files + worker crash_ids | worker → file/crypto/recipe | PARTIAL — non-atomic writes, errors crash the worker |
+| Statistics | efz_stats:inc/get; worker timing/counts | Counter key → updated counters/map | Stats gen_server | Worker/fuzzer/API → gen_server | PARTIAL — worker_down does not increment the infrastructure counter |
+| Supervision | efz_app, efz_sup, efz_fuzzer, efz_worker_sup | Start/stop/death → lifecycle/report | OTP processes | efz/application → links/monitors/supervisors | PARTIAL — per-case coordinator not supervised |
+| Parallel workers | config valid accepts only workers=1 | workers>1 → invalid configuration | None | config rejects | PARTIAL — functionality absent, not a dormant pool |
+| Persistent campaign state | Corpus/global coverage/queue cursor/RNG restoration not implemented | — | None | — | PARTIAL — crash artifacts and external reports only |
+| Manual compatibility | efz_cov:hit/1, executor:run/3; common executor | Manual ID → {manual,Id}; run/3 → outcome | Same execution context | Legacy callers/tests → runtime | LEGACY, explicitly available |
+| Old helper APIs | cov:interesting/2, reset_local/0, snapshot/0 | Direct manual helpers | PD/context | No calls in current src/test/examples | UNUSED by the main path |
+| Test prerecorded mutator | test/efz_scripted_mutator | iteration → prerecorded binary; parent ignored | None | Phase2/CT/backend tests → lists:nth | UNUSED in production |
 | Benchmark replay / measurement | bench/efz_perf*, *.escript, scripts/coverage_bench | Inputs/workloads → timing/ETF/text | Benchmark VM; replay uses persistent_term | Explicit bench scripts → public EFZ APIs | UNUSED production |
 
 ## 4. Actual End-to-End Execution Flow
 
-### Общий старт
+### Common startup
 
 ~~~text
 Erlang caller / examples/.../run.escript:main
-  -> efz_instrument:compile(SourceFile, CompilerConfig)           % явный предварительный шаг
+  -> efz_instrument:compile(SourceFile, CompilerConfig)           % explicit preliminary step
   -> efz:start(ConfigMap)
   -> application:ensure_all_started(efz)
   -> supervisor:start_child(efz_sup, efz_fuzzer child spec)
   -> efz_fuzzer:start_link(ConfigMap)
   -> efz_config:prepare(ConfigMap)
-       -> efz_mutation_plan:prepare(MutationOptions, Seeds)       % только staged
+       -> efz_mutation_plan:prepare(MutationOptions, Seeds)       % staged only
             -> efz_dictionary:normalize/2, load/2
        -> efz_instrument:preflight(Artifacts)                    % automatic
             -> load/1 -> loaded_manifest/2
@@ -170,11 +172,11 @@ Erlang caller / examples/.../run.escript:main
                  -> self() ! iterate
 ~~~
 
-Artifact descriptor имеет module atom, absolute beam path, manifest path, build_id binary SHA-256, warnings. Prepared config — обычная map, не application env и не persistent_term. Артефакты загружаются до создания worker. Loader не компилирует отдельный неинструментированный harness из переданного пути: harness должен быть доступен code server.
+The artifact descriptor contains a module atom, absolute beam path, manifest path, binary SHA-256 build_id and warnings. Prepared config is an ordinary map, not application env or persistent_term. Artifacts load before worker creation. The loader does not compile a separate uninstrumented harness from a supplied path: the harness must be available to the code server.
 
-### Calibration и два пути мутации
+### Calibration and the two mutation paths
 
-Worker сначала копирует efz_corpus:all() в pending_seeds. Каждое начальное entry исполняется один раз с Phase=calibration; это инициализация GlobalCoverage, не repeated stability calibration.
+The worker first copies efz_corpus:all() into pending_seeds. Each initial entry executes once with Phase=calibration; this initializes GlobalCoverage, rather than performing repeated stability calibration.
 
 ~~~text
 random:
@@ -189,7 +191,7 @@ staged:
   efz_worker:staged_iteration(State)
     -> efz_corpus:mutation_entries()
        gen_server:call(efz_corpus, mutation_entries)
-       <- [#{id:=integer(), input:=binary()}]                     % весь актуальный corpus
+       <- [#{id:=integer(), input:=binary()}]                     % entire current corpus
     -> efz_mutation_plan:next(PlanMap, Entries)
        <- {candidate, Binary, ProvenanceMap, NextPlan}
         | {skip, Reason, NextPlan}
@@ -200,9 +202,9 @@ staged:
     -> efz_worker:execute(Binary, #{id=>ParentId}, mutation, State)
 ~~~
 
-skip только планирует следующий iterate. Счётчик iteration/max_iterations относится к сгенерированным и исполняемым candidates; skips и initial calibration в него не входят.
+skip only schedules the next iterate. The iteration/max_iterations counter applies to generated and executed candidates; skips and initial calibration do not count toward it.
 
-### Исполнение, messages и возврат
+### Execution, messages and return
 
 ~~~text
 efz_worker:execute(Input, ParentEntry, Phase, State)
@@ -221,19 +223,19 @@ efz_worker:execute(Input, ParentEntry, Phase, State)
                   ets:insert(Table, {{probe, Identity}})
            Parent ! {target_result, Ref, self(), Outcome}
          receive target_result / DOWN / caller DOWN / timeout
-         дождаться target DOWN; при timeout kill_and_drain/2
+         wait for target DOWN; on timeout kill_and_drain/2
          efz_cov:snapshot(Context) -> {ok,SortedHits} / {error,...}
          efz_cov_manifest:validate_prepared(...) -> ok / error
          Caller ! {Request, CoordinatorPid, ResultMap}
          after: kill_and_drain(Target), close(Context), demonitor(Caller)
-       caller ждёт DOWN coordinator, затем возвращает ResultMap
+       caller waits for coordinator DOWN, then returns ResultMap
 ~~~
 
-ResultMap содержит execution_ref, outcome, target_outcome, coverage, coverage_status, elapsed_us, builds. В coordinator_down fallback нет target_outcome, coverage=[], builds=#{} и инфраструктурная ошибка; это не обычный пустой successful snapshot.
+ResultMap contains execution_ref, outcome, target_outcome, coverage, coverage_status, elapsed_us and builds. The coordinator_down fallback has no target_outcome, coverage=[], builds=#{} and an infrastructure error; it is not an ordinary empty successful snapshot.
 
-Дополнительные messages: стандартные {'DOWN',Monitor,process,Pid,Reason}; при ошибке ETS hook отправляет владельцу {efz_cov_failure,Ref,Why}. После завершения кампании worker отправляет {campaign_done,WorkerPid,Report}; fuzzer отвечает сохранённым gen_server callers await. Target input не проходит через файловый descriptor, stdin, port, socket или общий mailbox worker: он захватывается closures при spawn_monitor.
+Additional messages: standard {'DOWN',Monitor,process,Pid,Reason}; on an ETS error, the hook sends its owner {efz_cov_failure,Ref,Why}. At campaign completion the worker sends {campaign_done,WorkerPid,Report}; the fuzzer replies to saved gen_server callers awaiting the result. Target input does not pass through a file descriptor, stdin, port, socket or the worker's shared mailbox: spawn_monitor closures capture it.
 
-### Обратная связь и следующее поколение
+### Feedback and the next generation
 
 ~~~text
 ResultMap
@@ -248,96 +250,96 @@ ResultMap
            entries := entries ++ [NewEntry]
            next := next + 1
            <- {ok,Id} / {existing,Input}
-  -> efz_worker:record_failure(...)                              % отдельная ветвь artifacts
+  -> efz_worker:record_failure(...)                              % separate artifact branch
   -> self() ! iterate
-  -> corpus:select() либо corpus:mutation_entries()              % видят NewEntry
-  -> следующая mutation, где NewEntry может быть Parent
+  -> corpus:select() or corpus:mutation_entries()              % see NewEntry
+  -> next mutation, where NewEntry can be Parent
 ~~~
 
-Конкретное замыкание: worker строки 42–49, 58–90; corpus строки 12–14; mutation_plan строки 63–76. Между successful retain и следующим select отсутствует разрыв. Файловой операции в этом участке нет.
+The exact connection: worker lines 42–49, 58–90; corpus lines 12–14; mutation_plan lines 63–76. There is no gap between successful retention and the next selection. This section performs no filesystem operation.
 
 ## 5. Harness and Input Delivery
 
-### Как пользователь выбирает цель
+### How the user selects a target
 
-**Минимальный run(Input) when is_binary(Input) можно запустить сегодня без изменения внутренних модулей EFZ.** Достаточно экспортировать run/1, скомпилировать/загрузить module обычными средствами Erlang и передать target => Module в efz:start/1. Отдельный adapter нужен только если существующий target не соответствует run/1 или необходимо управлять классификацией ошибок. Формальный behavior efz_target существует; runtime проверяет функцию, но не требует атрибута -behaviour.
+**A minimal run(Input) when is_binary(Input) can run today without changing EFZ internals.** Export run/1, compile/load the module with ordinary Erlang tools and pass target => Module to efz:start/1. A separate adapter is needed only when an existing target does not match run/1 or error classification needs control. The formal efz_target behavior exists; runtime checks the function but does not require a -behaviour attribute.
 
-В automatic mode дополнительно нужны instrumented artifacts тех module, которые реально будут вызваны. Можно инструментировать сам module с run/1 — как staged example — либо отдельный parser, оставив harness обычным — как automatic/Cowboy/audit example.
+Automatic mode also needs instrumented artifacts for the modules that will actually be called. You can instrument the module containing run/1 itself, as in the staged example, or a separate parser while leaving the harness ordinary, as in the automatic/Cowboy/audit examples.
 
-| Вопрос | Фактический ответ / evidence |
+| Question | Actual answer / evidence |
 |---|---|
-| Target module | Config key target, atom; config:valid/1 строки 29–33 |
-| Function и arity | Фиксированы run/1. function/arity options не реализованы; произвольные верхнеуровневые ключи могут быть молча сохранены |
+| Target module | Config key target, atom; config:valid/1 lines 29–33 |
+| Function and arity | Fixed at run/1. function/arity options are not implemented; arbitrary top-level keys can be silently retained |
 | Contract | efz_target: -callback run(binary()) -> term() |
-| Загрузка | artifacts preflight сначала; затем ensure_loaded(Target); отдельного compile_harness API нет |
-| Проверка экспорта | erlang:function_exported(M,run,1), config строки 42–48 |
-| Process | Новый target process для каждого input; один и тот же BEAM |
-| Вызов | M:run(Input), executor строка 34; явного apply/3 нет |
-| Success | Любой нормальный возврат, включая {error,...}, false или {invalid,...}, обёрнут в {ok,ReturnValue} |
+| Loading | Artifacts preflight first; then ensure_loaded(Target); no separate compile_harness API |
+| Export check | erlang:function_exported(M,run,1), config lines 42–48 |
+| Process | New target process for every input; same BEAM VM |
+| Invocation | M:run(Input), executor line 34; no explicit apply/3 |
+| Success | Any normal return, including {error,...}, false or {invalid,...}, wrapped in {ok,ReturnValue} |
 | Error/throw | {crash,Class,Reason,Stack} |
-| exit/1 | {exit,Reason}, stack не сохраняется |
-| Linked abnormal exit | Может завершить root → monitor DOWN → {exit,Reason}; если root trap_exit и обработал сигнал, нормальный return считается success |
-| Timeout | Убивается и дожидается DOWN только root; children не регистрируются |
-| Cleanup callbacks | before_input/reset/after_input/cleanup не существуют |
-| Application lifecycle | init target application / stop target application EFZ не управляет |
+| exit/1 | {exit,Reason}, stack not retained |
+| Linked abnormal exit | Can terminate root → monitor DOWN → {exit,Reason}; if the root traps exits and handles the signal, a normal return counts as success |
+| Timeout | Only the root is killed and awaited through DOWN; children are not registered |
+| Cleanup callbacks | before_input/reset/after_input/cleanup do not exist |
+| Application lifecycle | EFZ does not manage target application initialization/shutdown |
 
-Для существующих targets, ожидающих list, iolist, arbitrary term или MFA, преобразование/adapter пишет пользователь. В audit_harness input передавался audit_target:parse/1 без изменений. В Cowboy harness bytes кладутся в #{qs=>Input}; штатные request_error qs/limit_reached преобразуются в {invalid,...}, неожиданные исключения проходят наружу.
+For existing targets expecting a list, iolist, arbitrary term or MFA, the user writes the conversion/adapter. In audit_harness, input was passed unchanged to audit_target:parse/1. In the Cowboy harness, bytes go into #{qs=>Input}; standard request_error qs/limit_reached errors are converted to {invalid,...}, while unexpected exceptions propagate.
 
-### Один seed от файла до target
+### One seed from file to target
 
-Production API принимает готовый непустой список binaries. Ни config, ни corpus не читают seed-файлы. Доступный путь:
+The production API accepts a ready-made nonempty list of binaries. Neither config nor corpus reads seed files. The available path is:
 
 ~~~erlang
-{ok, Seed} = file:read_file(SeedPath),       % caller, не функция EFZ
+{ok, Seed} = file:read_file(SeedPath),       % caller, not an EFZ function
 efz:start(#{target => Harness, seeds => [Seed], artifacts => Artifacts, ...}).
 ~~~
 
-Затем binary хранится в entry.input, выбирается напрямую или передаётся planner, полученный binary идёт execute → run/4 → M:run/1 → parser. Audit script делает именно это; file:read_file и запись fixture находятся вне coverage. Эти подготовительные действия не подменяют core mocks.
+The binary then lives in entry.input, is selected directly or passed to the planner, and the resulting binary follows execute → run/4 → M:run/1 → parser. The audit script does exactly this; file:read_file and fixture writes are outside coverage. These preparatory actions do not replace the core with mocks.
 
-| Тип / ограничение | Random runtime | Staged runtime |
+| Type / limit | Random runtime | Staged runtime |
 |---|---|---|
-| Initial inputs | Только binary(); список должен быть непустым | То же; максимум 4096 initial entries |
-| Верхняя граница input | Нет общей границы в config/worker/executor | max_input_bytes default 4096, допустимо 0…1048576 |
-| Generated type | Worker проверяет is_binary | Primitives возвращают binary; ошибки/skip обрабатываются planner |
-| Empty binary | Допустим; delete может получить <<>>, mutate(<<>>) даёт <<0>> | Допустим; delete/splice могут получить <<>> |
-| Oversized seed | Принимается при достаточной памяти | prepare отклоняет oversized_initial_seed |
-| Oversized candidate | Общей проверки размера нет | Размер проверяется при операциях; skip(size_limit)/error |
-| Byte conversions | Полное binary_to_list и list_to_binary для непустого input | Binary operations; только генерация literal bytes через список |
-| Exact recipe | Нет | Primary bytes + concrete ops + literal tokens/donors + hash |
-| Persistence successful input | Только RAM entry | Только RAM entry с recipe |
+| Initial inputs | binary() only; list must be nonempty | Same; at most 4096 initial entries |
+| Upper input bound | No common bound in config/worker/executor | max_input_bytes default 4096, allowed 0…1048576 |
+| Generated type | Worker checks is_binary | Primitives return binary; planner handles errors/skip |
+| Empty binary | Allowed; delete can yield <<>>, mutate(<<>>) gives <<0>> | Allowed; delete/splice can yield <<>> |
+| Oversized seed | Accepted with enough memory | prepare rejects oversized_initial_seed |
+| Oversized candidate | No common size check | Size checked by operations; skip(size_limit)/error |
+| Byte conversions | Complete binary_to_list and list_to_binary for nonempty input | Binary operations; only literal-byte generation uses a list |
+| Exact recipe | None | Primary bytes + concrete ops + literal tokens/donors + hash |
+| Successful-input persistence | RAM entry only | RAM entry with recipe only |
 
-Input как Erlang term передаётся между corpus, worker, coordinator и target. Это не zero-copy API: maps/lists и heap data передаются через process boundaries; у refcounted binaries backing storage может разделяться. Семантических искажений binary нет. В staged режиме mutation_entries/0 каждый раз переносит список всего корпуса; snapshots/report также копируют структуры. Это последующий performance вопрос, а не разрыв feedback loop.
+Input is passed as an Erlang term between corpus, worker, coordinator and target. This is not a zero-copy API: maps/lists and heap data cross process boundaries; refcounted binaries can share backing storage. Binary semantics are unchanged. In staged mode, mutation_entries/0 transfers the entire corpus list each time; snapshots/report also copy structures. This is a later performance concern, not a break in the feedback loop.
 
-Низкоуровневый efz_executor:run/4 не проверяет is_binary(Input) и в тестах получает tuples/atoms. Это полезно для executor tests, но не расширяет binary contract основного fuzz loop. Replay execute/execute_file ограничивает raw input одним MiB, тогда как random mode такого общего предела не имеет.
+Low-level efz_executor:run/4 does not check is_binary(Input) and receives tuples/atoms in tests. This is useful for executor tests but does not broaden the main fuzz loop's binary contract. Replay execute/execute_file limits raw input to one MiB, whereas random mode has no such common limit.
 
-### Изоляция case и влияние предыдущего input
+### Case isolation and effects of previous inputs
 
-| Ресурс | Реальная очистка / возможность влияния |
+| Resource | Actual cleanup / potential influence |
 |---|---|
-| Root process dictionary | Исчезает с root; следующий root новый. EFZ добавляет один служебный context key |
-| Root mailbox | Исчезает; result/monitor messages остаются в отдельном coordinator и не попадают в следующий case |
-| Coverage ETS | Новая таблица на case, удаляется coordinator; normal root termination её не уничтожает |
-| Target-owned ETS | Обычные owner tables исчезают с root; heir transfer, чужие/child-owned tables не очищаются EFZ |
-| Registered root name | Освобождается при смерти root; имена живых children остаются |
-| Spawned children | Registry/kill-tree нет; как unlinked, так и linked child могут пережить нормальный return root |
-| Timers | Общего cancel/reset нет; сообщения/действия в адрес выживших процессов могут исполняться позднее |
-| Monitors/links root | Root прекращается; EFZ drains собственные monitors. Чужие процессы и их связи не обходятся |
-| Application env, persistent_term, code server | Не очищаются и разделяются cases |
-| Файлы, внешние сервисы, sockets, NIF state | Универсального reset/изоляции нет |
+| Root process dictionary | Disappears with root; the next root is new. EFZ adds one internal context key |
+| Root mailbox | Disappears; result/monitor messages remain in a separate coordinator and do not reach the next case |
+| Coverage ETS | New table per case, deleted by coordinator; normal root termination does not destroy it |
+| Target-owned ETS | Ordinary owner tables disappear with root; EFZ does not clean up heir transfers or other/child-owned tables |
+| Registered root name | Released on root death; names of living children remain |
+| Spawned children | No registry/kill-tree; both unlinked and linked children can survive a normal root return |
+| Timers | No common cancellation/reset; messages/actions addressed to surviving processes can run later |
+| Root monitors/links | Root terminates; EFZ drains its own monitors. Other processes and their relationships are not traversed |
+| Application env, persistent_term, code server | Not cleared and shared across cases |
+| Files, external services, sockets, NIF state | No universal reset/isolation |
 
-Подтверждённый A→B→A сценарий: input state вызывает path_a; dirty записывает persistent_term; повторный идентичный state вызывает path_ab и другой probe set. См. [cross_case_state.txt](audit-2026-09-12/cross_case_state.txt).
+Confirmed A→B→A scenario: input state calls path_a; dirty writes persistent_term; the identical state input then calls path_ab with a different probe set. See [cross_case_state.txt](audit-2026-09-12/cross_case_state.txt).
 
-Подтверждены unlinked и linked children, которые исполнили instrumented path_abc, но имели undefined execution context: coverage root execution осталось пустым, child остался жив после return. Отдельно child остался жив после timeout root. Диагностический script сам завершил созданные им children после фиксации результатов; **эта уборка не приписывается EFZ**.
+Unlinked and linked children were confirmed to execute instrumented path_abc with an undefined execution context: root execution coverage remained empty and the child survived the return. A separate child survived a root timeout. The diagnostic script terminated its own children after recording results; **this cleanup is not attributed to EFZ**.
 
-Следовательно, успешная изоляция root ETS/PD не гарантирует воспроизводимость произвольного OTP-приложения. erlang:halt, VM/NIF crash или неограниченное потребление общей памяти также не изолированы отдельным process.
+Therefore, successful isolation of root ETS/PD does not guarantee reproducibility for an arbitrary OTP application. erlang:halt, VM/NIF crashes and unbounded consumption of shared memory are likewise not isolated by a separate process.
 
 ## 6. Coverage Pipeline
 
-### Механизм и granularity
+### Mechanism and granularity
 
-EFZ использует собственный source parse_transform и ETS exact set. OTP native coverage, cover, counters, hit-count buckets и bitmap в основной реализации отсутствуют. Instrumentation выполняется заранее, при compile:noenv_file/2, а не на каждой итерации.
+EFZ uses its own source parse_transform and an exact ETS set. The main implementation has no OTP native coverage, cover, counters, hit-count buckets or bitmap. Instrumentation occurs ahead of time in compile:noenv_file/2, not on every iteration.
 
-Metric в manifest — clause_outcome_probe. Hook добавляется в начало тела выбранной clause/outcome. Реальные kind:
+The manifest metric is clause_outcome_probe. The hook is added at the start of the selected clause/outcome body. Actual kinds:
 
 ~~~text
 function_clause
@@ -353,31 +355,31 @@ fun_clause
 named_fun_clause
 ~~~
 
-Это не edge coverage, не полное branch coverage и не line coverage. Два исхода на одной строке имеют разные probe IDs; строки нужны для source mapping. Факт входа в тело clause не показывает каждый переход между clauses или каждый исход проверки guard. andalso/orelse обходятся как обычные op nodes: отдельные true/false probes для оператора не создаются. Patterns и guards сохраняются без hook.
+This is neither edge coverage, complete branch coverage nor line coverage. Two outcomes on the same line have different probe IDs; lines provide source mapping. Entering a clause body does not reveal every transition between clauses or every guard-check outcome. andalso/orelse are traversed as ordinary op nodes: separate true/false probes are not created for the operator. Patterns and guards remain without hooks.
 
-List/binary/map comprehensions, maybe, неизвестные AST constructs и executable record defaults не получают внутренних probes. strict=true отклоняет incomplete instrumentation; strict=false сохраняет конструкцию, пишет limitations в manifest и предупреждает. Проверки семантики есть в phase2_tests:semantics/1, manifest/1, tail/1, skipped/0. Вся native/NIF часть и невыбранные modules вне измерения.
+List/binary/map comprehensions, maybe, unknown AST constructs and executable record defaults receive no internal probes. strict=true rejects incomplete instrumentation; strict=false preserves the construct, records manifest limitations and warns. Semantics checks are in phase2_tests:semantics/1, manifest/1, tail/1 and skipped/0. Native/NIF code and unselected modules are entirely outside measurement.
 
-### Identity и source mapping
+### Identity and source mapping
 
-Полная identity:
+Full identity:
 
 ~~~erlang
 {ModuleAtom, BuildIdSHA256, ProbeIdInteger}
 ~~~
 
-ProbeId начинается с 1 внутри каждого module и увеличивается в детерминированном AST traversal. BuildId вычисляется SHA-256 от tuple с instrumentation version, OTP release, compile module MD5, нормализованными preprocessed forms и relevant compiler options. [efz_instrument_pt:parse_transform/2](../src/efz_instrument_pt.erl), строки 35–55; probe/4, строки 109–118.
+ProbeId starts at 1 in each module and increases through deterministic AST traversal. BuildId is a SHA-256 hash of a tuple containing instrumentation version, OTP release, compile module MD5, normalized preprocessed forms and relevant compiler options. [efz_instrument_pt:parse_transform/2](../src/efz_instrument_pt.erl), lines 35–55; probe/4, lines 109–118.
 
-| Свойство | Вывод |
+| Property | Finding |
 |---|---|
-| Повторная сборка одинакового source/options/toolchain | Identity стабильна; проверено phase2 determinism |
-| Порядок компиляции разных modules | Не влияет на локальную нумерацию: общий mutable allocator отсутствует |
-| Перестановка/добавление AST nodes | Может перенумеровать probes; меняется build namespace |
-| Разные builds | Старые IDs нельзя механически переносить в новую coverage epoch |
-| Коллизии | В пределах валидного manifest duplicate integers/structural paths отклоняются. Межмодульного bitmap aliasing нет. SHA-256 остаётся cryptographic hash, не математической гарантией уникальности |
-| Relocation | Source paths внутри source_root нормализуются, relocated-build test проходит; внешние absolute include paths/изменения toolchain могут менять hash |
-| Mapping | Каждый probe содержит function, arity, kind, structural_location, source_file, line, column |
+| Rebuilding identical source/options/toolchain | Stable identity; verified by phase2 determinism |
+| Compilation order of different modules | Does not affect local numbering: there is no shared mutable allocator |
+| Reordering/adding AST nodes | Can renumber probes; build namespace changes |
+| Different builds | Old IDs cannot be mechanically transferred to a new coverage epoch |
+| Collisions | Duplicate integers/structural paths are rejected within a valid manifest. No cross-module bitmap aliasing. SHA-256 remains a cryptographic hash, not a mathematical uniqueness guarantee |
+| Relocation | Source paths within source_root are normalized, and the relocated-build test passes; external absolute include paths/toolchain changes can change the hash |
+| Mapping | Every probe contains function, arity, kind, structural_location, source_file, line and column |
 
-BEAM содержит efz_manifest attribute, sidecar — тот же term. Loader сравнивает sidecar с BEAM manifest и уже загруженный module с ожидаемым manifest. Запрет других parse transforms, module allowlist, запрет EFZ internals/OTP modules и отдельный outdir защищают согласованность обычного build path.
+The BEAM contains an efz_manifest attribute; the sidecar contains the same term. The loader compares the sidecar with the BEAM manifest and the already loaded module with the expected manifest. Prohibiting other parse transforms, a module allowlist, excluding EFZ internals/OTP modules and a separate outdir protect consistency of the normal build path.
 
 ### Local → snapshot → global
 
@@ -385,7 +387,7 @@ BEAM содержит efz_manifest attribute, sidecar — тот же term. Load
 local coverage:
     fresh public unnamed ETS set, execution coordinator owner
     row = {{probe, {Module,BuildId,ProbeId}}}
-    duplicate hit overwrites тот же key
+    duplicate hit overwrites the same key
 
 local context:
     {efz_context,1,FreshRef,TableOr{ets_member,Table},Owner}
@@ -404,15 +406,15 @@ global coverage:
     only successful input coverage is unioned
 
 reset:
-    next execution получает другую таблицу, reference и root process
-    previous table удаляется; глобальное множество не сбрасывается до конца campaign
+    next execution receives a different table, reference and root process
+    previous table is deleted; global set is not reset until campaign ends
 ~~~
 
-ets_member сначала проверяет ets:member, затем insert при отсутствии. Это оптимизация повторных hits в том же set, не отдельная metric. Prepared/per_execution — две стратегии validation, не разные collectors. Differential suite проверяет все четыре комбинации.
+ets_member checks ets:member first, then inserts if absent. This optimizes repeated hits in the same set; it is not a separate metric. Prepared/per_execution are two validation strategies, not different collectors. The differential suite checks all four combinations.
 
-### Точная семантика interesting
+### Exact semantics of interesting
 
-[efz_feedback:evaluate/3](../src/efz_feedback.erl), строки 5–22:
+[efz_feedback:evaluate/3](../src/efz_feedback.erl), lines 5–22:
 
 ~~~text
 require Result.builds == Feedback.builds
@@ -430,98 +432,98 @@ else:
     target_failure; Global unchanged; new_probes=[]
 ~~~
 
-**New coverage = ранее не наблюдавшаяся полная probe identity на успешном выполнении.** Не новый count, не новая комбинация известных probes, не hash signature и не новый bitmap bit. Идентичное множество с другими кратностями выполнения неинтересно. Другой набор, являющийся подмножеством Global, тоже неинтересен.
+**New coverage = a previously unseen full probe identity in a successful execution.** Not a new count, a new combination of known probes, a hash signature or a new bitmap bit. An identical set with different execution multiplicities is uninteresting. A different set that is a subset of Global is also uninteresting.
 
-Проверяемая формула C_new = C_current − C_global реализована, но с условиями success и phase. Crashes/throws/exits/timeouts могут иметь непустой execution coverage, однако не пополняют successful global и corpus. Это явная policy, которая не позволяет crash-only probe подавить будущую полезную successful mutation.
+The tested formula C_new = C_current − C_global is implemented, with success and phase conditions. Crashes/throws/exits/timeouts may have nonempty execution coverage but do not extend the successful global set or corpus. This explicit policy prevents a crash-only probe from suppressing a future useful successful mutation.
 
-Calibration делает merge успешных initial seeds, но не вставляет их повторно и не увеличивает discoveries. Full snapshot successful input после evaluate не сохраняется в его corpus metadata: остаются new_probes, builds, outcome, input identity и provenance. Report.coverage — union всей campaign, не coverage конкретного input.
+Calibration merges successful initial seeds but does not reinsert them or increment discoveries. After evaluate, a successful input's full snapshot is not saved in corpus metadata: new_probes, builds, outcome, input identity and provenance remain. Report.coverage is the entire campaign's union, not coverage of a specific input.
 
-### Границы достоверности feedback
+### Feedback reliability boundaries
 
-1. **Неиспользованные artifacts.** Автоматическая campaign с валидным artifact audit_target и harness, который его не вызывает, завершилась completed, coverage=[], infrastructure_failures=0. Валидация проверяет допустимость фактически увиденных IDs; пустой список допустим. Нельзя по успешному preflight заключить, что harness связан с selected target. [Evidence](audit-2026-09-12/disconnected_artifacts.txt).
-2. **Hot reload.** После preflight выбранный module заменён обычной неинструментированной сборкой. Следующий case вернул path_a, coverage=[], coverage_status=ok и старую builds map. Prepared plan — pinned allowlist, не проверка выполняющегося кода на каждом case. [Evidence](audit-2026-09-12/hot_reload.txt). README запрещает такой reload, но runtime не обнаруживает нарушение.
-3. **Children.** Context process dictionary не наследуется spawn. Instrumented child без attach выполняет hook как no-op. Ручной перенос context в child возможен через API, но quiescence/tree cleanup executor от этого не появляется.
-4. **Повреждение context.** Ошибка ETS шлёт sticky failure message, но malformed-context clause в cov_rt только raises. Target, заменивший context и поймавший exception, вернул success с пустым coverage. [Evidence](audit-2026-09-12/caught_malformed_context.txt). Обычный код, стирающий весь process dictionary, также может отключить hook.
-5. **Потеря coordinator.** Target остаётся живым; Result fallback содержит builds=#{}. evaluate может заменить первичную coordinator_down ошибку на instrumentation_build_mismatch. Это не target crash, но первичная причина теряется на уровне campaign report.
+1. **Unused artifacts.** An automatic campaign with a valid audit_target artifact and a harness that does not call it completed with coverage=[], infrastructure_failures=0. Validation checks validity of the IDs actually observed; an empty list is valid. Successful preflight does not establish that the harness is connected to the selected target. [Evidence](audit-2026-09-12/disconnected_artifacts.txt).
+2. **Hot reload.** After preflight, the selected module was replaced by an ordinary uninstrumented build. The next case returned path_a, coverage=[], coverage_status=ok and the old builds map. A prepared plan is a pinned allowlist, not a per-case check of executing code. [Evidence](audit-2026-09-12/hot_reload.txt). README prohibits this reload, but runtime does not detect the violation.
+3. **Children.** spawn does not inherit the process-dictionary context. An instrumented child without attach executes the hook as a no-op. The API permits manual context transfer to a child, but this does not add quiescence/tree cleanup to the executor.
+4. **Context corruption.** An ETS error sends a sticky failure message, but the malformed-context clause in cov_rt only raises. A target that replaced its context and caught the exception returned success with empty coverage. [Evidence](audit-2026-09-12/caught_malformed_context.txt). Ordinary code clearing the entire process dictionary can also disable the hook.
+5. **Coordinator loss.** The target remains alive; the fallback result contains builds=#{}. evaluate can replace the primary coordinator_down error with instrumentation_build_mismatch. This is not a target crash, but the primary cause is lost at campaign-report level.
 
-Эти пункты не отменяют работоспособность coverage в заявленной области свежего root process с неизменяемой instrumented сборкой. Они ограничивают применимость результата к stateful/async targets и требуют явной диагностики.
+These points do not invalidate coverage operation within its stated scope: a fresh root process and an unchanged instrumented build. They limit applicability to stateful/async targets and require explicit diagnostics.
 
 ## 7. Corpus and Queue Pipeline
 
-**Corpus feedback loop: WORKING внутри одной кампании. Persistent/restart часть: PARTIAL, не реализована.**
+**Corpus feedback loop: WORKING within one campaign. Persistent/restart functionality: PARTIAL, not implemented.**
 
-Ключевой модуль — [efz_corpus.erl](../src/efz_corpus.erl), всего 15 строк; малый размер скрывает существенные ограничения, но не отсутствие queue.
+The key module is [efz_corpus.erl](../src/efz_corpus.erl), only 15 lines; its small size hides significant limitations, not the absence of a queue.
 
-| Понятие | Что имеется фактически |
+| Concept | What actually exists |
 |---|---|
-| Initial corpus | Config.seeds = [binary()]; entry создаётся на каждый элемент без initial dedup |
-| Active queue | State.entries; вначале seeds, затем все successful new-coverage inputs |
-| Interesting input | Mutation с outcome {ok,_} и NewProbes ≠ [] |
-| Saved input | В successful path — entry.input в RAM. В crash path — файл .input |
-| Favored input | Понятия/оценки/флага нет |
-| Donor input | Любой entry.input из текущего active corpus, отличный по content от Primary |
-| Queue ID | Порядковое целое 1…N, выделяется serial corpus gen_server |
-| Content ID | SHA-256 в worker metadata и planner/recipe; initial metadata изначально пустая |
+| Initial corpus | Config.seeds = [binary()]; an entry is created for every element without initial deduplication |
+| Active queue | State.entries; initially seeds, then all successful new-coverage inputs |
+| Interesting input | Mutation with outcome {ok,_} and NewProbes ≠ [] |
+| Saved input | Successful path: entry.input in RAM. Crash path: .input file |
+| Favored input | No concept/score/flag |
+| Donor input | Any entry.input in the current active corpus whose content differs from Primary |
+| Queue ID | Sequential integer 1…N, allocated by the serial corpus gen_server |
+| Content ID | SHA-256 in worker metadata and planner/recipe; initial metadata starts empty |
 
-### Вставка и повторное использование
+### Insertion and reuse
 
-retain/2 вызывает add/2 при new_coverage. Corpus последовательно проверяет binary equality по списку entries. При отсутствии совпадения добавляет entry в конец и увеличивает next ID. Уже существующий binary возвращает {existing,Binary}, а не ID; worker меняет retention_reason на existing_input.
+retain/2 calls add/2 for new_coverage. Corpus sequentially checks binary equality over the entry list. If no match exists, it appends the entry and increments the next ID. An existing binary returns {existing,Binary}, not an ID; the worker changes retention_reason to existing_input.
 
-Random select/0 вызывает rand:uniform(length(Entries)) по **всему текущему** списку. У недавно добавленного entry ненулевая вероятность выбора. Детерминированной гарантии выбора до завершения конечного бюджета у random mode нет.
+Random select/0 calls rand:uniform(length(Entries)) over the **entire current** list. A newly added entry has a nonzero selection probability. Random mode provides no deterministic guarantee of selection before a finite budget ends.
 
-Staged mode при каждом next получает текущие mutation_entries/0; snapshot IDs на round формируется из insertion order. Вновь добавленный entry становится primary со следующего round. Donor list в random_operation(splice,...) берётся из всех текущих Entries, даже когда pending primary IDs относятся к началу round. Поэтому новый corpus input может стать donor до своей первой очереди как primary.
+In staged mode, each next receives current mutation_entries/0; the round's ID snapshot follows insertion order. A newly added entry becomes primary in the next round. The donor list in random_operation(splice,...) comes from all current Entries even when pending primary IDs refer to the round's beginning. A new corpus input can therefore become a donor before its first turn as primary.
 
-Эксперимент подтвердил parent=2 для AB и parent=3 для ABC. Дополнительно штатный random example создал corpus entry <<>> с parent=2, где entry 2 был ранее найденной mutation <<"@">>. Default random loop тоже способен использовать newly discovered parent; конкретная последовательность этого example не обязана повторяться без selection_seed.
+The experiment confirmed parent=2 for AB and parent=3 for ABC. Additionally, the standard random example created corpus entry <<>> with parent=2, where entry 2 was a previously discovered mutation <<"@">>. The default random loop can also use a newly discovered parent; that example's specific sequence need not repeat without selection_seed.
 
-### Metadata, дедупликация и scheduling
+### Metadata, deduplication and scheduling
 
-| Свойство | Состояние |
+| Property | State |
 |---|---|
-| Duplicate successful mutations | По полному binary equality, линейный поиск; SHA не используется как dedup index |
-| Duplicate initial seeds | Сохраняются с разными integer IDs; fresh check с двумя <<"noop">> дал corpus size=2 и calibrations=2 |
-| Parent | Есть parent integer ID для retained mutation |
-| Mutation depth/generation | Явных полей нет; пока сохранены ancestors, глубина выводима из parent links |
-| Insertion order | Список, append в конец |
-| Coverage signature | Отдельного signature/full successful snapshot нет; только discovery delta и build namespace |
-| Per-entry seed status | Нет quarantine для crash/timeout/нестабильного seed; initial failures остаются в active corpus |
-| Favored/power/energy | Не реализовано |
-| Global corpus size/memory bound | Нет общей квоты; staged ограничивает initial count и размер input, не число накопленных entries |
-| Random starvation | Возможно в конечной campaign; равномерная вероятность, не гарантия обслуживания |
-| Staged fairness | Round snapshots защищают старые entries от постоянного роста, пока campaign не остановлена idle cutoff |
-| Identical content staged state | Cursors keyed по content hash + config ID; initial duplicate queue IDs разделяют progress |
+| Duplicate successful mutations | Full binary equality, linear search; SHA is not a deduplication index |
+| Duplicate initial seeds | Retained with different integer IDs; a fresh check with two <<"noop">> inputs yielded corpus size=2 and calibrations=2 |
+| Parent | Retained mutation has a parent integer ID |
+| Mutation depth/generation | No explicit fields; while ancestors are retained, depth follows from parent links |
+| Insertion order | List, appended at the end |
+| Coverage signature | No separate signature/full successful snapshot; only discovery delta and build namespace |
+| Per-entry seed status | No quarantine for crashing/timing-out/unstable seeds; initial failures remain in the active corpus |
+| Favored/power/energy | Not implemented |
+| Global corpus size/memory bound | No common quota; staged mode limits initial count and input size, not accumulated entries |
+| Random starvation | Possible in a finite campaign; uniform probability is not a service guarantee |
+| Staged fairness | Round snapshots protect existing entries against continuous growth until the campaign hits the idle cutoff |
+| Identical-content staged state | Cursors keyed by content hash + config ID; initial duplicate queue IDs share progress |
 
-### Disk и restart
+### Disk and restart
 
-Corpus не вызывает file, DETS, disk_log, Mnesia или persistent_term. Не имеет load/save/resume API. Config corpus_dir не интерпретируется. Successful discovery не получает input file и sidecar на диске.
+Corpus does not call file, DETS, disk_log, Mnesia or persistent_term. It has no load/save/resume API. The corpus_dir config option is not interpreted. Successful discoveries receive no disk input file or sidecar.
 
-Examples записывают полный report.term после await. Из него пользователь может вручную получить binaries и передать как seeds новой campaign, но EFZ не выполняет этот импорт, не восстанавливает IDs, cursors, PRNG, global coverage и crash index. Повторная seed calibration также не равна продолжению прерванной campaign.
+Examples write the complete report.term after await. Users can manually extract binaries and pass them as seeds to a new campaign, but EFZ does not import them or restore IDs, cursors, PRNG, global coverage and crash index. Repeated seed calibration is also not continuation of an interrupted campaign.
 
-В experiment после нового start с тем же Config corpus size стал 1 вместо 4. Следовательно, runtime feedback-loop не обрывается между retain и select, но **перенос прогресса через stop/restart отсутствует**.
+In the experiment, starting again with the same Config reset corpus size from 4 to 1. Thus the runtime feedback loop is not broken between retain and select, but **progress does not survive stop/restart**.
 
 ## 8. Mutation Pipeline
 
-### Какие операторы работают
+### Working operators
 
-«Deterministic stage» означает перебор без случайных выборов. Любая отдельная concrete operation efz_mutation детерминирована. «Replayable» ниже относится к штатно записанным staged recipes; legacy random сам recipes не создаёт.
+“Deterministic stage” means enumeration without random choices. Each concrete efz_mutation operation is deterministic. “Replayable” below refers to normally recorded staged recipes; legacy random does not create recipes itself.
 
-| Mutation | Реализация | Deterministic stage | Replayable | Used by runtime |
+| Mutation | Implementation | Deterministic stage | Replayable | Used by runtime |
 |---|---|---|---|---|
-| Bit flip | flip_bits: contiguous 1/2/4 bits, MSB-first; legacy random: один bit | Да, все fitting offsets | Да, staged | Random; staged bitflip/havoc |
-| Byte flip | invert_bytes: 1/2/4 bytes | Да | Да | Staged byteflip/havoc |
-| Arithmetic | add: 8/16/32 bits, signed delta, modulo 2^W; endian big/little для multi-byte | Да, ±1…±max_delta | Да | Staged arithmetic/havoc |
-| Interesting integers | set_integer: 0,1,2,half−2,half−1,half,half+1,max−1,max | Да, boundary | Да | Staged boundary/havoc |
-| Insert | Concrete binary block, включая append boundary | Отдельного literal stage нет | Да | Havoc; legacy вставляет один random byte |
-| Delete | Удаление непустого блока, вплоть до empty output | Нет отдельного stage | Да | Havoc; legacy один byte |
-| Overwrite | Literal block с сохранением размера | Нет отдельного literal stage | Да | Havoc; legacy один random byte |
-| Duplicate | Копия блока в insertion position | Нет отдельного stage | Да | Havoc |
-| Dictionary insert | Вставка token в каждый byte boundary | Да | Да, token bytes в recipe | dictionary_insert/havoc |
-| Dictionary overwrite | Token в каждый fitting offset | Да | Да | dictionary_overwrite/havoc |
-| Splice | prefix(Current,CutA) ++ suffix(Donor,CutB) | Нет; random cut points/donor | Да, donor bytes/hash в op | splice stage и havoc |
-| Havoc | Стек реализованных операций глубиной 1…havoc_depth | Нет; explicit RNG state | Да | Staged havoc lane |
+| Bit flip | flip_bits: contiguous 1/2/4 bits, MSB-first; legacy random: one bit | Yes, all fitting offsets | Yes, staged | Random; staged bitflip/havoc |
+| Byte flip | invert_bytes: 1/2/4 bytes | Yes | Yes | Staged byteflip/havoc |
+| Arithmetic | add: 8/16/32 bits, signed delta, modulo 2^W; big/little endian for multiple bytes | Yes, ±1…±max_delta | Yes | Staged arithmetic/havoc |
+| Interesting integers | set_integer: 0,1,2,half−2,half−1,half,half+1,max−1,max | Yes, boundary | Yes | Staged boundary/havoc |
+| Insert | Concrete binary block, including append boundary | No separate literal stage | Yes | Havoc; legacy inserts one random byte |
+| Delete | Delete a nonempty block, down to empty output | No separate stage | Yes | Havoc; legacy one byte |
+| Overwrite | Literal block preserving size | No separate literal stage | Yes | Havoc; legacy one random byte |
+| Duplicate | Copy a block to an insertion position | No separate stage | Yes | Havoc |
+| Dictionary insert | Insert a token at every byte boundary | Yes | Yes, token bytes in recipe | dictionary_insert/havoc |
+| Dictionary overwrite | Token at every fitting offset | Yes | Yes | dictionary_overwrite/havoc |
+| Splice | prefix(Current,CutA) ++ suffix(Donor,CutB) | No; random cut points/donor | Yes, donor bytes/hash in operation | splice stage and havoc |
+| Havoc | Stack of realized operations of depth 1…havoc_depth | No; explicit RNG state | Yes | Staged havoc lane |
 
-Все операции реализованы в [efz_mutation:operation/3](../src/efz_mutation.erl); выбор/перебор — в [efz_mutation_plan](../src/efz_mutation_plan.erl), строки 81–187. Width order и offsets проверяются independent bit/block models и enumeration tests.
+All operations are implemented in [efz_mutation:operation/3](../src/efz_mutation.erl); selection/enumeration is in [efz_mutation_plan](../src/efz_mutation_plan.erl), lines 81–187. Width order and offsets are checked by independent bit/block models and enumeration tests.
 
-### Фактический порядок staged execution
+### Actual staged-execution order
 
 Default stages:
 
@@ -530,87 +532,87 @@ bitflip, byteflip, arithmetic, boundary,
 dictionary_insert, dictionary_overwrite, havoc, splice
 ~~~
 
-Это **interleaved round-robin lanes**, а не «полностью закончить все deterministic stages каждого seed, затем начать havoc, затем splice».
+These are **interleaved round-robin lanes**, not “finish every deterministic stage of each seed, then start havoc, then splice”.
 
-На visit выбирается очередной corpus ID. Для его content/config key значение lane определяет один stage по modulo length(Stages). Lane увеличивается; stage выполняет не больше attempts_per_visit попыток и выдаёт максимум один candidate. Следующий visit этого content использует следующий lane даже если текущий sweep не закончен. Поэтому havoc может выполняться задолго до окончания bitflip sweep.
+Each visit selects the next corpus ID. For its content/config key, the lane value selects one stage modulo length(Stages). Lane increases; the stage performs at most attempts_per_visit attempts and emits at most one candidate. The next visit to this content uses the next lane even if the current sweep is unfinished. Havoc can therefore run long before the bitflip sweep finishes.
 
-Per-stage cursor хранит следующий integer mutation index. На skip/no_change deterministic index продвигается. На exhaustion stage остаётся завершённым; candidates заранее не материализуются. Возвращённый Plan можно передать следующему next/2 — in-memory resumability работает и протестирована. API сохранения cursor/RNG plan на диск отсутствует.
+A per-stage cursor stores the next integer mutation index. On skip/no_change, the deterministic index advances. Once exhausted, the stage stays complete; candidates are not materialized ahead of time. The returned Plan can be passed to the next next/2: in-memory resumability works and is tested. No API persists cursor/RNG plans to disk.
 
-### Ограничения и ресурсы
+### Limits and resources
 
-| Параметр | Default | Допустимый диапазон / смысл |
+| Parameter | Default | Allowed range / meaning |
 |---|---:|---|
 | max_input_bytes | 4096 | 0…1048576 |
 | max_block_bytes | 128 | 1…65536 |
-| max_token_bytes | 128 | 1…65536; token также ограничен max_block_bytes |
+| max_token_bytes | 128 | 1…65536; token is also bounded by max_block_bytes |
 | max_tokens | 256 | 0…4096 |
 | max_dictionary_bytes | 16384 | 0…1048576 |
 | max_delta | 8 | 1…128 |
-| attempts_per_visit | 8 | 1…1024; максимум попыток, не число outputs |
+| attempts_per_visit | 8 | 1…1024; maximum attempts, not output count |
 | havoc_depth | 8 | 1…32 |
-| random_retries | 4 | 1…128, дополнительно ограничены attempts budget |
-| max_idle_visits | 256 | 1…100000 consecutive empty visits на ВСЮ campaign |
+| random_retries | 4 | 1…128, also bounded by the attempts budget |
+| max_idle_visits | 256 | 1…100000 consecutive empty visits across the ENTIRE campaign |
 | trace_limit | 0 | 0…10000 recipes |
-| max_iterations для staged | 1000, если не задано | 0…1000000; infinity запрещён |
+| max_iterations for staged | 1000 if omitted | 0…1000000; infinity prohibited |
 
-Отдельного max mutations per seed нет. Общее ограничение — execution budget, finite deterministic search либо idle cutoff. Seeds ≤4096 проверяются только staged prepare. Strict mutation options отклоняют неизвестные ключи, в отличие от верхнего campaign config.
+There is no separate maximum mutations per seed. The overall limit is the execution budget, finite deterministic search or idle cutoff. Seeds ≤4096 is checked only by staged prepare. Strict mutation options reject unknown keys, unlike the top-level campaign config.
 
-Словарь загружается один раз bounded read; формат — even-length hex token per line, whole-line comments # и пустые строки. Это не AFL dictionary parser. Empty tokens запрещены, duplicates сортируются/usort; ограничения количества/суммарных bytes проверяются до dedup. Tokens и dictionary_id фиксируются на campaign.
+The dictionary is loaded once through bounded reading; the format is one even-length hex token per line, whole-line # comments and blank lines. This is not an AFL dictionary parser. Empty tokens are prohibited; duplicates are sorted/usorted; count/total-byte limits are checked before deduplication. Tokens and dictionary_id are fixed for the campaign.
 
-No-change primitives пропускаются; havoc stack, вернувшийся к исходному Primary, тоже пропускается и может повторить попытку. Но одинаковые binaries от разных stages/parents не фильтруются перед execution. Corpus дедуплицирует только retained bytes; equivalent coverage executions остаются полезными для correctness, но расходуют бюджет.
+No-change primitives are skipped; a havoc stack returning to its original Primary is also skipped and can retry. However, identical binaries from different stages/parents are not filtered before execution. Corpus deduplicates only retained bytes; equivalent-coverage executions remain useful for correctness but consume the budget.
 
 ### Donors
 
-random_operation(splice,...) получает Entries непосредственно от efz_corpus:mutation_entries(). Donors — lists:usort всех input binaries, отличных от Primary. Выбор не ограничен initial seeds. В provenance сохраняется hash donor и сам donor binary; операция проверяет соответствие hash. Splice может дать пустой output; identical donor и no-change output обрабатываются как skip.
+random_operation(splice,...) receives Entries directly from efz_corpus:mutation_entries(). Donors are lists:usort of all input binaries different from Primary. Selection is not limited to initial seeds. Provenance retains the donor hash and donor binary itself; the operation checks that hash. Splice can produce empty output; identical donors and no-change outputs are handled as skip.
 
-### Преждевременное exhaustion — воспроизведённый дефект
+### Premature exhaustion — reproduced defect
 
-Условие next/2:
+The next/2 condition:
 
 ~~~erlang
 Idle >= maps:get(max_idle_visits,C) orelse complete(State,Entries)
 ~~~
 
-Обе причины возвращают одинаковый done mutation_exhausted. С 256 уникальными однобайтными seeds, stages=[dictionary_overwrite,bitflip] и dictionary=[<<"AB">>] первый lane не имеет fitting overwrite ни для одного seed. После 256 visits campaign останавливается **до первого bitflip**, хотя существует 5120 bitflip candidates только для исходных seeds.
+Both reasons return the same done mutation_exhausted. With 256 unique one-byte seeds, stages=[dictionary_overwrite,bitflip] and dictionary=[<<"AB">>], the first lane has no fitting overwrite for any seed. After 256 visits the campaign stops **before the first bitflip**, although the initial seeds alone have 5120 bitflip candidates.
 
-Реальный запуск дал calibrations=256, executions=0, generated_candidates=0, infrastructure_failures=0, status={mutation_exhausted,mutation_exhausted}. [edge-cases.log](audit-2026-09-12/edge-cases.log), [reproducer](audit-2026-09-12/edge-cases.escript), mutation_plan строки 51–77.
+An actual run yielded calibrations=256, executions=0, generated_candidates=0, infrastructure_failures=0, status={mutation_exhausted,mutation_exhausted}. [edge-cases.log](audit-2026-09-12/edge-cases.log), [reproducer](audit-2026-09-12/edge-cases.escript), mutation_plan lines 51–77.
 
-Документация mutations.md предупреждает, что idle cutoff не доказывает математическое исчерпание всех мутаций. Поэтому это не скрытая отсутствующая реализация stage, но практический дефект scheduling policy: нормальная конфигурация может не выполнить ни одного доступного mutation stage. Причины stop нужно различать, а progress учитывать на полном обходе релевантных lanes.
+The mutations.md documentation warns that the idle cutoff does not prove mathematical exhaustion of all mutations. This is therefore not a hidden missing stage implementation, but a practical scheduling-policy defect: a normal configuration can fail to execute any available mutation stage. Stop reasons should be distinct, and progress should be evaluated over a complete traversal of relevant lanes.
 
 ### Recipe determinism
 
-Seed + Recipe → exact mutated Input **работает** для realized staged candidate. Recipe сама содержит Primary bytes, primary hash, parent queue ID, stage, concrete operations, limit values, output size/hash, config/dictionary IDs, target_builds, версии schema/engine/operation и исходный RNG seed.
+Seed + Recipe → exact mutated Input **works** for a realized staged candidate. The recipe contains Primary bytes, primary hash, parent queue ID, stage, concrete operations, limit values, output size/hash, config/dictionary IDs, target_builds, schema/engine/operation versions and original RNG seed.
 
-Все случайные решения уже превращены в offsets, widths, deltas, literal tokens и donor bytes. regenerate/1 не вызывает random selection, corpus lookup или target. Проверяются hash Primary, limits, валидность operations, размер и hash output. EFZR envelope имеет magic/version, payload length, SHA-256, ограниченный ETF scanner и binary_to_term(...,[safe]); compressed ETF и runtime objects отвергаются.
+All random decisions have already become offsets, widths, deltas, literal tokens and donor bytes. regenerate/1 does not perform random selection, corpus lookup or target execution. It checks the Primary hash, limits, operation validity, output size and hash. The EFZR envelope has magic/version, payload length, SHA-256, a bounded ETF scanner and binary_to_term(...,[safe]); compressed ETF and runtime objects are rejected.
 
-Это точный replay отдельного candidate, а не restart campaign schedule. Recipe не хранит весь corpus, positions остальных seeds или full PRNG/cursor state на момент остановки. Config hash — provenance, не сериализация полной исходной config. Legacy random можно воспроизводить при фиксированных mutation и selection RNG seeds в той же среде, но individual random recipe path отсутствует.
+This exactly replays an individual candidate; it does not restart the campaign schedule. A recipe does not contain the entire corpus, other seeds' positions or the full PRNG/cursor state at termination. The config hash is provenance, not serialization of the complete original config. Legacy random can be reproduced with fixed mutation and selection RNG seeds in the same environment, but there is no individual random-recipe path.
 
 ## 9. Crash/Timeout Handling
 
-### Классификация
+### Classification
 
-| Событие target | Outcome | Что делает worker |
+| Target event | Outcome | Worker behavior |
 |---|---|---|
-| Нормальный return любого term | {ok,Term} | Может merge coverage и retain input |
-| error(Reason) | {crash,error,Reason,Stack} | Сохраняет exact input/metadata, продолжает |
-| throw(Reason) | {crash,throw,Reason,Stack} | То же |
-| exit(Reason), включая normal/kill | {exit,Reason} | Сохраняет, считает target failure; stack отсутствует |
-| Непойманный linked exit / external kill | {exit,Reason} из DOWN | Сохраняет; источник завершения не отличён от caught exit |
-| function_clause/case_clause/badmatch/badarg/badarith/undef | Error class → crash с соответствующим Reason | Специального whitelist исключений нет |
-| system_limit как Erlang error | Error class → crash | Реальное исчерпание общей VM памяти может завершить всю VM; не изолировано |
-| Deadline | {timeout,TimeoutMs} | Сохраняет input/partial observed coverage; timeouts++, global не меняется |
-| Tagged efz_infrastructure error / invalid coverage | {infrastructure,...} или coverage failure | Останавливает campaign; не считается target bug |
-| Ошибка пользовательского mutator/nonbinary output | infrastructure failure до execution | Не сохраняет как target crash |
+| Normal return of any term | {ok,Term} | May merge coverage and retain input |
+| error(Reason) | {crash,error,Reason,Stack} | Saves exact input/metadata and continues |
+| throw(Reason) | {crash,throw,Reason,Stack} | Same |
+| exit(Reason), including normal/kill | {exit,Reason} | Saves, counts target failure; no stack |
+| Uncaught linked exit / external kill | {exit,Reason} from DOWN | Saves; termination origin is not distinguished from a caught exit |
+| function_clause/case_clause/badmatch/badarg/badarith/undef | Error class → crash with the corresponding Reason | No special exception whitelist |
+| system_limit as an Erlang error | Error class → crash | Actual exhaustion of shared VM memory can terminate the whole VM; not isolated |
+| Deadline | {timeout,TimeoutMs} | Saves input/partial observed coverage; timeouts++, global unchanged |
+| Tagged efz_infrastructure error / invalid coverage | {infrastructure,...} or coverage failure | Stops campaign; not counted as a target bug |
+| User-mutator error/nonbinary output | Infrastructure failure before execution | Not saved as a target crash |
 
-См. executor строки 32–39, 62–85; worker строки 58–107. [Exception diagnostics](audit-2026-09-12/exception_classes.txt) проверяют catch-классификацию явно поднятых error reasons; это не опыт реального resource exhaustion для system_limit. Естественные pattern/guard/try semantics отдельно проверены fixture tests.
+See executor lines 32–39, 62–85; worker lines 58–107. [Exception diagnostics](audit-2026-09-12/exception_classes.txt) explicitly check catch classification for raised error reasons; this is not a real resource-exhaustion experiment for system_limit. Natural pattern/guard/try semantics are separately covered by fixture tests.
 
-Deadline ждёт не только target_result, но и root DOWN. Если root уже послал результат, но ещё не завершился, оставшийся timeout действует. Если timeout ветвь победила, результат остаётся timeout даже при racing message. kill_and_drain создаёт свежий monitor и ждёт фактического DOWN, затем удаляет исходный monitor с flush. Это корректно отделяет поздние сообщения разных cases.
+The deadline awaits both target_result and root DOWN. If root has sent its result but has not yet terminated, the remaining timeout still applies. If the timeout branch wins, the result remains timeout even when a message races with it. kill_and_drain creates a fresh monitor and waits for actual DOWN, then removes the original monitor with flush. This correctly separates late messages from different cases.
 
-Однако deadline не является верхней границей полного wall time run/4 при заблокированном native коде; у cleanup receives нет независимого внешнего watchdog. Произвольные child processes не охватываются.
+However, the deadline is not an upper bound on the full wall time of run/4 when native code blocks; cleanup receives have no independent external watchdog. Arbitrary child processes are not covered.
 
-### Fingerprint, dedup и файлы
+### Fingerprint, deduplication and files
 
-[efz_crash:save/4](../src/efz_crash.erl), строки 6–25:
+[efz_crash:save/4](../src/efz_crash.erl), lines 6–25:
 
 ~~~text
 crash ID = SHA256(term_to_binary({Class,Reason,first_3_stack_frames}))
@@ -620,138 +622,138 @@ timeout ID = fingerprint(timeout,deadline,[])
 base = crash_dir / hex(crash ID) + "-" + hex(SHA256(Input))
 base.input   = exact input bytes
 base.term    = ETF #{result=>Result, metadata=>Metadata}
-base.recipe  = EFZR, только если metadata содержит staged mutation
+base.recipe  = EFZR, only if metadata contains a staged mutation
 ~~~
 
-Crash-only coverage сохраняется в result. new_probes=[] в crash metadata отражает policy, а не отсутствие coverage. Для initial calibration crash recipe обычно отсутствует: мутации ещё не было.
+Crash-only coverage is retained in result. new_probes=[] in crash metadata reflects policy, not an absence of coverage. Initial-calibration crashes normally have no recipe because no mutation has occurred yet.
 
-Dedup уровни различны: все encounters увеличивают crashes/timeouts; unique_crashes определяется signature set в worker. save вызывается **до** проверки signature set, поэтому разные inputs с одной signature получают разные файлы, а report.crashes содержит только первый record каждой signature. Повтор того же input/signature перезаписывает те же paths. Timeouts разных inputs имеют один signature, а их inputs сохраняются раздельно.
+Deduplication levels differ: all encounters increment crashes/timeouts; unique_crashes is determined by the worker's signature set. save runs **before** checking the signature set, so different inputs with one signature get different files, while report.crashes contains only the first record of each signature. Repeating the same input/signature overwrites the same paths. Timeouts from different inputs share one signature, while their inputs are saved separately.
 
-Signature не нормализует file paths, lines, reason terms или arguments в stack frames. Reason с PID/ref либо data-dependent reason может раздробить один bug на множество signatures. Перенос source directory меняет stack path и может менять crash ID при том же логическом сбое. Build identity не является отдельной частью signature.
+The signature does not normalize file paths, lines, reason terms or arguments in stack frames. Reasons containing PID/ref or data-dependent reasons can split one bug into many signatures. Moving the source directory changes the stack path and can change the crash ID for the same logical failure. Build identity is not a separate signature component.
 
-### Ошибки хранения и воспроизводимость
+### Storage errors and reproducibility
 
-Запись .input, затем .term, затем .recipe последовательная, без temporary+rename/transaction. Падение между операциями оставляет частичный набор. Ошибки filelib:ensure_dir/file:write_file/recipe:save обрабатываются через ok=..., то есть роняют worker.
+The .input, then .term, then .recipe writes are sequential, without temporary+rename/transaction. A crash between operations leaves a partial set. Errors from filelib:ensure_dir/file:write_file/recipe:save are handled with ok=..., crashing the worker.
 
-Диагностика crash_dir=/dev/null/efz-audit дала worker_down с {{badmatch,{error,enotdir}},...efz_crash:save/4 line 17...}. Итоговый infrastructure_failures остался 0; raw triggering input не попал в crash artifact, а аварийный report содержит только status/stats/corpus. [Лог](audit-2026-09-12/edge-cases.log).
+A diagnostic using crash_dir=/dev/null/efz-audit yielded worker_down with {{badmatch,{error,enotdir}},...efz_crash:save/4 line 17...}. Final infrastructure_failures remained 0; the raw triggering input was not saved in a crash artifact, and the emergency report contains only status/stats/corpus. [Log](audit-2026-09-12/edge-cases.log).
 
-Raw saved input можно выполнить через recipe:execute_file/5 с явно выбранными target, artifacts, expected builds. CLI scripts/replay.escript регенерирует bytes и target не запускает. Fresh-VM replay фактического audit CRASH и штатного staged exception прошёл.
+Raw saved input can execute through recipe:execute_file/5 with explicitly selected target, artifacts and expected builds. CLI scripts/replay.escript regenerates bytes without running the target. Fresh-VM replay of the actual audit CRASH and the standard staged exception passed.
 
-Гарантия exact input не означает гарантии того же crash на stateful target. Replay проверяет selected artifact builds, но не fingerprint отдельного неинструментированного harness, его environment/dependencies и external state. Непрерывный replay всей campaign не реализован.
+An exact-input guarantee does not guarantee the same crash on a stateful target. Replay checks selected artifact builds, but not the fingerprint of a separate uninstrumented harness, its environment/dependencies or external state. Continuous replay of the entire campaign is not implemented.
 
-### Fault isolation и concurrency
+### Fault isolation and concurrency
 
-При abrupt kill **caller/worker** coordinator обычно получает DOWN и выполняет cleanup root/ETS — это покрывают phase2/backend tests. Тест, названный «owner death cleans target and table», убивает caller, а не ETS-owning coordinator; эти сценарии нельзя смешивать.
+When the **caller/worker** is abruptly killed, the coordinator normally receives DOWN and cleans up root/ETS; phase2/backend tests cover this. The test called “owner death cleans target and table” kills the caller, not the ETS-owning coordinator; these scenarios must not be conflated.
 
-При kill **самого coordinator** его after не исполняется. В audit run/4 вернул {infrastructure,{coordinator_down,killed}}, но target ещё был жив; диагностический script остановил его сам. [Evidence](audit-2026-09-12/coordinator_kill.txt).
+Killing **the coordinator itself** prevents its after from executing. In the audit, run/4 returned {infrastructure,{coordinator_down,killed}}, but the target was still alive; the diagnostic script stopped it itself. [Evidence](audit-2026-09-12/coordinator_kill.txt).
 
-Несколько workers сейчас невозможны: config требует workers=1, child spec один, services имеют singleton names. Поэтому race A/B «оба увидели новый probe, оба retain» внутри поддержанной campaign отсутствует. Compare/merge и последующая вставка последовательны в одном worker; corpus add и integer ID allocation serial gen_server operations. Crash ID — hash, отдельного allocator нет.
+Multiple workers are currently impossible: config requires workers=1, there is one child spec, and services use singleton names. The A/B race “both saw a new probe, both retain” therefore does not exist within a supported campaign. Compare/merge and insertion run sequentially in one worker; corpus add and integer-ID allocation are serial gen_server operations. A crash ID is a hash, with no separate allocator.
 
-Это не доказательство готовности к workers>1. Каждый worker держал бы собственный GlobalCoverage, compare/merge не является общей транзакцией с corpus, crash writes не синхронизированы. Prepared plan и per-execution contexts способны поддерживать concurrent reads/раздельные executions, что тестируется, но общий campaign scheduling/feedback concurrency не реализован.
+This does not prove readiness for workers>1. Each worker would own its own GlobalCoverage; compare/merge is not a shared transaction with corpus, and crash writes are unsynchronized. The prepared plan and per-execution contexts can support concurrent reads/separate executions, as tested, but shared campaign scheduling/feedback concurrency is not implemented.
 
 ## 10. Component Integration Matrix
 
-«Working» относится к конкретной связи. Наличие двух endpoints без runtime call не считается интеграцией.
+“Working” refers to a specific connection. Two endpoints without a runtime call do not count as integration.
 
 | Producer | Output | Consumer | Connection | Working | Evidence |
 |---|---|---|---|---|---|
-| CLI / caller | Config map | efz_config | Escript → efz:start → fuzzer:start_link → config:prepare | PARTIAL: примеры/API да, общего CLI нет | efz.erl:3–7; fuzzer:6–10; examples/* |
-| Config | Target atom, artifacts | Harness loader / executor | preflight + ensure_loaded + run/1 export validation | YES в фиксированном contract | config:35–48 |
-| Seed file | Binary | Initial corpus | file:read_file у caller → seeds | PARTIAL: внешний glue, builtin importer нет | audit run.escript:e2e/2; corpus:init/1 |
+| CLI / caller | Config map | efz_config | Escript → efz:start → fuzzer:start_link → config:prepare | PARTIAL: examples/API yes, no common CLI | efz.erl:3–7; fuzzer:6–10; examples/* |
+| Config | Target atom, artifacts | Harness loader / executor | preflight + ensure_loaded + run/1 export validation | YES within fixed contract | config:35–48 |
+| Seed file | Binary | Initial corpus | Caller file:read_file → seeds | PARTIAL: external glue, no built-in importer | audit run.escript:e2e/2; corpus:init/1 |
 | Corpus | Full entry / id,input entries | Mutator | select/0 random; mutation_entries/0 staged | YES | worker:33–49 |
 | Mutator | Binary + staged provenance | Worker | Mu:mutate/2 / mutation_plan:next/2 | YES | worker:35–52; EUnit phase3 |
 | Worker | Binary, module, timeout, options | Executor | efz_executor:run/4 synchronous call | YES | worker:58–60 |
 | Executor / worker | Exact binary | Harness | Fresh monitored root → M:run(Input) | YES | executor:31–40; 41 exact deliveries |
-| Harness | Binary / target-specific arguments | Target | Обычный синхронный Erlang call | YES для работающего harness; связь не проверяется config | audit_harness:run/1; Cowboy adapter |
+| Harness | Binary / target-specific arguments | Target | Ordinary synchronous Erlang call | YES for a working harness; config does not verify the connection | audit_harness:run/1; Cowboy adapter |
 | Target execution | Probe identity | Coverage | Generated efz_cov_rt:hit/1 → attached ETS | YES, root scope | PT:probe/4; cov_rt:hit/1 |
-| Spawned child execution | Probe event | Parent input coverage | Context автоматически не наследуется | NO | child/linked_child diagnostics |
+| Spawned child execution | Probe event | Parent input coverage | Context not inherited automatically | NO | child/linked_child diagnostics |
 | Coverage | Exact snapshot + status/builds | Feedback | executor result → evaluate/3 | YES | worker:60–65; differential tests |
 | Feedback | new_coverage + delta | Corpus | worker retain → corpus:add | YES, RAM | worker:87–91; e2e A/AB/ABC |
-| Corpus | Newly inserted entry | Scheduler | Current entries доступны select/next rounds | YES, до idle cutoff / stop | corpus:12–14; plan:63–76; ancestry evidence |
-| Scheduler | Parent + lane/index/donor set | Mutator | plan visit/attempts либо random select | PARTIAL: работает, premature idle exhaustion | edge-cases.log |
+| Corpus | Newly inserted entry | Scheduler | Current entries available to select/next rounds | YES, until idle cutoff / stop | corpus:12–14; plan:63–76; ancestry evidence |
+| Scheduler | Parent + lane/index/donor set | Mutator | plan visit/attempts or random select | PARTIAL: works, premature idle exhaustion | edge-cases.log |
 | Accumulated corpus | Donor binary/hash | Splice | entries → usort donors excluding Primary | YES | mutation_plan:152–157 |
-| Interesting successful input | Binary/meta/recipe | Filesystem corpus | Отсутствует | NO | corpus:13 только state append |
-| Filesystem corpus | Seeds/queue/state | Restart | Отсутствует | NO | corpus:init/1; restart size=1 |
-| Exception/timeout | Outcome, stack, input | Crash storage | worker:record_failure → crash:save | YES при рабочем storage | crash files/replay; storage failure отдельный дефект |
+| Interesting successful input | Binary/meta/recipe | Filesystem corpus | Absent | NO | corpus:13 state append only |
+| Filesystem corpus | Seeds/queue/state | Restart | Absent | NO | corpus:init/1; restart size=1 |
+| Exception/timeout | Outcome, stack, input | Crash storage | worker:record_failure → crash:save | YES with working storage | crash files/replay; storage failure is a separate defect |
 | Recipe | Primary + concrete operations | Replay | recipe:regenerate → mutation:apply_operations | YES | 40/40 audit recipes; recipe tests |
-| Raw crash + compatible artifacts | Binary/build set | Execution replay | recipe:execute_file → executor:run/4 | YES в fixed-build scope | fresh-replay.log |
+| Raw crash + compatible artifacts | Binary/build set | Execution replay | recipe:execute_file → executor:run/4 | YES in fixed-build scope | fresh-replay.log |
 | Worker report | Map | API caller | campaign_done → gen_server:reply await | YES | fuzzer:26–39 |
 
-Матрица показывает единую работающую систему с недостающим durable lifecycle и ограниченной изоляцией. Отдельного разрыва mutator → executor → coverage → active corpus в поддержанном режиме не найдено.
+The matrix shows one working system with a missing durable lifecycle and limited isolation. No separate break in mutator → executor → coverage → active corpus was found in supported mode.
 
 ## 11. End-to-End Validation Results
 
-### Выполненные команды
+### Commands executed
 
-Все команды запускаются из efz/. Штатные checks запускались на текущем dirty source tree; production-код не изменялся.
+All commands run from efz/. Standard checks ran against the current dirty source tree; production code was unchanged.
 
-| Команда | Результат текущего запуска | Доказательство |
+| Command | Current-run result | Evidence |
 |---|---|---|
-| erl -noshell с system_info; rebar3 version | OTP 27, ERTS 15.0; Rebar3 3.25.0 | Вывод диагностики среды |
-| rebar3 compile | PASS | Приложение собрано, exit 0 |
+| erl -noshell with system_info; rebar3 version | OTP 27, ERTS 15.0; Rebar3 3.25.0 | Environment-diagnostic output |
+| rebar3 compile | PASS | Application built, exit 0 |
 | rebar3 eunit | PASS: 62 tests | [eunit.log](audit-2026-09-12/eunit.log) |
 | rebar3 ct | PASS: 3 tests | [ct.log](audit-2026-09-12/ct.log) |
 | rebar3 xref | PASS, exit 0 | [xref.log](audit-2026-09-12/xref.log) |
 | rebar3 dialyzer | PASS, exit 0; 26 files analyzed | [dialyzer.log](audit-2026-09-12/dialyzer.log) |
-| escript examples/automatic/run.escript | PASS: completed, 500 executions, 4 discoveries, 2 crashes, 1 unique, 0 infra/timeouts | [Архивированный summary и parent links](audit-2026-09-12/random-example-summary.txt); _build/example-report.term |
+| escript examples/automatic/run.escript | PASS: completed, 500 executions, 4 discoveries, 2 crashes, 1 unique, 0 infra/timeouts | [Archived summary and parent links](audit-2026-09-12/random-example-summary.txt); _build/example-report.term |
 | escript examples/staged/run.escript | PASS: completed, 200 executions, 5 discoveries, 7 crashes, 1 unique; actual replay | [staged-example.log](audit-2026-09-12/staged-example.log) |
-| escript /tmp/efz-audit-20260912/run.escript /tmp/efz-audit-20260912 | PASS diagnostic assertions; они включают подтверждение существующих дефектов | e2e.txt и отдельные *.txt рядом |
-| escript /tmp/efz-audit-20260912/fresh-replay.escript /tmp/efz-audit-20260912 | PASS, fresh VM, exact CRASH, один automatic probe | [fresh-replay.log](audit-2026-09-12/fresh-replay.log) |
-| escript /tmp/efz-audit-20260912/edge-cases.escript /tmp/efz-audit-20260912 | Дефекты premature exhaustion, ignored config и storage failure воспроизведены; diagnostic exit 0 | [edge-cases.log](audit-2026-09-12/edge-cases.log) |
-| escript examples/cowboy/run.escript ../cowboy check | BLOCKED prerequisite, exit 1; 14 target checks НЕ выполнялись | [cowboy-check.log](audit-2026-09-12/cowboy-check.log) |
+| escript /tmp/efz-audit-20260912/run.escript /tmp/efz-audit-20260912 | PASS diagnostic assertions; these include confirmation of existing defects | e2e.txt and adjacent *.txt files |
+| escript /tmp/efz-audit-20260912/fresh-replay.escript /tmp/efz-audit-20260912 | PASS, fresh VM, exact CRASH, one automatic probe | [fresh-replay.log](audit-2026-09-12/fresh-replay.log) |
+| escript /tmp/efz-audit-20260912/edge-cases.escript /tmp/efz-audit-20260912 | Premature exhaustion, ignored config and storage-failure defects reproduced; diagnostic exit 0 | [edge-cases.log](audit-2026-09-12/edge-cases.log) |
+| escript examples/cowboy/run.escript ../cowboy check | BLOCKED prerequisite, exit 1; 14 target checks NOT executed | [cowboy-check.log](audit-2026-09-12/cowboy-check.log) |
 
-Точная ошибка Cowboy launcher:
+Exact Cowboy-launcher error:
 
 ~~~text
 Missing build artifact: /home/anonymous_usr/erl:fuzz/efz/../cowboy/ebin/cowboy_req.beam
 Run make in COWBOY_DIR first.
 ~~~
 
-Внешняя сборка Cowboy с загрузкой dependencies в этом аудите не выполнялась. Она не нужна для доказательства собственного EFZ loop: реальный ordinary audit target был скомпилирован, инструментирован и исполнен через отдельный harness. Исторические 14 Cowboy checks и performance numbers из docs не выдаются за результаты текущего запуска.
+The external Cowboy build with dependency downloads was not performed in this audit. It is unnecessary to prove EFZ's own loop: a real ordinary audit target was compiled, instrumented and executed through a separate harness. The historical 14 Cowboy checks and documentation performance numbers are not presented as current-run results.
 
-### Проверка каждого шага requested experiment
+### Checking every step of the requested experiment
 
-| Шаг | Статус | Наблюдение |
+| Step | Status | Observation |
 |---|---|---|
-| 1. EFZ запускается | PASS | efz:start/1 принял audit_harness и automatic artifacts |
-| 2. Initial corpus загружается | PASS через существующий API | Caller прочитал seed.input; corpus id=1, input=<<>> |
-| 3. Mutator изменяет seed | PASS | Штатный dictionary_insert; custom test mutator не использовался |
-| 4. Input достигает harness | PASS | Observer получил 41 delivered event; полное побайтовое равенство seed + 40 regenerated candidates |
-| 5. Harness вызывает target | PASS | audit_harness:run/1 → ordinary audit_target:parse/1 |
-| 6. Coverage меняется | PASS | Разные function_clause probes для unknown/A/AB/ABC/CRASH |
-| 7. New coverage определяется | PASS | Три successful discoveries |
-| 8. Input добавляется в corpus | PASS в RAM; disk часть отсутствует | IDs 2,3,4 с new_coverage metadata; core не пишет successful corpus files |
-| 9. Новый input выбирается как seed | PASS, прямое доказательство | AB.parent=2 (A); ABC.parent=3 (AB), подтверждено recipes |
-| 10. Crash сохраняется | PASS | Exact five-byte CRASH, .term и .recipe |
-| 11. Crash replay | PASS | regenerate + execute_file; отдельный fresh-VM execute получил error(test_crash) |
-| 12. Corpus после restart | FAIL требуемой persistence-функции | Новый campaign сохранил только initial seed: size=1 |
+| 1. EFZ starts | PASS | efz:start/1 accepted audit_harness and automatic artifacts |
+| 2. Initial corpus loads | PASS through existing API | Caller read seed.input; corpus id=1, input=<<>> |
+| 3. Mutator changes the seed | PASS | Standard dictionary_insert; no custom test mutator |
+| 4. Input reaches the harness | PASS | Observer received 41 delivered events; exact byte equality for seed + 40 regenerated candidates |
+| 5. Harness calls the target | PASS | audit_harness:run/1 → ordinary audit_target:parse/1 |
+| 6. Coverage changes | PASS | Different function_clause probes for unknown/A/AB/ABC/CRASH |
+| 7. New coverage is detected | PASS | Three successful discoveries |
+| 8. Input enters the corpus | PASS in RAM; disk part absent | IDs 2,3,4 with new_coverage metadata; core does not write successful corpus files |
+| 9. New input selected as a seed | PASS, direct evidence | AB.parent=2 (A); ABC.parent=3 (AB), confirmed by recipes |
+| 10. Crash saved | PASS | Exact five-byte CRASH, .term and .recipe |
+| 11. Crash replay | PASS | regenerate + execute_file; separate fresh-VM execution returned error(test_crash) |
+| 12. Corpus after restart | FAIL for the required persistence function | New campaign retained only the initial seed: size=1 |
 
-На отсутствующем disk persistence path не использовался mock saver или ручное добавление discovery в очередь. Loop внутри campaign проверен отдельно, потому что его существование не зависит от долговременного хранения. Запись итогового аудиторского report не считается реализацией corpus persistence.
+No mock saver or manual queue insertion of a discovery was used for the missing disk-persistence path. The within-campaign loop was checked separately because its existence does not depend on durable storage. Writing the final audit report does not count as corpus persistence.
 
-Завершение custom campaign — {mutation_exhausted,mutation_exhausted}, executions=40: в **этом** эксперименте реально исчерпаны все dictionary_insert candidates для четырёх entries (4+8+12+16). Это нормальное завершение, в отличие от separate edge case, где тот же status выдан при наличии неисполненных bitflip candidates.
+The custom campaign ended with {mutation_exhausted,mutation_exhausted}, executions=40: in **this** experiment all dictionary_insert candidates for four entries were actually exhausted (4+8+12+16). This was normal termination, unlike the separate edge case where the same status was returned with unexecuted bitflip candidates remaining.
 
-### Тесты по компонентам
+### Tests by component
 
-| Component | Existing tests | Что доказано / чего не хватает |
+| Component | Existing tests | What is proved / missing |
 |---|---|---|
-| Legacy mutator | efz_mutator_tests | Binary output/empty seed; очень поверхностные проверки |
+| Legacy mutator | efz_mutator_tests | Binary output/empty seed; very superficial checks |
 | Mutation primitives | efz_mutation_tests:operators, limits, bit_model, block_model, boundaries | Concrete vectors, independent models, endian/overflow/size bounds |
-| Staged plan | enumeration, fairness, finite, random_state, noop_stack, growing_corpus, duplicate_donors | Lazy cursors, deterministic order, PRNG independence, вручную растущий entries list |
+| Staged plan | enumeration, fairness, finite, random_state, noop_stack, growing_corpus, duplicate_donors | Lazy cursors, deterministic order, PRNG independence, manually growing entry list |
 | Recipe replay | efz_recipe_tests, phase3 fresh_replay/replay_boundaries | Operations roundtrip, invalid data, fresh VM, actual crash |
-| Corpus | Phase2/phase3 campaigns, smoke, backend variants | Discovery insertion и reports; отдельного corpus unit suite/persistence test нет |
+| Corpus | Phase2/phase3 campaigns, smoke, backend variants | Discovery insertion and reports; no separate corpus unit suite/persistence test |
 | Coverage compiler / semantics | efz_phase2_tests | Clause kinds, source mapping, same-line distinct probes, strict AST, plain/instrumented outcomes, builds |
 | Coverage runtime | efz_backend_tests, phase2 lifecycle, CT | ETS variants, prepared/reference, simultaneous contexts, target/caller kill, timeout |
 | Worker / mutator errors | phase3:mutator_failure, exhaustion; smoke | Infrastructure classification, budget/skip accounting |
-| Harness | example adapters + campaigns; efz_config target validation | Реальный run/1; generic CLI/source loader absent |
-| Timeout | executor_tests, phase2, backend, CT | Root DOWN, coverage survives, table cleanup; tree cleanup отсутствует |
+| Harness | Example adapters + campaigns; efz_config target validation | Real run/1; generic CLI/source loader absent |
+| Timeout | executor_tests, phase2, backend, CT | Root DOWN, coverage survives, table cleanup; tree cleanup absent |
 | Crashes | Phase2 campaign; phase3 campaign/replay; CT | Raw storage, exceptions, continuation, crash-only coverage policy |
-| Full loop | Phase3 real staged campaign; phase2/CT scripted campaign | Реальный loop есть, но explicit «discovered entry later became mutation parent» assertion в штатных EUnit/CT не найден |
+| Full loop | Phase3 real staged campaign; phase2/CT scripted campaign | A real loop exists, but no explicit “discovered entry later became mutation parent” assertion was found in standard EUnit/CT |
 
-Ключевое различие: phase2/CT используют efz_scripted_mutator, который игнорирует выбранный parent и берёт predetermined candidate по iteration. Такие тесты подтверждают feedback/insertion, но не mutation ancestry. Phase3 использует настоящий planner и проверяет discovery/recipe/replay; growing_corpus_test добавляет entries вручную без target/feedback. **Нового самостоятельного теста, одновременно утверждающего discovery и последующее использование именно этого entry, в штатном suite нет.** Аудиторский reproducer теперь содержит такую проверку, но не включён в rebar3 eunit/ct.
+The key difference: phase2/CT use efz_scripted_mutator, which ignores the selected parent and takes a predetermined candidate by iteration. Those tests confirm feedback/insertion, not mutation ancestry. Phase3 uses the real planner and checks discovery/recipe/replay; growing_corpus_test manually adds entries without target/feedback. **The standard suite has no independent test simultaneously asserting discovery and later use of that exact entry.** The audit reproducer now contains such a check, but is not part of rebar3 eunit/ct.
 
-### Воспроизведение audit diagnostics
+### Reproducing audit diagnostics
 
-В docs/audit-2026-09-12 сохранены исходники диагностических targets/scripts. Они не входят в src_dirs, не изменяют EFZ и не являются новой feature. run.escript специально проверяет также существующие ограничения и сам убирает свои leaked test processes.
+Diagnostic target/script sources are saved in docs/audit-2026-09-12. They are not in src_dirs, do not modify EFZ and are not a new feature. run.escript intentionally checks existing limitations too, and cleans up its own leaked test processes.
 
 ~~~sh
 rebar3 compile
@@ -763,136 +765,136 @@ escript "$EFZ_AUDIT_DIR/fresh-replay.escript" "$EFZ_AUDIT_DIR"
 escript "$EFZ_AUDIT_DIR/edge-cases.escript" "$EFZ_AUDIT_DIR"
 ~~~
 
-Каждый escript использует отдельную VM. После исправления выявленных дефектов негативные audit assertions нужно обновить; текущие diagnostic PASS не являются утверждением «багов нет».
+Each escript uses a separate VM. After fixing the identified defects, negative audit assertions must be updated; current diagnostic PASS does not mean “no bugs”.
 
 ## 12. Dead Code / Parallel Implementations
 
-| Реализации одной концепции | Связь с runtime | Решение после аудита |
+| Implementations of one concept | Runtime connection | Post-audit decision |
 |---|---|---|
-| efz_mutator_random / efz_mutation_plan + efz_mutation | Обе реально используются: default random и opt-in staged | KEEP обе сейчас; MIGRATE пользовательский рекомендуемый путь к проверенному staged после P0; не удалять compatibility внезапно |
-| efz_executor:run/3 / run/4 | run/3 — wrapper над run/4 с manual coverage, не второй runner | KEEP; документировать потерю result metadata в wrapper |
-| Manual efz_cov:hit / automatic PT hooks | Общий runtime/ETS; manual identity namespace иной | KEEP как explicit compatibility; DEPRECATE использование manual для новых automatic campaigns |
-| ETS insert / ets_member | Backend switch в том же cov_rt/context/executor | KEEP; differential tests уже есть |
-| Per-execution validation / prepared validation | Одинаковый whitelist contract; default prepared | KEEP reference path для differential correctness |
-| efz_cov:interesting/2 / efz_feedback:evaluate/3 | Первый helper не вызывается runtime; authoritative decision во втором | DEPRECATE unused helper; DELETE только после проверки external callers |
-| efz_cov:reset_local/0, snapshot/0 | Legacy standalone helpers; не используются нынешними campaigns/tests | DEPRECATE. reset_local не очищает существующий context: повторный вызов raises context_already_attached |
-| efz_stats:handle_cast({inc,...}) / публичный inc через call | Cast handler есть, публичный API использует synchronous call | DELETE либо документировать после отдельной проверки потребителей; не влияет на нынешний loop |
-| efz_scripted_mutator / bench:efz_perf_replay / production mutators | Scripted и prerecorded replay только tests/bench | KEEP для измерений и точных fixtures; не представлять их результаты как evidence реального mutation search |
-| bench/efz_perf*, reporting/profile scripts | Явно загружаются escripts, не OTP application services | KEEP, отдельно от core |
-| Docs calibration/stability collector proposal | Соответствующих production modules нет | KEEP как design document; не считать implemented component |
-| efz.worktrees/agents-condemned-silverfish | Та же snapshot-копия файлов, не другой runtime | KEEP по решению владельца; не удалять в рамках аудита |
+| efz_mutator_random / efz_mutation_plan + efz_mutation | Both actually used: default random and opt-in staged | KEEP both now; MIGRATE the recommended user path to verified staged after P0; do not abruptly remove compatibility |
+| efz_executor:run/3 / run/4 | run/3 wraps run/4 with manual coverage; not a second runner | KEEP; document result-metadata loss in the wrapper |
+| Manual efz_cov:hit / automatic PT hooks | Shared runtime/ETS; different manual identity namespace | KEEP as explicit compatibility; DEPRECATE manual use for new automatic campaigns |
+| ETS insert / ets_member | Backend switch within the same cov_rt/context/executor | KEEP; differential tests already exist |
+| Per-execution validation / prepared validation | Same whitelist contract; prepared default | KEEP reference path for differential correctness |
+| efz_cov:interesting/2 / efz_feedback:evaluate/3 | First helper not called by runtime; authoritative decision in the second | DEPRECATE unused helper; DELETE only after checking external callers |
+| efz_cov:reset_local/0, snapshot/0 | Legacy standalone helpers; unused by current campaigns/tests | DEPRECATE. reset_local does not clear an existing context: repeated invocation raises context_already_attached |
+| efz_stats:handle_cast({inc,...}) / public inc through call | Cast handler exists; public API uses synchronous call | DELETE or document after separate consumer review; does not affect the current loop |
+| efz_scripted_mutator / bench:efz_perf_replay / production mutators | Scripted and prerecorded replay only in tests/bench | KEEP for measurements and exact fixtures; do not present their results as evidence of real mutation search |
+| bench/efz_perf*, reporting/profile scripts | Explicitly loaded by escripts, not OTP application services | KEEP, separate from core |
+| Docs calibration/stability collector proposal | No corresponding production modules | KEEP as a design document; do not count as an implemented component |
+| efz.worktrees/agents-condemned-silverfish | Same file snapshot copy, not another runtime | KEEP at the owner's discretion; do not delete during the audit |
 
-Несколько corpus implementations, скрытый старый worker pool, второй coverage collector или alternative orchestration language не обнаружены. Поиск UNUSED ограничен текущим repository; export означает, что внешние callers теоретически возможны.
+No multiple corpus implementations, hidden old worker pool, second coverage collector or alternative orchestration language was found. UNUSED searches are limited to the current repository; exports mean external callers are theoretically possible.
 
 ## 13. Bugs and Architectural Gaps
 
-### Три главных architectural gaps
+### Three main architectural gaps
 
-**G1. Неполный lifecycle usable campaign.** Core API принимает bytes и хранит successful progress в RAM; общий пользовательский путь target/config + seed directory → durable corpus → restart не реализован. Runtime retain→reuse при этом уже работает. Связанные места: efz.erl, efz_config.erl, efz_corpus.erl, example launchers.
+**G1. Incomplete usable-campaign lifecycle.** The core API accepts bytes and stores successful progress in RAM; the common user workflow target/config + seed directory → durable corpus → restart is not implemented. Runtime retain→reuse already works. Relevant locations: efz.erl, efz_config.erl, efz_corpus.erl, example launchers.
 
-**G2. Неполный контракт execution/coverage integrity.** Root isolation корректна в обычном пути, но async children, coordinator loss, shared state и disconnected/replaced instrumentation не дают надёжной атрибуции к input. Особенно важно для Erlang/OTP, где полезная работа часто выполняется другими processes. Связанные места: executor, cov_rt, cov_manifest, instrument, harness contract.
+**G2. Incomplete execution/coverage integrity contract.** Root isolation is correct on the ordinary path, but async children, coordinator loss, shared state and disconnected/replaced instrumentation prevent reliable attribution to an input. This is especially important for Erlang/OTP, where useful work often runs in other processes. Relevant locations: executor, cov_rt, cov_manifest, instrument, harness contract.
 
-**G3. Scheduler progress и regression proof.** Staged engine интегрирован и replayable, но global idle cutoff способен остановить campaign до полезных lanes. Штатные tests не утверждают ancestry discovered seed → next mutation и пропускают этот дефект. Связанные места: mutation_plan:next/visit, worker staged path, phase3/mutation tests.
+**G3. Scheduler progress and regression proof.** The staged engine is integrated and replayable, but the global idle cutoff can stop a campaign before useful lanes. Standard tests do not assert discovered seed → next mutation ancestry and miss this defect. Relevant locations: mutation_plan:next/visit, worker staged path, phase3/mutation tests.
 
-### Конкретные findings
+### Specific findings
 
-| ID / priority | Finding и последствие | Evidence / достоверность |
+| ID / priority | Finding and consequence | Evidence / confidence |
 |---|---|---|
-| F01 / P0 | Successful corpus не переживает restart; основной результат search теряется без внешнего report/export | corpus:9–14; runtime restart size 4→1 |
-| F02 / P0 | Global idle cutoff останавливает доступные stages; 256 valid seeds дают 0 mutations | mutation_plan:51–77; реальный edge-cases campaign |
-| F03 / P1 | Kill coordinator оставляет root живым при уже возвращённом infrastructure result | executor:9–23,31–60; coordinator_kill.txt |
-| F04 / P1 | Child coverage и cleanup отсутствуют; child после timeout жив | executor:31–85; child_timeout.txt, linked_child.txt |
-| F05 / P1 | Shared VM state меняет coverage повторного identical input | Нет reset в executor; cross_case_state.txt |
-| F06 / P1 | Валидные, но не вызываемые artifacts дают completed/empty без диагностики disconnected target | config:35–48; manifest validator; disconnected_artifacts.txt |
-| F07 / P1 | Hot replacement обычным module не invalidates prepared builds; отдельный harness не pinned | instrument:115–127; manifest:72–85; recipe:97–108; hot_reload.txt |
-| F08 / P1 | Caught malformed context может превратиться в успешный пустой coverage | cov_rt:26–27; caught_malformed_context.txt |
-| F09 / P1 | Storage error роняет worker; atomic artifact group отсутствует; trigger может не сохраниться | crash:17–23; edge-cases enotdir |
-| F10 / P1 | Верхнеуровневые function/arity/max_input_bytes/corpus_dir принимаются, но игнорируются | config:7–15,29–33; edge-cases IGNORED_CONFIG |
-| F11 / P1 | Random input size не ограничен общим contract; saved input >1MiB не пройдёт execute_file replay API | config:29–33, worker:37 vs recipe:87,113–114; code-only |
-| F12 / P2 | Worker_down report содержит infra counter=0; coordinator_down может маскироваться build mismatch | fuzzer:34–39; feedback:5–7,22; enotdir evidence / code |
-| F13 / P2 | Dedup initial seeds отсутствует; duplicate IDs делят staged content cursor | corpus:9–14; plan:68; duplicate_initial_seeds.txt |
-| F14 / P2 | Failure decisions растут на каждом повторе, даже при одной unique crash signature; default random budget infinity | worker:75–79,94–105; config defaults; code-only |
-| F15 / P2 | Signature включает нестабильные stack paths/reason terms; exact same bug может иметь разные IDs | crash:fingerprint/3; code-only |
-| F16 / P1 test gap | Нет штатного direct ancestry E2E assertion, persistence/restart corpus test, tree cleanup/owner-kill regression | Поиск и разбор всех test modules; новый audit reproducer |
+| F01 / P0 | Successful corpus does not survive restart; the main search result is lost without an external report/export | corpus:9–14; runtime restart size 4→1 |
+| F02 / P0 | Global idle cutoff stops available stages; 256 valid seeds yield 0 mutations | mutation_plan:51–77; actual edge-cases campaign |
+| F03 / P1 | Killing the coordinator leaves root alive after an infrastructure result has returned | executor:9–23,31–60; coordinator_kill.txt |
+| F04 / P1 | Child coverage and cleanup absent; child survives timeout | executor:31–85; child_timeout.txt, linked_child.txt |
+| F05 / P1 | Shared VM state changes coverage for a repeated identical input | No executor reset; cross_case_state.txt |
+| F06 / P1 | Valid but uncalled artifacts yield completed/empty without disconnected-target diagnostics | config:35–48; manifest validator; disconnected_artifacts.txt |
+| F07 / P1 | Hot replacement with an ordinary module does not invalidate prepared builds; separate harness not pinned | instrument:115–127; manifest:72–85; recipe:97–108; hot_reload.txt |
+| F08 / P1 | Caught malformed context can become successful empty coverage | cov_rt:26–27; caught_malformed_context.txt |
+| F09 / P1 | Storage error crashes worker; no atomic artifact group; trigger may be lost | crash:17–23; edge-cases enotdir |
+| F10 / P1 | Top-level function/arity/max_input_bytes/corpus_dir accepted but ignored | config:7–15,29–33; edge-cases IGNORED_CONFIG |
+| F11 / P1 | Random input size has no common contractual bound; saved input >1MiB cannot pass the execute_file replay API | config:29–33, worker:37 vs recipe:87,113–114; code-only |
+| F12 / P2 | Worker_down report has infra counter=0; coordinator_down can be masked by build mismatch | fuzzer:34–39; feedback:5–7,22; enotdir evidence / code |
+| F13 / P2 | No initial-seed deduplication; duplicate IDs share a staged-content cursor | corpus:9–14; plan:68; duplicate_initial_seeds.txt |
+| F14 / P2 | Failure decisions grow with every repeat, even for one unique crash signature; default random budget infinity | worker:75–79,94–105; config defaults; code-only |
+| F15 / P2 | Signature includes unstable stack paths/reason terms; the exact same bug can have different IDs | crash:fingerprint/3; code-only |
+| F16 / P1 test gap | No standard direct ancestry E2E assertion, corpus persistence/restart test or tree-cleanup/owner-kill regression | Search and review of all test modules; new audit reproducer |
 
-Не все ограничения выше — ошибки относительно документации: root scope, fixed build, ручной launcher и bounded idle policy описаны. Но это реальные ограничения относительно запрошенного цельного fuzzing pipeline. Источником вывода является call path и текущий запуск.
+Not every limit above contradicts documentation: root scope, fixed build, manual launcher and bounded idle policy are documented. They are nevertheless real limitations relative to the requested complete fuzzing pipeline. Conclusions come from the call path and the current run.
 
-Репозиторий не содержит CI execution evidence для текущего дерева; успешные локальные 62+3 checks не означают успешную remote CI или пригодность произвольного OTP target.
+The repository contains no CI execution evidence for the current tree; successful local 62+3 checks do not establish successful remote CI or suitability for arbitrary OTP targets.
 
 ## 14. Maturity Assessment
 
-Шкала: 0 — отсутствует; 1 — минимальный фрагмент; 2 — частично работает; 3 — рабочий MVP с существенными ограничениями; 4 — хорошо работающая и проверенная подсистема в заявленном scope; 5 — полный требуемый contract с regression coverage и устойчивым lifecycle. Оценки не являются benchmark.
+Scale: 0 — absent; 1 — minimal fragment; 2 — partly working; 3 — working MVP with substantial limits; 4 — well-working, verified subsystem within the stated scope; 5 — complete required contract with regression coverage and robust lifecycle. Scores are not benchmarks.
 
-| Component | Score 0–5 | Причина |
+| Component | Score 0–5 | Reason |
 |---|---:|---|
-| Harness API | 3 | Реальный run/1 behavior, validation и adapters; нет generic launcher/source loader/reset contract, selection только module |
-| Input delivery | 4 | Exact binaries подтверждены 41 delivery; uniform size/replay bounds и seed-file ingestion отсутствуют |
-| Execution isolation | 1 | Только fresh root/coordinator; children/shared state/VM failures не изолированы, owner kill оставляет root |
-| Coverage collection | 4 | Exact per-execution source probes, manifest mapping, backend/lifecycle tests; root-only и ограниченное AST |
-| Coverage feedback | 4 | Exact set difference/union и failure policy работают; нет stability validation и disconnected-code detection |
-| Corpus management | 2 | In-memory append/dedup/select/metadata; нет persistence, restart, initial dedup, lifecycle metadata |
-| Corpus feedback loop | 4 | Прямо доказано A→AB→ABC; оценка для active RAM loop, не durable workflow; scheduler cutoff ограничивает другие campaigns |
-| Mutation engine | 3 | Богатые primitives/stages/havoc/splice/recipes и model tests; существенный scheduler exhaustion defect |
-| Crash handling | 3 | Error/throw/exit/timeout storage/continuation работают; запись неатомарна, failure paths слабее, VM crash не охвачен |
-| Replayability | 4 | Exact realized staged mutation и fresh-VM crash replay; random recipes/campaign resume/harness pinning отсутствуют |
-| Concurrency safety | 3 | Один-worker путь serial и scoped ETS тестированы; several workers отвергаются, tree lifecycle не решён |
-| End-to-end integration | 3 | Core loop реально замкнут; packaging, persistence и broad OTP isolation ещё не закончены |
+| Harness API | 3 | Real run/1 behavior, validation and adapters; no generic launcher/source loader/reset contract, module-only selection |
+| Input delivery | 4 | Exact binaries confirmed by 41 deliveries; uniform size/replay bounds and seed-file ingestion absent |
+| Execution isolation | 1 | Fresh root/coordinator only; children/shared state/VM failures not isolated, owner kill leaves root alive |
+| Coverage collection | 4 | Exact per-execution source probes, manifest mapping, backend/lifecycle tests; root-only and limited AST |
+| Coverage feedback | 4 | Exact set difference/union and failure policy work; no stability validation or disconnected-code detection |
+| Corpus management | 2 | In-memory append/dedup/select/metadata; no persistence, restart, initial deduplication or lifecycle metadata |
+| Corpus feedback loop | 4 | A→AB→ABC directly proved; score applies to active RAM loop, not durable workflow; scheduler cutoff limits other campaigns |
+| Mutation engine | 3 | Rich primitives/stages/havoc/splice/recipes and model tests; substantial scheduler exhaustion defect |
+| Crash handling | 3 | Error/throw/exit/timeout storage/continuation work; non-atomic writing, weaker failure paths, VM crash not covered |
+| Replayability | 4 | Exact realized staged mutation and fresh-VM crash replay; random recipes/campaign resume/harness pinning absent |
+| Concurrency safety | 3 | Serial single-worker path and scoped ETS tested; multiple workers rejected, tree lifecycle unresolved |
+| End-to-end integration | 3 | Core loop actually complete; packaging, persistence and broad OTP isolation unfinished |
 
-Текущая зрелость — интегрированный исследовательский MVP для bounded synchronous targets. Называть EFZ только набором несвязанных prototypes неверно; объявлять его готовым универсальным OTP application fuzzer также преждевременно.
+Current maturity is an integrated research MVP for bounded synchronous targets. Describing EFZ as merely disconnected prototypes is wrong; declaring it a ready universal OTP application fuzzer is also premature.
 
 ## 15. Recommended Development Direction
 
-**Следующая фаза: надёжная, сохраняемая и проверяемая кампания с одним worker на уже существующем engine.**
+**Next phase: a reliable, durable and verifiable single-worker campaign using the existing engine.**
 
-P0 должен закрепить рабочий feedback loop и устранить ситуации, когда корректная config лишает его возможности работать: ancestry E2E, premature exhaustion, реальный импорт seeds, durable retention и повторное использование после restart. Одновременно нужен минимальный универсальный launcher поверх существующего run/1, а не новый harness framework.
+P0 should establish the working feedback loop and eliminate situations where valid config prevents it from running: ancestry E2E, premature exhaustion, real seed import, durable retention and reuse after restart. A minimal universal launcher over existing run/1 is also needed, rather than a new harness framework.
 
-P1 — корректность границ: единые byte bounds, atomic/error-aware artifact storage, root/descendant cleanup, нарушение instrumentation contract, зафиксированные target/harness builds и воспроизводимый replay. Для первой поддержанной модели следует явно определить synchronous binary harness; переход к arbitrary OTP applications не должен происходить неявно через spawn без coverage context.
+P1 concerns boundary correctness: uniform byte bounds, atomic/error-aware artifact storage, root/descendant cleanup, instrumentation-contract violations, fixed target/harness builds and reproducible replay. The first supported model should explicitly define a synchronous binary harness; moving to arbitrary OTP applications must not happen implicitly through spawn without a coverage context.
 
-Repeated stability calibration может быть полезной следующей correctness функцией, но большой новый collector не требуется для завершения обнаруженного loop. Сначала должны быть достоверными source identity, per-input scope и cleanup. Существующий документ calibration-readiness.md полезен как требования, а не как признак уже реализованного stability feature.
+Repeated stability calibration can be a useful subsequent correctness feature, but completing the identified loop does not require a large new collector. Reliable source identity, per-input scope and cleanup must come first. The existing calibration-readiness.md is useful as requirements, not evidence of an implemented stability feature.
 
-P2 performance работы — indexing corpus, стоимость mutation_entries/0, binary conversions, ETS hook tuning — после correctness gate. P3 advanced schedules и P4 distributed/UI не входят в предлагаемый этап.
+P2 performance work — corpus indexing, mutation_entries/0 cost, binary conversions, ETS hook tuning — follows the correctness gate. P3 advanced schedules and P4 distributed/UI are outside the proposed phase.
 
 ## 16. Prioritized Implementation Plan
 
-Ниже только предложение следующей фазы. В этом аудите production implementation не менялась.
+What follows is only a proposal for the next phase. This audit did not change production implementation.
 
 | Task | Problem solved | Files/modules affected | Expected behavior | Test/evidence | Priority |
 |---|---|---|---|---|---|
-| T1. Добавить штатный lineage end-to-end gate | В тестах не доказано повторное использование найденного input | test/efz_phase3_tests.erl или новый integration suite; простой fixture/harness | Real staged mutator получает A, сохраняет его, затем именно A порождает AB; AB может породить ABC; fixed bytes до harness и actual coverage | Assertion parent ID + primary bytes/hash + recipe output; никакого scripted mutator; отдельная fresh replay проверка | P0 |
-| T2. Исправить критерий отсутствия progress | max_idle_visits останавливает campaign до полезного lane | src/efz_mutation_plan.erl; test/efz_mutation_tests.erl; integration tests | Недоступный stage не предотвращает visit доступного; true exhaustion и idle-budget stop имеют разные reasons; finite empty search остаётся bounded | 256-seed reproducer обязан выполнить bitflip; cases с empty corpus/dictionary/no donor и реально исчерпанным sweep | P0 |
-| T3. Минимальный общий launcher + строгая campaign schema | Пользователь не может штатно задать harness source/code path, seeds directory и outdir; неизвестные ключи молча игнорируются | Новый scripts/fuzz.escript или efz_cli; src/efz_config.erl, README, examples | CLI/config выбирают module с run/1, paths/artifacts, seed directory, mutation mode, limits, timeout, output; seed bytes читаются без преобразования; неизвестные ключи reject | Black-box запуск fresh VM с внешним minimal run/1; missing module/export/file, invalid config и no-artifacts cases | P0 |
-| T4. Durable corpus retention и restore | Discoveries теряются при stop/restart | src/efz_corpus.erl, src/efz_worker.erl, config; новый scoped corpus-store при необходимости | Content-addressed exact .input + versioned metadata сохраняются до подтверждения durable retain; add в active queue; restart загружает successful discovered inputs без duplicates | Kill/restart после A discovery → A загружен и выбран как parent; corrupt/partial entries обнаруживаются; build policy явна | P0 |
-| T5. Единый input/storage failure contract | Random size без bounds; crash write errors теряют context; artifacts частичны | config, worker, crash, recipe, corpus store | Одинаковый max input для seeds/mutations/replay; атомарные отдельные records; errors возвращаются структурированно с triggering input/hash и operation/path; worker report не выдаёт 0 infra как success | Boundary 0/max/max+1; enotdir/read-only/storage failure; exact crash bytes при рабочем storage; interrupted-write recovery | P1 |
-| T6. Подтвердить execution cleanup | Coordinator loss/timeout оставляют root/children | executor, target contract; lifecycle tests; при необходимости отдельный runner/guardian | Cleanup ownership переживает coordinator; DOWN root и всех поддержанных descendants подтверждён. Если scope нельзя безопасно очистить, campaign не переиспользует dirty runner; для общего async scope нужна изолированная runner VM с уничтожением при потере контроля | owner kill, root trap_exit, linked/unlinked children, timeout и cancellation; отсутствие живых targets после completion/abort; A→B→A с определённым state policy | P1 |
-| T7. Уточнить coverage/harness validity | Пустой feedback скрывает disconnected target; hot reload/PD corruption не видны | config, instrument, cov_manifest, cov_rt, executor; tests/docs | Фиксируется harness identity и selected builds; нарушение contract detected; campaign с полностью отсутствующим feedback явно диагностируется. Legitimate empty case отличается от missing/broken snapshot; metadata scope/termination/cleanup явны | Unused artifact, ordinary hot replacement, erased/malformed context, actual valid empty case; fail closed для invalid instrumentation | P1 |
-| T8. Завершить crash/replay/report contract | Динамические signatures, unbounded repeated failure decisions, разные failure origins | crash, worker, fuzzer, stats, recipe, scripts/replay.escript | Exact raw input остаётся authoritative; signature отдельно от occurrence/provenance; repeated failures bounded/aggregated; primary infrastructure reason и counters сохраняются; explicit CLI execution replay проверяет target+harness identities | Повтор одной signature с разными inputs; replay той же сборки и reject mismatch; worker_down counter/reason; длительный bounded-report test | P1 |
-| T9. Подключить воспроизводимый release gate | Локальные проверки не запускаются автоматически, gaps легко вернутся | CI config по принятой площадке, rebar.config при необходимости, docs | compile/EUnit/CT/xref/Dialyzer + T1/T2/storage/restart/lifecycle gate выполняются на заявленной OTP версии; вспомогательный Cowboy suite отдельно | CI logs и artifacts с source/build identity, exact commands, ancestry witness и fresh replay result | P1 |
+| T1. Add a standard lineage end-to-end gate | Tests do not prove reuse of a discovered input | test/efz_phase3_tests.erl or a new integration suite; simple fixture/harness | Real staged mutator obtains A, retains it, then that exact A produces AB; AB may produce ABC; fixed bytes to harness and actual coverage | Assert parent ID + primary bytes/hash + recipe output; no scripted mutator; separate fresh replay check | P0 |
+| T2. Fix the lack-of-progress criterion | max_idle_visits stops campaigns before a useful lane | src/efz_mutation_plan.erl; test/efz_mutation_tests.erl; integration tests | Unavailable stage does not prevent visiting an available one; true exhaustion and idle-budget stop have distinct reasons; finite empty search stays bounded | 256-seed reproducer must perform bitflip; empty corpus/dictionary/no donor and genuinely exhausted sweep cases | P0 |
+| T3. Minimal common launcher + strict campaign schema | User cannot normally specify harness source/code path, seed directory and outdir; unknown keys silently ignored | New scripts/fuzz.escript or efz_cli; src/efz_config.erl, README, examples | CLI/config choose module with run/1, paths/artifacts, seed directory, mutation mode, limits, timeout, output; seed bytes read unchanged; unknown keys rejected | Black-box fresh-VM launch with external minimal run/1; missing module/export/file, invalid config and no-artifacts cases | P0 |
+| T4. Durable corpus retention and restore | Discoveries lost on stop/restart | src/efz_corpus.erl, src/efz_worker.erl, config; new scoped corpus store if needed | Content-addressed exact .input + versioned metadata saved before durable-retain acknowledgment; added to active queue; restart loads successful discovered inputs without duplicates | Kill/restart after A discovery → A loaded and selected as parent; corrupt/partial entries detected; explicit build policy | P0 |
+| T5. Uniform input/storage failure contract | Unbounded random size; crash-write errors lose context; partial artifacts | config, worker, crash, recipe, corpus store | Same maximum input for seeds/mutations/replay; atomic individual records; errors returned structurally with triggering input/hash and operation/path; worker report does not present 0 infra as success | Boundary 0/max/max+1; enotdir/read-only/storage failure; exact crash bytes with working storage; interrupted-write recovery | P1 |
+| T6. Confirm execution cleanup | Coordinator loss/timeout leaves root/children | executor, target contract; lifecycle tests; separate runner/guardian if needed | Cleanup ownership survives coordinator; DOWN confirmed for root and all supported descendants. If scope cannot be safely cleaned, campaign does not reuse dirty runner; general async scope needs an isolated runner VM destroyed on control loss | Owner kill, root trap_exit, linked/unlinked children, timeout and cancellation; no live targets after completion/abort; A→B→A with a defined state policy | P1 |
+| T7. Clarify coverage/harness validity | Empty feedback hides a disconnected target; hot reload/PD corruption invisible | config, instrument, cov_manifest, cov_rt, executor; tests/docs | Harness identity and selected builds fixed; contractual violation detected; campaign with entirely absent feedback explicitly diagnosed. Legitimate empty case distinct from missing/broken snapshot; explicit scope/termination/cleanup metadata | Unused artifact, ordinary hot replacement, erased/malformed context, actual valid empty case; fail closed on invalid instrumentation | P1 |
+| T8. Complete crash/replay/report contract | Dynamic signatures, unbounded repeated-failure decisions, different failure origins | crash, worker, fuzzer, stats, recipe, scripts/replay.escript | Exact raw input remains authoritative; signature separate from occurrence/provenance; repeated failures bounded/aggregated; primary infrastructure reason and counters retained; explicit CLI execution replay verifies target+harness identities | Repeat one signature with different inputs; replay same build and reject mismatch; worker_down counter/reason; long-running bounded-report test | P1 |
+| T9. Connect a reproducible release gate | Local checks not run automatically, allowing gaps to recur | CI config for chosen platform, rebar.config if needed, docs | compile/EUnit/CT/xref/Dialyzer + T1/T2/storage/restart/lifecycle gate run on stated OTP version; separate auxiliary Cowboy suite | CI logs and artifacts with source/build identity, exact commands, ancestry witness and fresh replay result | P1 |
 
-Для T4 минимальное корректное restore — загрузка persisted inputs и повторная calibration в новой campaign. Оно не должно называться «точное продолжение прежнего schedule», пока отдельно не сериализованы и не версионированы global coverage, IDs, cursors и RNG. Full checkpoint можно выделить следующим отдельным шагом после доказанного reusable disk corpus.
+For T4, minimal correct restoration loads persisted inputs and recalibrates in a new campaign. It must not be called “exact continuation of the old schedule” until global coverage, IDs, cursors and RNG are separately serialized and versioned. Full checkpointing can be a later separate step after proving a reusable disk corpus.
 
-Для T6 нельзя выполнить acceptance tree cleanup простым утверждением «дочерние процессы вне scope». До реализации общего async runner допустимо явно ограничить поддержанные targets и отклонять нарушение контракта; если следующая версия заявляет сохранение работы в той же VM после async timeout, соответствующий cleanup обязан быть реализован и проверен.
+For T6, tree-cleanup acceptance cannot be met by simply stating “children are out of scope”. Before a general async runner exists, explicitly restricting supported targets and rejecting contractual violations is acceptable; if the next version claims to continue in the same VM after an async timeout, the corresponding cleanup must be implemented and verified.
 
 ## 17. Acceptance Criteria for the Next Phase
 
-Checklist ниже — release gate следующей версии. Часть пунктов уже выполнена в текущем synchronous in-memory scope, но все должны подтверждаться автоматическими тестами на итоговой реализации.
+The following checklist is the next version's release gate. Some items already hold within the current synchronous in-memory scope, but all must be confirmed by automated tests on the final implementation.
 
-- [ ] EFZ принимает target/harness через общий CLI/config; поддержанный callback contract явен, module/export и доступность artifacts проверяются.
-- [ ] Initial seed-файл читается как binary и появляется в active corpus; duplicates и неправильные paths обрабатываются определённо.
-- [ ] Corpus seed действительно передаётся штатному mutation engine.
-- [ ] Mutated binary побайтово совпадает с тем, что получил harness.
-- [ ] Harness вызывает реальный instrumented target; полностью disconnected feedback диагностируется.
-- [ ] Coverage собирается отдельно для конкретного input и имеет validated build/source identity.
-- [ ] Coverage одного input не загрязняется другим input; scope и shared-state policy проверены, missing/broken observation не принимается за valid empty.
-- [ ] New coverage вычисляется как CurrentCoverage − GlobalCoverage для successful outcomes; global обновляется определённо.
-- [ ] Input с новым coverage сохраняется на диск и добавляется в active corpus с parent/content/build metadata.
-- [ ] **Этот newly generated, coverage-discovered input затем действительно выбирается и становится родителем следующей mutation; тест проверяет parent ID, exact primary bytes и результат.**
-- [ ] Restart загружает сохранённый discovered input; он остаётся доступным как future parent. Restore и exact campaign resume различены.
-- [ ] Scheduler не объявляет exhaustion, не посетив ещё доступный productive stage; 256-seed regression выполняет реальные mutations.
-- [ ] Crash сохраняет exact triggering input; storage failure имеет явный инфраструктурный результат и не теряет объяснение.
-- [ ] Saved crash воспроизводится через replay execution в свежей VM с совместимыми target/harness builds.
-- [ ] Mutation recipe детерминированно восстанавливает input без live corpus и RNG; mismatch/corruption отвергаются.
-- [ ] Timeout/cancellation/coordinator loss не оставляют живых target processes в поддержанной модели, включая её descendants; недоказанная очистка запрещает reuse runner.
-- [ ] Invalid instrumentation, mutation failure, target failure и infrastructure failure различаются в report и counters.
-- [ ] End-to-end integration test подтверждает весь цикл, disk retention, restart reuse и fresh crash replay без mock target/mutator/coverage/corpus.
+- [ ] EFZ accepts target/harness through common CLI/config; supported callback contract explicit, module/export and artifact availability checked.
+- [ ] Initial seed file read as binary and appears in active corpus; duplicates and invalid paths handled deterministically.
+- [ ] Corpus seed actually passed to the standard mutation engine.
+- [ ] Mutated binary exactly matches the bytes received by the harness.
+- [ ] Harness calls the real instrumented target; entirely disconnected feedback diagnosed.
+- [ ] Coverage collected separately for a specific input with validated build/source identity.
+- [ ] One input's coverage cannot contaminate another; scope and shared-state policy checked; missing/broken observation not accepted as valid empty.
+- [ ] New coverage computed as CurrentCoverage − GlobalCoverage for successful outcomes; global updated deterministically.
+- [ ] Input with new coverage saved to disk and added to active corpus with parent/content/build metadata.
+- [ ] **This newly generated coverage-discovered input is then actually selected and becomes the parent of the next mutation; the test checks parent ID, exact primary bytes and result.**
+- [ ] Restart loads the saved discovered input; it remains available as a future parent. Restoration is distinguished from exact campaign resume.
+- [ ] Scheduler does not declare exhaustion before visiting a still-available productive stage; 256-seed regression performs real mutations.
+- [ ] Crash saves exact triggering input; storage failure has an explicit infrastructure outcome and retains its explanation.
+- [ ] Saved crash reproduced by replay execution in a fresh VM with compatible target/harness builds.
+- [ ] Mutation recipe deterministically reconstructs input without live corpus or RNG; mismatch/corruption rejected.
+- [ ] Timeout/cancellation/coordinator loss leave no live target processes in the supported model, including its descendants; unproven cleanup forbids runner reuse.
+- [ ] Invalid instrumentation, mutation failure, target failure and infrastructure failure distinguished in report and counters.
+- [ ] End-to-end integration test confirms the full loop, disk retention, restart reuse and fresh crash replay without mock target/mutator/coverage/corpus.
 
-**Критерий завершения фазы:** один воспроизводимый тест проходит seed file → real mutation → real harness/target → per-input coverage → successful discovery → durable + active corpus → mutation от discovered parent; второй запуск использует тот же persisted input. Текущий audit уже доказал внутреннюю часть этой цепочки, поэтому следующий этап должен сохранить её и устранить установленные gaps.
+**Phase completion criterion:** one reproducible test passes seed file → real mutation → real harness/target → per-input coverage → successful discovery → durable + active corpus → mutation from discovered parent; a second run uses the same persisted input. The current audit already proved the internal part of this chain, so the next phase must preserve it and resolve the established gaps.

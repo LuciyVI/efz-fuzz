@@ -1,0 +1,243 @@
+{
+  "canonical_language": "en",
+  "languages": {
+    "ru": "Русский",
+    "es": "Español",
+    "zh-CN": "简体中文"
+  },
+  "scope": "Complete project README, documentation, historical audits and reports, and example READMEs.",
+  "documents": [
+    {
+      "source": "README.md",
+      "localized": "README.md"
+    },
+    {
+      "source": "docs/README.md",
+      "localized": "index.md"
+    },
+    {
+      "source": "docs/adr/0002-automatic-coverage.md",
+      "localized": "adr/0002-automatic-coverage.md"
+    },
+    {
+      "source": "docs/architecture.md",
+      "localized": "architecture.md"
+    },
+    {
+      "source": "docs/calibration-readiness.md",
+      "localized": "calibration-readiness.md"
+    },
+    {
+      "source": "docs/cli.md",
+      "localized": "cli.md"
+    },
+    {
+      "source": "docs/continuous.md",
+      "localized": "continuous.md"
+    },
+    {
+      "source": "docs/corpus.md",
+      "localized": "corpus.md"
+    },
+    {
+      "source": "docs/coverage-bitmap-architecture.md",
+      "localized": "coverage-bitmap-architecture.md"
+    },
+    {
+      "source": "docs/coverage-bitmap-audit.md",
+      "localized": "coverage-bitmap-audit.md"
+    },
+    {
+      "source": "docs/coverage-bitmap-implementation-report.md",
+      "localized": "coverage-bitmap-implementation-report.md"
+    },
+    {
+      "source": "docs/coverage-bitmap-v2-results.md",
+      "localized": "coverage-bitmap-v2-results.md"
+    },
+    {
+      "source": "docs/coverage-integrity.md",
+      "localized": "coverage-integrity.md"
+    },
+    {
+      "source": "docs/coverage-tracking-audit.md",
+      "localized": "coverage-tracking-audit.md"
+    },
+    {
+      "source": "docs/coverage.md",
+      "localized": "coverage.md"
+    },
+    {
+      "source": "docs/cowboy-long-benchmark.md",
+      "localized": "cowboy-long-benchmark.md"
+    },
+    {
+      "source": "docs/diagrams/README.md",
+      "localized": "diagrams/README.md"
+    },
+    {
+      "source": "docs/dwarf-native-coverage-results.md",
+      "localized": "dwarf-native-coverage-results.md"
+    },
+    {
+      "source": "docs/dwarf-native-coverage.md",
+      "localized": "dwarf-native-coverage.md"
+    },
+    {
+      "source": "docs/engine-performance-profile-v2.md",
+      "localized": "engine-performance-profile-v2.md"
+    },
+    {
+      "source": "docs/engine-performance-profile.md",
+      "localized": "engine-performance-profile.md"
+    },
+    {
+      "source": "docs/execution-isolation.md",
+      "localized": "execution-isolation.md"
+    },
+    {
+      "source": "docs/gleam-layer/adapter-contract.md",
+      "localized": "gleam-layer/adapter-contract.md"
+    },
+    {
+      "source": "docs/gleam-layer/agent-plan.md",
+      "localized": "gleam-layer/agent-plan.md"
+    },
+    {
+      "source": "docs/gleam-layer/architecture.md",
+      "localized": "gleam-layer/architecture.md"
+    },
+    {
+      "source": "docs/gleam-layer/baseline.md",
+      "localized": "gleam-layer/baseline.md"
+    },
+    {
+      "source": "docs/gleam-layer/connecting-erlang-libraries.md",
+      "localized": "gleam-layer/connecting-erlang-libraries.md"
+    },
+    {
+      "source": "docs/gleam-layer/connector-generation.md",
+      "localized": "gleam-layer/connector-generation.md"
+    },
+    {
+      "source": "docs/gleam-layer/contracts.md",
+      "localized": "gleam-layer/contracts.md"
+    },
+    {
+      "source": "docs/gleam-layer/decision-log.md",
+      "localized": "gleam-layer/decision-log.md"
+    },
+    {
+      "source": "docs/gleam-layer/execution-path.md",
+      "localized": "gleam-layer/execution-path.md"
+    },
+    {
+      "source": "docs/gleam-layer/p1-validation.md",
+      "localized": "gleam-layer/p1-validation.md"
+    },
+    {
+      "source": "docs/gleam-layer/p2-integration.md",
+      "localized": "gleam-layer/p2-integration.md"
+    },
+    {
+      "source": "docs/gleam-layer/p3-provider.md",
+      "localized": "gleam-layer/p3-provider.md"
+    },
+    {
+      "source": "docs/gleam-layer/p4-feedback.md",
+      "localized": "gleam-layer/p4-feedback.md"
+    },
+    {
+      "source": "docs/gleam-layer/p5-validation.md",
+      "localized": "gleam-layer/p5-validation.md"
+    },
+    {
+      "source": "docs/gleam-layer/universal-validation.md",
+      "localized": "gleam-layer/universal-validation.md"
+    },
+    {
+      "source": "docs/gleam-layer/user-guide.md",
+      "localized": "gleam-layer/user-guide.md"
+    },
+    {
+      "source": "docs/hit-count-experiment.md",
+      "localized": "hit-count-experiment.md"
+    },
+    {
+      "source": "docs/input-and-storage.md",
+      "localized": "input-and-storage.md"
+    },
+    {
+      "source": "docs/mutations.md",
+      "localized": "mutations.md"
+    },
+    {
+      "source": "docs/otp-native-public-results.md",
+      "localized": "otp-native-public-results.md"
+    },
+    {
+      "source": "docs/p1-01-external-supervisor.md",
+      "localized": "p1-01-external-supervisor.md"
+    },
+    {
+      "source": "docs/phase2-validation.md",
+      "localized": "phase2-validation.md"
+    },
+    {
+      "source": "docs/phase2.1-performance.md",
+      "localized": "phase2.1-performance.md"
+    },
+    {
+      "source": "docs/phase3-validation.md",
+      "localized": "phase3-validation.md"
+    },
+    {
+      "source": "docs/plans/coverage-bitmap-implementation-plan.md",
+      "localized": "plans/coverage-bitmap-implementation-plan.md"
+    },
+    {
+      "source": "docs/quickstart.md",
+      "localized": "quickstart.md"
+    },
+    {
+      "source": "docs/replay.md",
+      "localized": "replay.md"
+    },
+    {
+      "source": "docs/repository-map.md",
+      "localized": "repository-map.md"
+    },
+    {
+      "source": "docs/runtime-diagnostics-acceptance-fixes.md",
+      "localized": "runtime-diagnostics-acceptance-fixes.md"
+    },
+    {
+      "source": "docs/runtime-diagnostics-validation.md",
+      "localized": "runtime-diagnostics-validation.md"
+    },
+    {
+      "source": "docs/runtime-diagnostics.md",
+      "localized": "runtime-diagnostics.md"
+    },
+    {
+      "source": "docs/technical-audit-2026-09-12.md",
+      "localized": "technical-audit-2026-09-12.md"
+    },
+    {
+      "source": "docs/tui.md",
+      "localized": "tui.md"
+    },
+    {
+      "source": "examples/cowboy/README.md",
+      "localized": "examples/cowboy/README.md"
+    },
+    {
+      "source": "examples/semantic_configs/README.md",
+      "localized": "examples/semantic_configs/README.md"
+    },
+    {
+      "source": "examples/xmlrpc/README.md",
+      "localized": "examples/xmlrpc/README.md"
+    }
+  ]
+}

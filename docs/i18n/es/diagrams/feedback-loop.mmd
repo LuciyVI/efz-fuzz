@@ -1,0 +1,67 @@
+sequenceDiagram
+    accTitle: EFZ — mutación por etapas y retención en corpus activo
+    accDescr: Una entrada exitosa con sondas nuevas se persiste antes de admitirla al corpus; el planificador la recibe en una ronda futura.
+    autonumber
+    participant W as efz_worker
+    participant C as efz_corpus
+    participant P as efz_mutation_plan
+    participant M as efz_mutation
+    participant R as efz_recipe
+    participant E as efz_executor
+    participant F as efz_feedback
+    participant S as efz_corpus_store
+    Note over W,S: Semillas iniciales y restauradas pasaron calibración de executor/feedback
+    loop Mientras presupuesto y planificador permitan avanzar
+        W->>C: mutation_entries()
+        C-->>W: Entries: mapas con id e input
+        W->>P: next(PlanState, Entries)
+        P->>P: Elegir entrada, etapa y cursor
+        P->>M: apply_operation(Primary, Op, Limits)
+        M-->>P: {ok, Candidate} o skip/error
+        alt Candidato encontrado
+            P-->>W: {candidate, Input, Provenance, NextPlan}
+            W->>R: make(Provenance, Input, MutationConfig, Builds)
+            R-->>W: Recipe: parent, primary, hashes, operaciones
+            W->>W: efz_input:check(Input, Max, mutation)
+            W->>E: run(Target, Input, Timeout, Options)
+            Note over E: Guardian + coordinador; árbol propio; limpiar antes del resultado
+            E-->>W: Result: outcome, cobertura, integridad observada, identidades fijadas
+            W->>W: Registrar módulos observados al margen de cobertura global exitosa
+            W->>F: evaluate(FeedbackState, Result, mutation)
+            alt Éxito válido y New != empty
+                F-->>W: {ok, F1, Decision}, new_probes = New
+                W->>C: add(Input, Metadata con ID padre y Recipe)
+                alt Binario nuevo
+                    opt corpus_dir habilitado
+                        C->>S: save(Store, Input, NextId, Metadata)
+                        S-->>C: {ok, Record} tras rename + fsync
+                    end
+                    C->>C: Añadir entrada, aumentar next ID
+                    C-->>W: {ok, Id}
+                    W->>W: discoveries += 1, aceptar F1
+                    Note over W,C: Input nuevo disponible al planificador como primario y donante en la próxima ronda
+                else El binario ya existe
+                    C-->>W: {existing, Input}
+                    W->>W: Aceptar F1, existing_input sin entrada nueva
+                end
+            else Éxito sin cobertura nueva
+                F-->>W: {ok, F1, equivalent_coverage decision}
+                W->>W: Aceptar F1, rejections += 1
+            else Excepción de objetivo / exit / timeout
+                F-->>W: {ok, previous F, target_failure decision}
+                W->>W: efz_crash:identify/3 + save/4, persistir representantes raw elegidos
+                W->>W: Conteo persistente += 1; representantes y decisiones acotados en disco/informe
+            else Cobertura inválida o resultado de infraestructura
+                F-->>W: {error, Reason}
+                W->>W: Fallo de infraestructura, finalizar campaña
+            end
+        else Visita sin candidato
+            P-->>W: {skip, Reason, NextPlan}
+            Note over W,E: No se llama al executor; el modelo de progreso conserva el cursor
+        else Agotamiento / guarda inactiva / error
+            P-->>W: {done, Reason, NextPlan} o {error, Reason, NextPlan}
+            W->>W: Informe final con motivo de parada separado
+        end
+    end
+    W->>W: Informar artefactos no usados; strict falla sin sondas observadas
+    Note over W,S: Un error de almacén corpus/fallos detiene la campaña; entrada y motivo quedan en failure_context

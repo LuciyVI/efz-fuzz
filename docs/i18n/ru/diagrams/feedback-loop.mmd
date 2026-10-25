@@ -1,0 +1,67 @@
+sequenceDiagram
+    accTitle: EFZ — поэтапные мутации и сохранение открытий в активном корпусе
+    accDescr: Успешный вход с новыми пробами сохраняется до добавления в активный корпус; планировщик получит его в одном из следующих раундов.
+    autonumber
+    participant W as efz_worker
+    participant C as efz_corpus
+    participant P as efz_mutation_plan
+    participant M as efz_mutation
+    participant R as efz_recipe
+    participant E as efz_executor
+    participant F as efz_feedback
+    participant S as efz_corpus_store
+    Note over W,S: Начальные и восстановленные семена прошли калибровку исполнителем и обратной связью
+    loop Пока бюджет и планировщик допускают прогресс
+        W->>C: mutation_entries()
+        C-->>W: Entries: карты с id и input
+        W->>P: next(PlanState, Entries)
+        P->>P: Выбрать запись, этап и курсор
+        P->>M: apply_operation(Primary, Op, Limits)
+        M-->>P: {ok, Candidate} либо skip/error
+        alt Кандидат найден
+            P-->>W: {candidate, Input, Provenance, NextPlan}
+            W->>R: make(Provenance, Input, MutationConfig, Builds)
+            R-->>W: Recipe: parent, primary, хеши, операции
+            W->>W: efz_input:check(Input, Max, mutation)
+            W->>E: run(Target, Input, Timeout, Options)
+            Note over E: Страж + координатор + своё дерево; очистка до результата
+            E-->>W: Result: outcome, coverage, целостность наблюдения, закреплённые identity
+            W->>W: Записать наблюдаемые модули независимо от успешного глобального покрытия
+            W->>F: evaluate(FeedbackState, Result, mutation)
+            alt Корректный успех и New != empty
+                F-->>W: {ok, F1, Decision}, new_probes = New
+                W->>C: add(Input, Metadata с ID parent и Recipe)
+                alt Новый бинарный вход
+                    opt corpus_dir включён
+                        C->>S: save(Store, Input, NextId, Metadata)
+                        S-->>C: {ok, Record} после rename + fsync
+                    end
+                    C->>C: Добавить запись, увеличить следующий ID
+                    C-->>W: {ok, Id}
+                    W->>W: discoveries += 1, принять F1
+                    Note over W,C: Новый Input доступен планировщику как основной вход и донор в следующем раунде
+                else Binary уже существует
+                    C-->>W: {existing, Input}
+                    W->>W: Принять F1, existing_input без новой записи
+                end
+            else Успех без нового покрытия
+                F-->>W: {ok, F1, equivalent_coverage decision}
+                W->>W: Принять F1, rejections += 1
+            else Исключение цели / exit / timeout
+                F-->>W: {ok, previous F, target_failure decision}
+                W->>W: efz_crash:identify/3 + save/4, сохранить выбранные исходные образцы
+                W->>W: Стойкий счёт += 1; образцы и решения на диске/в отчёте ограничены
+            else Некорректное покрытие или инфраструктурный результат
+                F-->>W: {error, Reason}
+                W->>W: Сбой инфраструктуры, конец кампании
+            end
+        else Посещение без кандидата
+            P-->>W: {skip, Reason, NextPlan}
+            Note over W,E: Исполнитель не вызывается; модель прогресса сохраняет курсор
+        else Исчерпание / защита от простоя / ошибка
+            P-->>W: {done, Reason, NextPlan} либо {error, Reason, NextPlan}
+            W->>W: Итоговый отчёт с отдельной причиной остановки
+        end
+    end
+    W->>W: Отчёт о неиспользованных артефактах; strict даёт сбой, если проб не было
+    Note over W,S: Ошибка хранения корпуса/сбоев останавливает кампанию; вход и причина остаются в failure_context

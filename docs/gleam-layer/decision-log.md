@@ -1,5 +1,7 @@
 # Decisions
 
+**English** · [Русский](../i18n/ru/gleam-layer/decision-log.md) · [Español](../i18n/es/gleam-layer/decision-log.md) · [简体中文](../i18n/zh-CN/gleam-layer/decision-log.md) · [All languages](../i18n/README.md)
+
 1. Use installed Gleam 1.10.0 from /tmp/efz-gleam-toolchain/gleam after real
    build/BEAM verification; pin exact version. No automatic latest upgrade.
 2. Use pinned Cowlib query-string parser, without rewriting it. Model contains

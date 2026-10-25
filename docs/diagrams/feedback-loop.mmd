@@ -1,6 +1,6 @@
 sequenceDiagram
-    accTitle: EFZ — staged mutation и возврат discovery в active corpus
-    accDescr: Успешный input с новыми probes сохраняется до добавления в active corpus, scheduler получает его в будущем раунде.
+    accTitle: EFZ — staged mutation and discovery retention in the active corpus
+    accDescr: A successful input with new probes is persisted before admission to the active corpus; the scheduler receives it in a future round.
     autonumber
     participant W as efz_worker
     participant C as efz_corpus
@@ -10,15 +10,15 @@ sequenceDiagram
     participant E as efz_executor
     participant F as efz_feedback
     participant S as efz_corpus_store
-    Note over W,S: Initial и restored seeds уже прошли calibration через executor и feedback
-    loop Пока не достигнут campaign budget и scheduler не завершён
+    Note over W,S: Initial and restored seeds passed executor and feedback calibration
+    loop While the campaign budget and scheduler allow progress
         W->>C: mutation_entries()
-        C-->>W: Entries: список maps с id и input
+        C-->>W: Entries: maps with id and input
         W->>P: next(PlanState, Entries)
-        P->>P: Выбор entry, stage lane и cursor
+        P->>P: Choose entry, stage lane and cursor
         P->>M: apply_operation(Primary, Op, Limits)
-        M-->>P: {ok, Candidate} либо skip/error
-        alt Candidate найден
+        M-->>P: {ok, Candidate} or skip/error
+        alt Candidate found
             P-->>W: {candidate, Input, Provenance, NextPlan}
             W->>R: make(Provenance, Input, MutationConfig, Builds)
             R-->>W: Recipe: parent, primary, hashes, operations
@@ -28,40 +28,40 @@ sequenceDiagram
             E-->>W: Result: outcome, coverage, observation integrity, pinned identities
             W->>W: Record observed modules independently of successful global coverage
             W->>F: evaluate(FeedbackState, Result, mutation)
-            alt Валидный successful outcome и New != empty
+            alt Valid successful outcome and New != empty
                 F-->>W: {ok, F1, Decision}, new_probes = New
-                W->>C: add(Input, Metadata с parent ID и Recipe)
-                alt Новый binary
-                    opt Включён corpus_dir
+                W->>C: add(Input, Metadata with parent ID and Recipe)
+                alt New binary
+                    opt corpus_dir enabled
                         C->>S: save(Store, Input, NextId, Metadata)
-                        S-->>C: {ok, Record} после rename + fsync
+                        S-->>C: {ok, Record} after rename + fsync
                     end
-                    C->>C: Append entry, увеличить next ID
+                    C->>C: Append entry, increment next ID
                     C-->>W: {ok, Id}
-                    W->>W: discoveries += 1, принять F1
-                    Note over W,C: Новый Input доступен scheduler как primary и donor в следующем раунде
-                else Binary уже есть
+                    W->>W: discoveries += 1, accept F1
+                    Note over W,C: New Input is available to the scheduler as primary and donor in the next round
+                else Binary already exists
                     C-->>W: {existing, Input}
-                    W->>W: Принять F1, existing_input без новой entry
+                    W->>W: Accept F1, existing_input without a new entry
                 end
-            else Успех без нового coverage
+            else Success without new coverage
                 F-->>W: {ok, F1, equivalent_coverage decision}
-                W->>W: Принять F1, rejections += 1
+                W->>W: Accept F1, rejections += 1
             else Target exception / exit / timeout
-                F-->>W: {ok, прежний F, target_failure decision}
+                F-->>W: {ok, previous F, target_failure decision}
                 W->>W: efz_crash:identify/3 + save/4, persist selected raw representatives
                 W->>W: durable summary count += 1, bounded disk/report representatives and decisions
-            else Невалидное coverage или infrastructure outcome
+            else Invalid coverage or infrastructure outcome
                 F-->>W: {error, Reason}
-                W->>W: infrastructure failure, закончить campaign
+                W->>W: infrastructure failure, end campaign
             end
-        else Визит не дал candidate
+        else Visit produced no candidate
             P-->>W: {skip, Reason, NextPlan}
-            Note over W,E: Executor не вызывается, progress model сохраняет cursor
-        else Exhaustion / idle guard / ошибка
-            P-->>W: {done, Reason, NextPlan} либо {error, Reason, NextPlan}
-            W->>W: Итоговый report с отдельной причиной остановки
+            Note over W,E: Executor is not called; the progress model retains the cursor
+        else Exhaustion / idle guard / error
+            P-->>W: {done, Reason, NextPlan} or {error, Reason, NextPlan}
+            W->>W: Final report with a separate stop reason
         end
     end
     W->>W: Report unused artifacts, strict policy fails if no probes ever observed
-    Note over W,S: Ошибка corpus/crash storage останавливает campaign, input и причина остаются в failure_context
+    Note over W,S: A corpus/crash storage error stops the campaign; input and reason remain in failure_context

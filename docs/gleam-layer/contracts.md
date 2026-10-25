@@ -1,5 +1,7 @@
 # Native Erlang/Gleam contract v1
 
+**English** · [Русский](../i18n/ru/gleam-layer/contracts.md) · [Español](../i18n/es/gleam-layer/contracts.md) · [简体中文](../i18n/zh-CN/gleam-layer/contracts.md) · [All languages](../i18n/README.md)
+
 Requirements: **2.0-native**. Contract: **1**. Both
 `efz_gleam_adapter:versions/0` and compiled `efz_qs_model:versions/0` return
 `{Contract,Model,Codec,Mutator,FeatureSchema,Property} = {1,1,1,1,1,1}`.

@@ -1,63 +1,65 @@
-# EFZ (фаззер для Erlang)
+# EFZ (Erlang fuzzer)
 
-EFZ — фаззер на Erlang с управлением корпусом, случайными и подключаемыми
-поэтапными мутациями бинарных данных, точными рецептами кандидатов, контролируемым
-исполнением цели, артефактами падений и автоматическим инструментированием
-исходного кода. EFZ не зависит от других движков фаззинга.
+**English** · [Русский](docs/i18n/ru/README.md) · [Español](docs/i18n/es/README.md) · [简体中文](docs/i18n/zh-CN/README.md) · [All languages](docs/i18n/README.md)
 
-Опциональный semantic/Gleam layer: [подключение Erlang-библиотек](docs/gleam-layer/connecting-erlang-libraries.md) ·
-[финальная проверка P5](docs/gleam-layer/p5-validation.md) ·
-[автогенерация коннекторов из `-spec`](docs/gleam-layer/connector-generation.md).
+EFZ is an Erlang fuzzer with corpus management, random and pluggable staged
+binary mutations, exact candidate recipes, controlled target execution, crash
+artifacts and automatic source-code instrumentation. EFZ does not depend on
+other fuzzing engines.
 
-Непрерывный режим: [staged/Gleam без лимита исполнений](docs/continuous.md).
+Optional semantic/Gleam layer: [connecting Erlang libraries](docs/gleam-layer/connecting-erlang-libraries.md) ·
+[final P5 validation](docs/gleam-layer/p5-validation.md) ·
+[automatic connector generation from `-spec`](docs/gleam-layer/connector-generation.md).
 
-TUI: [терминальная панель кампании](docs/tui.md) — `python3 scripts/tui.py --demo --out _build/tui-demo-1`.
+Continuous mode: [staged/Gleam without an execution limit](docs/continuous.md).
 
-Документация: [архитектура и UML](docs/architecture.md) ·
-[карта всех директорий и файлов](docs/repository-map.md).
+TUI: [terminal campaign dashboard](docs/tui.md) — `python3 scripts/tui.py --demo --out _build/tui-demo-1`.
 
-[Аудит исходного presence backend и сравнение с AFL++](docs/coverage-tracking-audit.md)
-зафиксирован на commit `205e18b`. Теперь также доступен экспериментальный
-[hit-count feedback](docs/hit-count-experiment.md): `coverage_feedback => hit_count`
-или CLI `--coverage-feedback hit_count`. Default остаётся `presence`.
-Для automatic presence доступен opt-in `coverage_backend => bitmap`:
-один бит на точный структурный probe, без hashing и edge coverage.
+Documentation: [architecture and UML](docs/architecture.md) ·
+[map of all directories and files](docs/repository-map.md).
 
-Быстрый старт с готовым тестовым корпусом:
+The [audit of the original presence backend and comparison with AFL++](docs/coverage-tracking-audit.md)
+is pinned to commit `205e18b`. Experimental
+[hit-count feedback](docs/hit-count-experiment.md) is now also available:
+`coverage_feedback => hit_count` or CLI `--coverage-feedback hit_count`.
+The default remains `presence`. Automatic presence supports opt-in
+`coverage_backend => bitmap`: one bit per exact structural probe, without
+hashing or edge coverage.
+
+Quick start with a ready-made test corpus:
 
 ```sh
-# Из efz/: проверка OTP/Rebar3, сборка, инструментирование и подготовка исходных файлов корпуса.
+# From efz/: check OTP/Rebar3, build, instrument and prepare initial corpus files.
 escript scripts/prepare.escript
-# Выполните команду, которую напечатает скрипт.
+# Run the command printed by the script.
 ```
 
-[Проверенная команда фаззинга, воспроизведение и оставшиеся этапы разработки](docs/quickstart.md).
-Подготовка использует существующий поэтапный парсер; `BOOM!` — демонстрационное падение.
+[Verified fuzzing command, replay and remaining development stages](docs/quickstart.md).
+Preparation uses the existing staged parser; `BOOM!` is a demonstration crash.
 
-На этапе 2 собирается **покрытие исходного кода по предложениям функций и исходам
-ветвлений в пределах одного исполнения**. Обычной тестируемой цели не нужны вызовы
-EFZ. При компиляции инструментируются модули из явно заданного списка; файлы BEAM
-и манифесты исходного кода помещаются в отдельный каталог. Один рабочий процесс
-кампании калибрует начальные входы и затем сохраняет успешные мутации, достигшие
-ранее не наблюдавшихся точек покрытия. Исключения, завершения процессов и тайм-ауты
-сохраняют покрытие и входят в результаты; сбои инфраструктуры останавливают кампанию.
+Phase 2 collects **source-code coverage of function clauses and branch outcomes
+within one execution**. Ordinary targets under test need no EFZ calls. Compilation
+instruments modules from an explicit allowlist; BEAM files and source manifests
+are placed in a separate directory. One campaign worker calibrates initial inputs
+and then retains successful mutations that reach previously unseen coverage
+points. Exceptions, exits and timeouts preserve coverage and appear in results;
+infrastructure failures stop the campaign.
 
-Дополнительный режим `hit_count` сохраняет успешные входы, достигшие нового
-диапазона числа попаданий для существующей точной точки покрытия. Новизна точек
-и счётчиков учитывается отдельно (`new_probe` / `new_hit_count`); используются
-те же механизмы мутации, исполнения, корпуса и воспроизведения. Перед выбором
-режима см. [результаты эксперимента](docs/hit-count-experiment.md).
+The additional `hit_count` mode retains successful inputs that reach a new hit-count
+bucket for an existing exact coverage point. Probe novelty and count novelty are
+tracked separately (`new_probe` / `new_hit_count`); the same mutation, execution,
+corpus and replay mechanisms are used. See the [experiment results](docs/hit-count-experiment.md)
+before choosing a mode.
 
-Модель исполнения: синхронный обработчик бинарного входа и управляемые дочерние
-процессы, созданные через `efz_target:spawn/1` или `spawn_link/1`. Независимый
-контролирующий процесс управляет их жизненным циклом и покрытием, дожидается очистки
-перед возвратом результата и выводит из использования загрязнённые экземпляры VM.
-См. [изоляцию исполнения и правила для общего состояния](docs/execution-isolation.md).
-Для произвольных асинхронных OTP-приложений в будущем потребуется отдельный
-одноразовый экземпляр VM.
+Execution model: a synchronous binary-input harness and controlled child processes
+created through `efz_target:spawn/1` or `spawn_link/1`. An independent guardian
+manages their lifecycle and coverage, waits for cleanup before returning a result,
+and retires contaminated VMs. See [execution isolation and shared-state rules](docs/execution-isolation.md).
+Arbitrary asynchronous OTP applications will require a separate disposable VM
+backend.
 
-Проверенная среда: Erlang/OTP **27.0**, ERTS 15.0, x86_64 Linux, Rebar3 3.25.0.
-Минимальная версия в конфигурации — OTP 27; другие версии здесь не проверялись.
+Verified environment: Erlang/OTP **27.0**, ERTS 15.0, x86_64 Linux, Rebar3 3.25.0.
+The minimum configured version is OTP 27; other versions were not verified here.
 
 ```sh
 rebar3 compile
@@ -67,8 +69,7 @@ rebar3 dialyzer
 rebar3 xref
 ```
 
-Запустите собственный `my_harness:run(Input) when is_binary(Input)` через
-универсальный интерфейс командной строки:
+Run your own `my_harness:run(Input) when is_binary(Input)` through the general CLI:
 
 ```sh
 escript scripts/fuzz.escript \
@@ -85,68 +86,61 @@ escript scripts/fuzz.escript \
 escript scripts/fuzz.escript --help
 ```
 
-Скомпилируйте обычный обработчик в `harness-ebin`; он вызывает ваш парсер или
-другой тестируемый код. Соберите выбранные модули цели с помощью
-`efz_instrument:compile/2` в `instrumented` (пары BEAM и `.efz-manifest`; пример
-приведён ниже). Повторите `--code-path` для каталогов BEAM зависимостей. Обработчик
-может сам входить в число инструментированных модулей, если экспортирует `run/1`.
+Compile an ordinary harness into `harness-ebin`; it calls your parser or other
+code under test. Build selected target modules with `efz_instrument:compile/2`
+into `instrumented` (BEAM and `.efz-manifest` pairs; an example follows). Repeat
+`--code-path` for dependency BEAM directories. The harness itself may be among
+the instrumented modules if it exports `run/1`.
 
-Программа запуска читает обычные файлы начального корпуса как необработанные
-бинарные данные в порядке имён файлов. Пустые файлы допустимы, пустой каталог —
-нет. Перед исполнением проверяются артефакты, экспорт `run/1` и доступность
-каталога результатов. Находки записываются в `findings/crashes/`, а
-`findings/report.term` содержит отчёт о кампании, включая активный корпус.
-Повторное использование каталога результатов заменяет этот отчёт. Коды завершения:
-`0` — штатное завершение кампании, в том числе с падениями цели; `2` — неверные
-аргументы или конфигурация; `1` — сбой инфраструктуры исполнения или сохранения
-отчёта. По умолчанию интерфейс командной строки выполняет поэтапные мутации и
-1000 мутационных исполнений. Значения по умолчанию для Erlang API не изменились,
-кроме общего ограничения размера входа. `--max-input-bytes` действует для
-поэтапного и случайного режимов (по умолчанию 4096, включительно, диапазон
-0..1048576).
+The runner reads regular files in the initial corpus as raw binary data in
+filename order. Empty files are allowed; an empty directory is not. Before
+execution, artifacts, the `run/1` export and output-directory availability are
+checked. Findings go into `findings/crashes/`, and `findings/report.term` contains
+the campaign report, including the active corpus. Reusing an output directory
+replaces this report. Exit codes: `0` for normal campaign completion, including
+target crashes; `2` for invalid arguments or configuration; `1` for execution
+infrastructure or report-storage failure. The CLI defaults to staged mutations
+and 1000 mutation executions. Erlang API defaults are unchanged except for the
+shared input-size limit. `--max-input-bytes` applies to staged and random modes
+(default 4096, inclusive, range 0..1048576).
 
-Карты конфигурации кампании отклоняют неизвестные ключи верхнего уровня, включая
-`function` и `arity`. Стандартная функция обратного вызова — `run/1`; параметр
-`max_input_bytes => N` задаётся на уровне кампании. Старый вложенный параметр
-`mutation.max_input_bytes` отклоняется с явным сообщением о переходе на новую
-схему. Слишком большие входы отклоняются без усечения. См.
-[ограничения входа и сбои хранения](docs/input-and-storage.md) и
-[настройку CLI и схему кампании](docs/cli.md).
+Campaign configuration maps reject unknown top-level keys, including `function`
+and `arity`. The standard callback is `run/1`; `max_input_bytes => N` is a
+campaign-level setting. The old nested `mutation.max_input_bytes` setting is
+rejected with an explicit migration message. Oversized inputs are rejected
+without truncation. See [input limits and storage failures](docs/input-and-storage.md)
+and [CLI configuration and campaign schema](docs/cli.md).
 
-Чтобы использовать сохраняемый между запусками корпус, укажите
-`--corpus-dir ./findings/corpus` (Erlang API:
-`corpus_dir => "./findings/corpus"`). Исходные входы и успешные находки с новым
-покрытием сохраняются по SHA-256 до подтверждения их включения в корпус. Укажите
-тот же каталог при следующем запуске; тогда `--seeds` можно опустить. Входы,
-переданные вместе с сохранёнными, удаляются из повторов по содержимому. Каждый
-восстановленный вход проходит повторную калибровку и может стать родителем мутации.
+To use a corpus that persists across runs, set `--corpus-dir ./findings/corpus`
+(Erlang API: `corpus_dir => "./findings/corpus"`). Initial inputs and successful
+new-coverage discoveries are saved by SHA-256 before admission to the corpus
+is acknowledged. Use the same directory on the next run; `--seeds` may then be
+omitted. Seeds supplied alongside restored inputs are deduplicated by content.
+Each restored input is recalibrated and may become a mutation parent.
 
-Восстанавливаются пригодные для повторного использования входы, но не точное
-состояние кампании: позиции планировщика, состояние ГСЧ, глобальное покрытие и
-старые целочисленные идентификаторы очереди не восстанавливаются. По умолчанию
-несовпадение цели или сборки приводит к ошибке. Явный параметр
-`--corpus-build-policy recalibrate` позволяет использовать входы от другой
-сборки с диагностикой и повторным сбором покрытия. Повреждение сохранённой записи
-вызывает ошибку восстановления; незавершённые промежуточные записи исключаются с
-диагностикой. См. [формат долговременного корпуса, гарантии сохранности и
-тесты](docs/corpus.md).
+Reusable inputs are restored, not the exact campaign state: planner cursors,
+RNG state, global coverage and old integer queue IDs are not restored. By default,
+a target or build mismatch produces an error. Explicit
+`--corpus-build-policy recalibrate` permits inputs from another build with
+diagnostics and fresh coverage collection. A corrupt persisted entry causes a
+restore error; incomplete intermediate writes are excluded with diagnostics.
+See [durable corpus format, durability guarantees and tests](docs/corpus.md).
 
-Запустите ограниченный пример из корня репозитория:
+Run the bounded example from the repository root:
 
 ```sh
 escript examples/automatic/run.escript
 ```
 
-Пример компилирует только `efz_example_parser`, использует отдельный адаптер
-`efz_example_target`, калибрует `<<0>>` и выполняет 500 мутаций штатным случайным
-мутатором с фиксированным начальным состоянием ГСЧ. Отчёт записывается в
-`_build/example-report.term`, инструментированная сборка — в
-`_build/instrumented-example`, артефакты искусственного падения — в
-`_build/example-crashes`. Парсер представляет собой обычный исходный код Erlang;
-намеренно вызываемое исключение `artificial_example_exception` демонстрирует
-ошибку цели.
+The example compiles only `efz_example_parser`, uses the separate
+`efz_example_target` adapter, calibrates `<<0>>` and performs 500 mutations using
+the standard random mutator with a fixed RNG seed. The report is written to
+`_build/example-report.term`, the instrumented build to
+`_build/instrumented-example`, and artificial-crash artifacts to
+`_build/example-crashes`. The parser is ordinary Erlang source; the deliberate
+`artificial_example_exception` demonstrates a target failure.
 
-Для интерактивного запуска после компиляции откройте новый `rebar3 shell`:
+For an interactive run after compilation, open a fresh `rebar3 shell`:
 
 ```erlang
 {ok, Artifact} = efz_instrument:compile(
@@ -161,107 +155,101 @@ efz:stats().
 efz:stop().
 ```
 
-Цели по-прежнему реализуют `run/1`; адаптеры могут вызывать один или несколько
-выбранных модулей в том же процессе. `efz_executor:run/3` сохраняет кортежный API
-этапа 1 в явном ручном режиме совместимости; `run/4` добавляет метаданные покрытия
-в пределах исполнения. Автоматическим кампаниям нужны проверенные артефакты;
-перехода на ручную обратную связь для них нет. Не загружайте обычную цель заранее
-и не заменяйте код цели во время кампании; для переключения между сборками
-запускайте новую VM.
+Targets still implement `run/1`; adapters may call one or more selected modules
+in the same process. `efz_executor:run/3` preserves the phase-1 tuple API in an
+explicit manual compatibility mode; `run/4` adds execution-scoped coverage
+metadata. Automatic campaigns require validated artifacts; they do not fall
+back to manual feedback. Do not preload an ordinary target or replace target
+code during a campaign; use a fresh VM when switching builds.
 
 ```sh
-# Детерминированные проверки покрытия, семантики, идентичности и жизненного цикла:
+# Deterministic coverage, semantics, identity and lifecycle checks:
 rebar3 eunit --module=efz_phase2_tests
-# Реальный цикл покрытия: <<>> -> A -> AB -> ABC, сохранённые идентификаторы
-# родителей, точная передача входа обработчику и восстановление рецепта в новой VM:
+# Real coverage loop: <<>> -> A -> AB -> ABC, preserved parent IDs,
+# exact input delivery to the harness and recipe reconstruction in a fresh VM:
 rebar3 eunit --module=efz_feedback_loop_tests
-# Повторяемое локальное измерение производительности после прогрева:
+# Repeatable local performance measurement after warmup:
 escript scripts/coverage_bench.escript
-# Чистая обычная сборка без удаления существующих результатов:
+# Clean ordinary build without deleting existing results:
 EFZ_CLEAN_BUILD=$(mktemp -d /tmp/efz-clean.XXXXXX)
 REBAR_BASE_DIR="$EFZ_CLEAN_BUILD" rebar3 compile
 ```
 
-[API покрытия, поддерживаемый синтаксис, манифесты, измерения и ограничения](docs/coverage.md),
-[архитектура bitmap](docs/coverage-bitmap-architecture.md),
-[отчёт о реализации и измерениях](docs/coverage-bitmap-implementation-report.md),
-[целостность покрытия, фиксированные идентификаторы и политика нулевого покрытия](docs/coverage-integrity.md),
-[архитектура EFZ и UML-диаграммы](docs/architecture.md),
-[журнал архитектурного решения](docs/adr/0002-automatic-coverage.md) и
-[результаты проверки](docs/phase2-validation.md) описывают реализацию.
+The implementation is described in [coverage API, supported syntax, manifests, measurements and limitations](docs/coverage.md),
+[bitmap architecture](docs/coverage-bitmap-architecture.md),
+[implementation and measurement report](docs/coverage-bitmap-implementation-report.md),
+[coverage integrity, pinned identities and zero-coverage policy](docs/coverage-integrity.md),
+[EFZ architecture and UML diagrams](docs/architecture.md),
+[architecture decision record](docs/adr/0002-automatic-coverage.md) and
+[validation results](docs/phase2-validation.md).
 
-Покрытие и очистка охватывают корневой и управляемые дочерние процессы.
-Произвольно созданные дочерние процессы, OTP-приложения с состоянием, общее
-состояние VM, сбои нативного кода, распределённые кампании, мутации с учётом
-грамматики и минимизация корпуса не входят в этот этап. Процесс Erlang не является
-песочницей на уровне VM или операционной системы.
+Coverage and cleanup include the root and controlled child processes.
+Arbitrarily spawned children, stateful OTP applications, shared VM state, native
+failures, distributed campaigns, grammar-aware mutations and corpus minimization
+are outside this phase. An Erlang process is not a VM- or OS-level sandbox.
 
-Точные идентификаторы покрытия проверяются один раз за кампанию. Стандартный
-механизм `ets` использует `insert_new` и независимо сообщает контролирующему
-процессу о первом наблюдении; `coverage_backend => ets_member` проверяет наличие
-записи перед добавлением. Дополнительный `coverage_backend => bitmap` с
-`coverage_bitmap_bits => 65536` использует схему кампании и атомарную карту
-исполнения для автоматического учёта присутствия точек покрытия. Для возврата
-к эталонной реализации задайте `coverage_backend => ets`. Результаты проверки
-повторного использования bitmap, изоляции и производительности приведены в
-[отчёте bitmap v2](docs/coverage-bitmap-v2-results.md).
-Экспериментальный `coverage_backend => otp_native_public` использует публичные
-API покрытия исполняемых строк OTP 27+ и отдельно скомпилированные артефакты
-цели. Его семантика покрытия отличается; ETS остаётся стандартным вариантом.
-См. [короткие измерения и ограничения](docs/otp-native-public-results.md).
-ETS и bitmap сохраняют наблюдения в пределах исполнения и восстановление после
-падения или тайм-аута. Измеренные компромиссы и исходные артефакты приведены в
-[отчёте о производительности](docs/phase2.1-performance.md). Для воспроизводимых
-мутаций и выбора входов корпуса задавайте `random_seed` и необязательный
-`selection_seed`.
+Exact coverage identities are validated once per campaign. The default `ets`
+backend uses `insert_new` and independently reports the first observation to the
+guardian; `coverage_backend => ets_member` checks for an entry before insertion.
+Optional `coverage_backend => bitmap` with `coverage_bitmap_bits => 65536` uses
+a campaign schema and an execution-scoped atomic bitmap for automatic probe
+presence. Set `coverage_backend => ets` to return to the reference implementation.
+Bitmap reuse, isolation and performance validation results are in the
+[bitmap v2 report](docs/coverage-bitmap-v2-results.md).
+Experimental `coverage_backend => otp_native_public` uses public OTP 27+
+executable-line coverage APIs and separately compiled target artifacts. Its
+coverage semantics differ; ETS remains the default. See the
+[short measurements and limitations](docs/otp-native-public-results.md).
+ETS and bitmap preserve execution-scoped observations and recovery after crashes
+or timeouts. Measured tradeoffs and source artifacts appear in the
+[performance report](docs/phase2.1-performance.md). Set `random_seed` and optional
+`selection_seed` for reproducible mutations and corpus selection.
 
-Идентичность обработчика и выбранных инструментированных модулей фиксируется на
-время кампании. Замена кода на лету или повреждение контекста исполнения вызывает
-ошибку инфраструктуры, даже если цель перехватила исключение механизма покрытия.
-Корректный вход без наблюдаемых точек покрытия получает результат
-`valid_empty_coverage`. Поле `coverage_diagnostics` перечисляет неиспользованные
-артефакты; `--coverage-policy strict` (API: `coverage_policy => strict`) завершает
-кампанию ошибкой, если за всё время не наблюдалось ни одной точки покрытия. По
-умолчанию действует политика `diagnostic`. Калибровка с нулевым покрытием выдаёт
-предупреждение, но позволяет мутациям найти первую точку. Исторические показатели
-производительности получены до появления этих проверок целостности.
+The identity of the harness and selected instrumented modules is pinned for the
+campaign. Hot replacement or execution-context corruption causes an infrastructure
+error even if the target caught the coverage-hook exception. A valid input with
+no observed coverage points receives `valid_empty_coverage`. The
+`coverage_diagnostics` field lists unused artifacts; `--coverage-policy strict`
+(API: `coverage_policy => strict`) fails the campaign if no coverage point was
+observed during the entire campaign. The default policy is `diagnostic`.
+Zero-hit calibration warns but lets mutations find the first point. Historical
+performance figures predate these integrity checks.
 
 ```sh
-# Повторная сборка большого разреженного тестового примера с детерминированным результатом:
+# Rebuild the large sparse fixture deterministically:
 escript bench/generate_sparse.escript
-# Все уровни измерения пропускной способности без профилировщика (несколько минут):
+# All throughput measurement levels without a profiler (several minutes):
 ERL_FLAGS='+S 4:4' escript bench/run.escript all _build/performance
 escript bench/report.escript _build/performance
-# Измерение памяти отдельно от пропускной способности:
+# Measure memory separately from throughput:
 ERL_FLAGS='+S 4:4' escript bench/run.escript memory _build/performance-memory prepared
-# Дифференциальные проверки backend/validator и жизненного цикла:
+# Differential backend/validator and lifecycle checks:
 rebar3 eunit --module=efz_backend_tests
 ```
 
-На этапе 3 добавляются **подключаемые поэтапные мутации**. Существующие
-конфигурации сохраняют прежние значения по умолчанию для случайных мутаций и
-покрытия. Планировщик этапов использует явное состояние `exsplus`, ленивые
-позиции этапов для каждого содержимого, ограниченный havoc, словари бинарных
-данных и доноров для склейки, определяемых по содержимому. Рецепты записывают
-конкретные операции и байты; для восстановления не нужны состояние ГСЧ или
-работающая кампания.
+Phase 3 adds **pluggable staged mutations**. Existing configurations preserve
+the previous random-mutation and coverage defaults. The staged planner uses
+explicit `exsplus` state, lazy per-content stage cursors, bounded havoc, binary
+dictionaries and content-identified splice donors. Recipes record concrete
+operations and bytes; reconstruction requires neither RNG state nor a running
+campaign.
 
 ```sh
 rebar3 compile
-# Обычный парсер, словарь из файла, реальные операторы мутации, сохранение падения и воспроизведение:
+# Ordinary parser, dictionary file, real mutation operators, crash persistence and replay:
 ERL_FLAGS='+S 4:4' escript examples/staged/run.escript
-# Восстановление точных байтов в новой VM без исполнения цели:
+# Reconstruct exact bytes in a fresh VM without executing the target:
 escript scripts/replay.escript _build/staged-example.recipe _build/regenerated.input
 cmp _build/staged-example.input _build/regenerated.input
-# Исполнение исходных байтов в другой VM с проверкой сохранённой сборки и обработчика:
+# Execute raw bytes in another VM, checking the saved build and harness:
 escript scripts/replay.escript --input _build/staged-example.input \
   --target efz_staged_parser --artifacts _build/staged-targets
-# То же исполнение по конкретному рецепту мутации:
+# The same execution from a concrete mutation recipe:
 escript scripts/replay.escript --recipe _build/staged-example.recipe \
   --target efz_staged_parser --artifacts _build/staged-targets
 ```
 
-В новой оболочке Erlang с EFZ в пути загрузки кода:
+In a fresh Erlang shell with EFZ on the code path:
 
 ```erlang
 {ok, A} = efz_instrument:compile("examples/staged/efz_staged_parser.erl",
@@ -290,55 +278,54 @@ ok = file:write_file("_build/saved.input", maps:get(input, Crash)).
 maps:get(outcome, Replay).
 ```
 
-Чтобы использовать **шестнадцатеричный словарь EFZ**, замените
-`dictionary => [...]` на `dictionary_file => "examples/staged/tokens.hex"`.
-Формат: один токен с чётным числом шестнадцатеричных символов на строку;
-пустые строки и строки комментариев с `#` допустимы. Пустые токены отклоняются,
-повторы удаляются, а токены сортируются. Нормализованный словарь фиксируется на
-время кампании. Если начальное состояние ГСЧ для мутаций не задано, оно создаётся
-один раз и записывается в `StagedReport.mutation`.
+To use an **EFZ hexadecimal dictionary**, replace `dictionary => [...]` with
+`dictionary_file => "examples/staged/tokens.hex"`. Format: one token with an
+even number of hexadecimal characters per line; blank lines and comment lines
+starting with `#` are allowed. Empty tokens are rejected, duplicates removed,
+and tokens sorted. The normalized dictionary is pinned for the campaign.
+If the mutation RNG seed is not supplied, it is created once and recorded in
+`StagedReport.mutation`.
 
-Исходные файлы `.input` остаются достоверным источником байтов. Для их исполнения
-нужно явно выбрать совместимую локальную цель; файл рецепта не может выбирать
-исполняемый код. Воспроизведение использует сохранённую запись идентичности
-`.replay` и выводит `reproduced` (код 0) или `not-reproduced` (код 3).
-Несовпадение сборки или обработчика отклоняется (код 2); сбои инфраструктуры
-возвращают код 1. Отчёты считают появления каждой нормализованной сигнатуры.
-Параметр `crash_policy => #{reason => category, max_frames => 5, max_representatives => 3}`
-по умолчанию сохраняет первые три разных входа-представителя **на диске и в
-отчёте**; для `reason` также допустимы `exact` и `ignore`. Дисковое поле `summary`
-считает все записанные появления и сохраняет ограничение при перезапусках VM.
-Выбранные артефакты сохраняют точные исходные байты и полный `Reason`; остальные
-входы учитываются без отдельных файлов артефактов. Поле `storage` различает
-`saved`, `duplicate` и `limit_reached`; только первые два значения дают путь к
-артефакту с точным входом. Старые группы без `summary` остаются пригодными для
-воспроизведения; для хранения с ограничением числа представителей используйте
-новый каталог результатов. Прерванное или повреждённое хранилище сообщает об
-ошибке вместо сброса счётчиков или обхода ограничения.
-См. [семантику операторов, порядок этапов и все ограничения](docs/mutations.md),
-[формат рецепта и API воспроизведения](docs/replay.md), а также
-[проверку этапа 3 и измеренные затраты](docs/phase3-validation.md).
+Raw `.input` files remain the authoritative source of bytes. Executing them
+requires an explicitly selected compatible local target; a recipe file cannot
+choose executable code. Replay uses the saved `.replay` identity record and
+reports `reproduced` (code 0) or `not-reproduced` (code 3). Build or harness mismatch
+is rejected (code 2); infrastructure failures return code 1. Reports count
+occurrences of each normalized signature. The default
+`crash_policy => #{reason => category, max_frames => 5, max_representatives => 3}`
+preserves the first three distinct representative inputs **both on disk and in
+the report**; `reason` also accepts `exact` and `ignore`. The on-disk `summary`
+counts all recorded occurrences and preserves the cap across VM restarts.
+Selected artifacts preserve exact raw bytes and the complete `Reason`; other
+inputs are counted without separate artifact files. `storage` distinguishes
+`saved`, `duplicate` and `limit_reached`; only the first two provide a path to an
+artifact with the exact input. Old groups without `summary` remain replayable;
+use a new output directory for representative-capped storage. Interrupted or
+corrupt storage reports an error instead of resetting counters or bypassing
+the cap. See [operator semantics, stage order and all limits](docs/mutations.md),
+[recipe format and replay API](docs/replay.md), and
+[phase-3 validation and measured costs](docs/phase3-validation.md).
 
 ```sh
-# Ограниченные серии только мутаций и кампании с сопоставимым бюджетом без профилирования:
+# Bounded mutation-only runs and campaigns with comparable budgets, without profiling:
 ERL_FLAGS='+S 4:4' escript bench/mutations.escript _build/phase3-performance
 ```
 
-## Запуск с Cowboy
+## Running with Cowboy
 
-Обёртка `efz_cowboy_target:run/1` передаёт байты строки запроса без начального `?`
-в `cowboy_req:parse_qs/1`. Покрытие автоматически собирается из `cowboy_req`
-и `cow_qs` (Cowlib). HTTP listener не запускается: проверяется синхронный разбор
-строки запроса в процессе цели.
+The `efz_cowboy_target:run/1` wrapper passes query string bytes without a leading
+`?` to `cowboy_req:parse_qs/1`. Coverage is collected automatically from
+`cowboy_req` and `cow_qs` (Cowlib). No HTTP listener is started: this tests
+synchronous query string parsing in the target process.
 
-Проверенная связка: OTP 27.0, Rebar3 3.25.0, Cowboy 2.19.0 и Cowlib 2.20.0.
-Для сборки также нужны Git, GNU Make и доступ к публичным зависимостям Cowboy.
-Все команды ниже выполняются в одном терминале из корня **efz/**;
-исходники Cowboy должны находиться рядом, в **../cowboy/**.
+Verified combination: OTP 27.0, Rebar3 3.25.0, Cowboy 2.19.0 and Cowlib 2.20.0.
+The build also requires Git, GNU Make and access to Cowboy's public dependencies.
+Run all commands below in one terminal from the **efz/** root; Cowboy sources
+must be in the sibling **../cowboy/** directory.
 
-Соберите EFZ и отдельную копию Cowboy. Копия в `/tmp` нужна для текущего пути
-`erl:fuzz`: двоеточие вызывает у `erlang.mk` ошибку
-`target pattern contains no '%'`. Исходный checkout сохраняется.
+Build EFZ and a separate copy of Cowboy. A copy in `/tmp` is needed for the
+current `erl:fuzz` path: the colon causes the `erlang.mk` error
+`target pattern contains no '%'`. The original checkout is preserved.
 
 ```sh
 rebar3 compile
@@ -347,53 +334,50 @@ cp -a ../cowboy "$COWBOY_BUILD/cowboy"
 make -C "$COWBOY_BUILD/cowboy"
 ```
 
-Если скачивание зависимостей остановилось на `Proxy CONNECT aborted` и доступен
-прямой доступ к GitHub, повторите сборку без переменных прокси:
+If dependency downloads stop with `Proxy CONNECT aborted` and direct GitHub
+access is available, repeat the build without proxy variables:
 
 ```sh
 env -u HTTPS_PROXY -u HTTP_PROXY -u ALL_PROXY \
     -u https_proxy -u http_proxy -u all_proxy make -C "$COWBOY_BUILD/cowboy"
 ```
 
-После успешной сборки проверьте обёртку и запустите 500 мутационных исполнений:
+After a successful build, check the wrapper and run 500 mutation executions:
 
 ```sh
 escript examples/cowboy/run.escript "$COWBOY_BUILD/cowboy" check
 escript examples/cowboy/run.escript "$COWBOY_BUILD/cowboy" 500
 ```
 
-`check` запускает 14 дополнительных EUnit-проверок на указанной версии Cowboy.
-Последний аргумент кампании задаёт число исполнений: 1–100000, по умолчанию 500.
-Пример использует поэтапные мутации, начальное состояние ГСЧ `{17,23,41}`,
-небольшой словарь, начальный корпус `[<<>>]` и предел входа 1024 байта.
-Настройки покрытия EFZ по умолчанию сохраняются: предварительная проверка и ETS.
-Каждый вызов escript запускает новую VM.
+`check` runs 14 additional EUnit checks against the selected Cowboy version.
+The campaign's last argument sets the number of executions: 1–100000, default
+500. The example uses staged mutations, RNG seed `{17,23,41}`, a small dictionary,
+initial corpus `[<<>>]` and a 1024-byte input limit. EFZ coverage defaults are
+preserved: prepared validation and ETS. Each escript invocation starts a fresh VM.
 
-В конце выводятся статус и статистика. Полный отчёт сохраняется в
-`_build/cowboy-report.term`, инструментированные файлы BEAM и манифесты — в
-`_build/cowboy-targets/`, артефакты неожиданных падений — в
-`_build/cowboy-crashes/`. Штатный отказ разбора возвращается как `{invalid, Reason}`
-и не считается падением цели.
+Status and statistics are printed at the end. The full report is saved to
+`_build/cowboy-report.term`, instrumented BEAM files and manifests to
+`_build/cowboy-targets/`, and unexpected-crash artifacts to
+`_build/cowboy-crashes/`. Expected parsing rejection is returned as
+`{invalid, Reason}` and is not counted as a target crash.
 
-Программа запуска предупреждает о двух генераторах списков в `cowboy_req`,
-сохранённых без внутренних точек покрытия; они не входят в путь `parse_qs/1`.
-Подробнее об области проверки, семантике ошибок и ограничениях — в
-[README обёртки Cowboy](examples/cowboy/README.md).
+The runner warns about two list comprehensions in `cowboy_req` preserved without
+internal coverage probes; they are not on the `parse_qs/1` path. See the
+[Cowboy wrapper README](examples/cowboy/README.md) for scope, error semantics and
+limitations.
 
-## Автоматическая диагностика во время исполнения (подключается отдельно)
+## Automatic runtime diagnostics (opt-in)
 
-Функции этапа P0 добавляют повторную калибровку и проверку, ограниченный сбор
-данных о принадлежащих исполнению процессах и ETS, наблюдение за завершением
-дочерних процессов и данные о тайм-аутах. Существующие обработчики `run/1`
-изменять не нужно. Для включения задайте `runtime_oracles => #{enabled => true}`
-или параметры CLI
+P0 adds repeated calibration and verification, bounded sampling of
+execution-owned processes and ETS, child-exit observations and timeout evidence.
+Existing `run/1` harnesses need no changes. Enable it with
+`runtime_oracles => #{enabled => true}` or the CLI flags
 `--runtime-diagnostics --runtime-runs 3 --verification-budget 1000 --sample-interval 20`.
-Результаты исполнения, сохранение покрытия и модель управляемых дочерних
-процессов остаются прежними. Находки записываются в `OUT/runtime-findings/`;
-для воспроизведения используется
+Execution outcomes, coverage retention and the controlled-descendant model remain
+unchanged. Findings are written to `OUT/runtime-findings/`; replay uses
 `replay.escript --runtime-finding DIRECTORY --target MODULE --artifacts DIR`.
-См. [политику, категории, ограничения и примеры](docs/runtime-diagnostics.md), а
-также [результаты проверок и измерений производительности](docs/runtime-diagnostics-validation.md).
+See [policy, categories, limits and examples](docs/runtime-diagnostics.md) and
+[validation and performance results](docs/runtime-diagnostics-validation.md).
 
 ## External worker VM (Linux, opt-in)
 

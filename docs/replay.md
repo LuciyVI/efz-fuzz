@@ -1,5 +1,7 @@
 # Crash occurrences, signatures and verified replay
 
+**English** · [Русский](i18n/ru/replay.md) · [Español](i18n/es/replay.md) · [简体中文](i18n/zh-CN/replay.md) · [All languages](i18n/README.md)
+
 Raw `.input` is the authoritative triggering binary. A recipe reconstructs bytes;
 a signature groups failures; neither replaces raw input or the complete diagnostic
 Reason/stack. Replay executes the existing instrumented executor with the explicit

@@ -1,0 +1,134 @@
+classDiagram
+    direction TB
+    accTitle: EFZ — 主要模块依赖
+    accDescr: 结构 UML 展示模块依赖，不表示每个函数对应独立进程。
+    class efz_cli {
+        <<模块>>
+        main(Args)
+    }
+    class efz {
+        <<API>>
+        start(Config)
+        await(Timeout)
+        stop()
+    }
+    class efz_fuzzer {
+        <<gen_server>>
+        start_link(Config)
+        init(Config)
+    }
+    class efz_config {
+        <<模块>>
+        prepare(Config)
+    }
+    class efz_instrument {
+        <<模块>>
+        compile(File, Opts)
+        preflight(Artifacts)
+    }
+    class efz_worker {
+        <<gen_server>>
+        handle_info(iterate, State)
+    }
+    class efz_mutation_plan {
+        <<模块>>
+        next(State, Entries)
+    }
+    class efz_mutation {
+        <<模块>>
+        apply_operation(B, Op, C)
+    }
+    class efz_executor {
+        <<模块>>
+        run(M, B, T, Opts)
+    }
+    class efz_guardian {
+        <<生命周期所有者>>
+        run(Caller, Request, M, B, T, Opts)
+        status()
+    }
+    class efz_target {
+        <<harness API>>
+        spawn(Fun)
+        spawn_link(Fun)
+    }
+    class efz_cov_integrity {
+        <<模块>>
+        pin(Harness, Selected)
+        validate(Identities)
+        trace_event(Event, Context, Seen)
+        observation(Hits, Status, Attached)
+    }
+    class efz_feedback {
+        <<模块>>
+        evaluate(F, Result, Phase)
+    }
+    class efz_corpus {
+        <<gen_server>>
+        mutation_entries()
+        add(Input, Metadata)
+    }
+    class efz_corpus_store {
+        <<模块>>
+        restore(Dir, Id, Policy, Max)
+        save(Store, B, Id, Meta)
+    }
+    class efz_recipe {
+        <<模块>>
+        make(P, B, C, Builds)
+        regenerate(Recipe)
+    }
+    class efz_crash {
+        <<模块>>
+        signature(Outcome, Policy)
+        remember(Crash, Groups, Limit)
+        save(B, Result, Meta, Opts)
+    }
+    class efz_replay {
+        <<模块>>
+        load(ExpectationPath)
+        run(Kind, Path, Target, Artifacts, Expected, Options)
+    }
+    class efz_replay_cli {
+        <<模块>>
+        main(Args)
+    }
+    class efz_crash_store {
+        <<模块>>
+        save(Dir, Identity, Limit, Write)
+        read(Group)
+    }
+    class efz_fs {
+        <<模块>>
+        atomic_group(Dir, Name, Files)
+        atomic_file(Path, Bytes)
+    }
+    efz_cli ..> efz : start / await / stop
+    efz ..> efz_fuzzer : 监督器子进程
+    efz_fuzzer ..> efz_config : init 前 prepare
+    efz_config ..> efz_instrument : preflight
+    efz_config ..> efz_cov_integrity : 固定 harness 与构建
+    efz_config ..> efz_corpus_store : restore
+    efz_fuzzer ..> efz_worker : 通过 efz_worker_sup
+    efz_fuzzer ..> efz_corpus : start_link
+    efz_worker ..> efz_mutation_plan : 分阶段调度
+    efz_mutation_plan ..> efz_mutation : 操作
+    efz_worker ..> efz_executor : 执行二进制
+    efz_executor ..> efz_guardian : 拥有执行生命周期
+    efz_guardian ..> efz_cov_integrity : 注册表 / 跟踪 / 验证
+    efz_target ..> efz_guardian : 受控接纳
+    efz_worker ..> efz_feedback : 分类 / 新颖性
+    efz_worker ..> efz_corpus : 条目 / 保留
+    efz_worker ..> efz_recipe : 记录来源
+    efz_worker ..> efz_crash : 目标故障
+    efz_corpus ..> efz_corpus_store : 可选持久化
+    efz_crash ..> efz_crash_store : 有界代表与计数
+    efz_crash_store ..> efz_fs : 验证 / 提交摘要
+    efz_crash ..> efz_recipe : 验证 / 编码
+    efz_corpus_store ..> efz_fs : 同步 IO
+    efz_replay_cli ..> efz_replay : 原始输入或配方结论
+    efz_replay ..> efz_crash
+    efz_replay ..> efz_recipe : regenerate / execute
+    efz_recipe ..> efz_executor : 兼容目标执行
+    efz_replay ..> efz_cov_integrity : 验证 harness 身份
+    efz_crash ..> efz_replay : 保存预期

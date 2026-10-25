@@ -1,5 +1,7 @@
 # Native staged mutation (engine version 1)
 
+**English** · [Русский](i18n/ru/mutations.md) · [Español](i18n/es/mutations.md) · [简体中文](i18n/zh-CN/mutations.md) · [All languages](i18n/README.md)
+
 Staged mutation is opt-in. Existing campaigns still use `efz_mutator_random`
 and its `mutate/2` behaviour. Coverage defaults remain prepared validation and
 the original ETS hook; `coverage_backend => ets_member` remains available.
