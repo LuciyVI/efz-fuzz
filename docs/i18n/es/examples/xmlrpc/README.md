@@ -2,6 +2,8 @@
 
 [English](../../../../../examples/xmlrpc/README.md) · [Русский](../../../ru/examples/xmlrpc/README.md) · **Español** · [简体中文](../../../zh-CN/examples/xmlrpc/README.md) · [Todos los idiomas](../../../README.md)
 
+El nuevo [conjunto de arneses de flujo de datos XML-RPC](../../xmlrpc-harness-suite.md) verifica llamadas, respuestas, fault, round trips de codificación/decodificación, dispatch local y rechazos previstos del codificador. Acepta bytes de carga útil y admite off, observation-only y guided; el ejemplo de XML crudo descrito a continuación conserva un formato de entrada separado.
+
 El ejemplo usa [etnt/xmlrpc](https://github.com/etnt/xmlrpc) en el commit
 `fb46463b2acadf164ec534d9e2033e194341c507`. Llama a
 `xmlrpc_decode:payload(binary_to_list(Input))` una vez dentro de la ejecución

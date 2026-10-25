@@ -2,6 +2,8 @@
 
 [English](../../../../../examples/xmlrpc/README.md) · **Русский** · [Español](../../../es/examples/xmlrpc/README.md) · [简体中文](../../../zh-CN/examples/xmlrpc/README.md) · [Все языки](../../../README.md)
 
+Новый [набор харнессов потоков данных XML-RPC](../../xmlrpc-harness-suite.md) проверяет вызовы, ответы, fault, encode/decode round trip, локальный dispatch и штатные отказы кодировщика. Он принимает байты полезной нагрузки и поддерживает режимы без слоя, observation-only и guided; описанный ниже пример сырого XML сохраняет отдельный формат входа.
+
 Fixture использует [etnt/xmlrpc](https://github.com/etnt/xmlrpc) на commit
 `fb46463b2acadf164ec534d9e2033e194341c507`. Он один раз вызывает
 `xmlrpc_decode:payload(binary_to_list(Input))` внутри обычного EFZ execution.

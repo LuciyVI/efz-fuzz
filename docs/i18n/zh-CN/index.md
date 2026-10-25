@@ -35,6 +35,7 @@
 - [自动覆盖契约](coverage.md)
 - [长时间 Cowboy 基准：ETS、bitmap-v2 与 OTP-public](cowboy-long-benchmark.md)
 - [Cowboy 数据流测试工具](cowboy-harness-suite.md)
+- [XML-RPC 数据流测试工具](xmlrpc-harness-suite.md)
 - [DWARF/原生覆盖率结果](dwarf-native-coverage-results.md)
 - [DWARF/原生覆盖率：可行性检查点](dwarf-native-coverage.md)
 - [EFZ：引擎性能剖析 v2（2026-10-04）](engine-performance-profile-v2.md)

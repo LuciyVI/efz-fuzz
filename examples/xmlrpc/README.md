@@ -2,6 +2,10 @@
 
 **English** · [Русский](../../docs/i18n/ru/examples/xmlrpc/README.md) · [Español](../../docs/i18n/es/examples/xmlrpc/README.md) · [简体中文](../../docs/i18n/zh-CN/examples/xmlrpc/README.md) · [All languages](../../docs/i18n/README.md)
 
+For six bounded payload-based encoder/decoder and local dispatch examples, see
+the [XML-RPC data-flow harness suite](../../docs/xmlrpc-harness-suite.md). The
+raw XML decoder plugin described below uses its own model and preparation path.
+
 The fixture uses [etnt/xmlrpc](https://github.com/etnt/xmlrpc) at commit
 `fb46463b2acadf164ec534d9e2033e194341c507`. It calls
 `xmlrpc_decode:payload(binary_to_list(Input))` once inside the ordinary EFZ
