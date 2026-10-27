@@ -39,9 +39,25 @@ configuration("--demo",Root,Out)->
 configuration(Path,_,_)->
     {ok,[C]}=file:consult(Path),true=is_map(C),C.
 
-portable(M) when is_map(M)->maps:from_list([{atom_to_binary(K,utf8),portable(V)}||{K,V}<-maps:to_list(M)]);
+portable(M) when is_map(M)->maps:from_list([{key(K),portable(V)}||{K,V}<-maps:to_list(M)]);
 portable(L) when is_list(L)->[portable(X)||X<-L];
 portable(A) when A=:=true;A=:=false;A=:=null->A;
 portable(A) when is_atom(A)->atom_to_binary(A,utf8);
+%% Preserve source weights as pairs without evaluating their printed form.
+portable({Name,Weight}) when is_atom(Name),is_integer(Weight)->[atom_to_binary(Name,utf8),Weight];
+%% Provider identities contain raw hashes, which need not be UTF-8. JSON
+%% strings remain strings; arbitrary bytes use an explicit encoding tag.
+portable(B) when is_binary(B)->case unicode:characters_to_binary(B,utf8,utf8) of
+    B->B;
+    _->#{encoding=><<"base64">>,data=>base64:encode(B)}
+end;
 portable(T) when is_tuple(T)->unicode:characters_to_binary(io_lib:format("~0P",[T,5],[{chars_limit,1024}]));
 portable(V)->V.
+
+key(K) when is_atom(K)->atom_to_binary(K,utf8);
+key(K) when is_binary(K)->case unicode:characters_to_binary(K,utf8,utf8) of
+    K->K;
+    _-><<"base64:",(base64:encode(K))/binary>>
+end;
+key(K) when is_integer(K)->integer_to_binary(K);
+key(K)->unicode:characters_to_binary(io_lib:format("~0P",[K,5],[{chars_limit,1024}])).
