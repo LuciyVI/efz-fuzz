@@ -48,7 +48,7 @@ init(C) ->
     ok=efz_external_worker:ready(),
     self() ! iterate,
     Replay=maps:get(benchmark_replay_inputs,C,undefined),
-    {ok, C1#{monitor_index=>efz_monitor:prepare(C1),pending_seeds => case Replay of undefined -> efz_corpus:all(); _ -> [] end,
+    Initial=C1#{monitor_index=>efz_monitor:prepare(C1),pending_seeds => case Replay of undefined -> efz_corpus:all(); _ -> [] end,
             replay_remaining=>Replay,
             feedback => ProfileFeedback,
             bitmap_reuse_map=>ReuseMap,bitmap_map_arms=>0,
@@ -59,9 +59,11 @@ init(C) ->
             mutation_state=>MutationState,
             mutation_trace=>[],trace_count=>0,coverage_seen=>efz_coverage:new_global(),coverage_empty=>0,coverage_broken=>0,coverage_unstarted=>0,
             profile=>#{},input_size_buckets=>#{},input_bytes_total=>0,input_count=>0,
-            calibration_started_at => erlang:monotonic_time(microsecond)}}.
+            calibration_started_at => erlang:monotonic_time(microsecond)},
+    {ok,provider_init(Initial)}.
 
 handle_info(iterate, #{campaign_finished:=true}=S) -> {noreply,S};
+handle_info(iterate, #{pending_mutation:=_}=S) -> {noreply,S};
 handle_info(iterate, #{phase:=replay,replay_remaining:=[Input|Rest],iteration:=N}=S) ->
     execute(Input,#{id=>1},mutation,begin_iteration(S#{replay_remaining=>Rest,
                                                        iteration=>N+1}));
@@ -91,9 +93,18 @@ handle_info(iterate, #{mutator := Mu, iteration := N} = S) ->
         {ok,Input} when is_binary(Input)->execute(Input, E, mutation, S2#{iteration => N + 1});
         Bad->infrastructure(Bad,S2)
     end;
+handle_info({efz_mutation_reply,Ref,Result,RuntimeMeta},
+        #{pending_mutation:=#{ref:=Ref}=Pending}=S)->
+    provider_reply(Result,RuntimeMeta,Pending,S);
+handle_info({efz_mutation_reply,_,_,_},S)->{noreply,S};
+handle_info({'DOWN',Monitor,process,Guardian,Why},
+        #{pending_mutation:=#{monitor:=Monitor,guardian:=Guardian}=Pending}=S)->
+    Cleared=provider_latency(mutation_elapsed(Pending),clear_pending_mutation(S)),
+    Failed=provider_worker_error(Cleared),
+    infrastructure({mutation_provider,{request_down,Why}},Failed);
 handle_info(_, S) -> {noreply, S}.
 
-staged_iteration(S=#{mutation_state:=Plan,iteration:=N}) ->
+staged_iteration(S=#{mutation_state:=Plan}) ->
     Profile=maps:get(performance_profile,S),
     {Choice,MutationUs}=efz_perf_profile:measure(Profile,fun() ->
         try case maps:get(max_iterations,S) of
@@ -102,16 +113,108 @@ staged_iteration(S=#{mutation_state:=Plan,iteration:=N}) ->
         catch Class:Reason->{error,{mutation_engine,Class,Reason},Plan} end
     end),
     S0=efz_perf_profile:add_state(S,mutation,MutationUs),
+    staged_choice(Choice,S0).
+staged_choice(Choice,S=#{iteration:=N})->
     case Choice of
         {candidate,Input,P,Next}->
+            S0=provider_sync(S#{mutation_state=>Next}),
             Recipe=efz_recipe:make(P,Input,maps:get(mutation,S0),maps:get(builds,maps:get(feedback,S0))),
-            S1=trace(Recipe,S0#{mutation_state=>Next,current_recipe=>Recipe,iteration=>N+1}),
+            S1=trace(Recipe,S0#{current_recipe=>Recipe,iteration=>N+1}),
             execute(Input,#{id=>maps:get(parent,P)},mutation,S1);
-        {skip,_,Next}->self()!iterate,{noreply,S0#{mutation_state=>Next}};
-        {done,idle_budget_exhausted,Next}->finish({mutation_stopped,idle_budget_exhausted},S0#{mutation_state=>Next});
-        {done,Why,Next}->finish({mutation_exhausted,Why},S0#{mutation_state=>Next});
-        {error,Why,Next}->infrastructure(Why,S0#{mutation_state=>Next})
+        {provider_request,Input,Request,P,Continuation,Next}->
+            start_provider(Input,Request,P,Continuation,provider_sync(S#{mutation_state=>Next}));
+        {skip,_,Next}->
+            self()!iterate,
+            S0=provider_sync(S#{mutation_state=>Next}),
+            case maps:is_key(provider_stats,S0) of
+                true->notify_context(undefined,S0),{noreply,maps:remove(failure_context,S0)};
+                false->{noreply,S0}
+            end;
+        {done,idle_budget_exhausted,Next}->finish({mutation_stopped,idle_budget_exhausted},provider_sync(S#{mutation_state=>Next}));
+        {done,Why,Next}->finish({mutation_exhausted,Why},provider_sync(S#{mutation_state=>Next}));
+        {error,Why,Next}->infrastructure(Why,provider_sync(S#{mutation_state=>Next}))
     end.
+
+provider_init(S)->
+    case provider_configuration(S) of
+        native->S;
+        _->provider_sync(S#{provider_stats=>#{latency_us=>[],latency_total_us=>0,
+            latency_samples_dropped=>0,core_us=>[],core_total_us=>0,core_samples_dropped=>0,
+            discoveries=>#{native=>0,erlamsa=>0},
+            retained=>#{native=>0,erlamsa=>0}}})
+    end.
+provider_configuration(S)->maps:get(provider,maps:get(mutation,S,#{}),native).
+provider_sync(#{mutation_state:=#{provider_counts:=Counts},provider_stats:=Stats}=S)->
+    S#{provider_stats=>maps:merge(Stats,Counts)};
+provider_sync(S)->S.
+start_provider(Input,Request,P,Continuation,S)->
+    Context=#{phase=>mutation_provider,input=>Input,input_hash=>crypto:hash(sha256,Input),
+        parent=>maps:get(parent,P),provider=>maps:get(provider,P),request=>Request},
+    Prepared=S#{failure_context=>Context},notify_context(Context,Prepared),
+    Started=erlang:monotonic_time(microsecond),
+    StartedRequest=try efz_mutation_request:start(self(),Input,Request,provider_configuration(S))
+        catch Class:Why->{error,{Class,Why}} end,
+    case StartedRequest of
+        {ok,Guardian,Ref} when is_pid(Guardian),is_reference(Ref)->
+            Monitor=monitor(process,Guardian),
+            {noreply,Prepared#{pending_mutation=>#{guardian=>Guardian,ref=>Ref,
+                monitor=>Monitor,continuation=>Continuation,started_at=>Started}}};
+        Bad->infrastructure({mutation_provider,{request_start,Bad}},provider_worker_error(
+            provider_latency(max(0,erlang:monotonic_time(microsecond)-Started),Prepared)))
+    end.
+clear_pending_mutation(#{pending_mutation:=#{monitor:=Monitor}}=S)->
+    demonitor(Monitor,[flush]),maps:remove(pending_mutation,S).
+provider_reply(Result,RuntimeMeta,Pending,S)->
+    Cleared=clear_pending_mutation(S),
+    Elapsed=mutation_elapsed(Pending),
+    Context=(maps:get(failure_context,Cleared))#{provider_result=>Result,provider_runtime=>RuntimeMeta},
+    WithContext=Cleared#{failure_context=>Context},notify_context(Context,WithContext),
+    S0=provider_core_latency(RuntimeMeta,
+        provider_latency(Elapsed,efz_perf_profile:add_state(WithContext,mutation,Elapsed))),
+    Plan=maps:get(mutation_state,S0),
+    Choice=try efz_mutation_plan:complete_provider(Result,RuntimeMeta,
+            maps:get(continuation,Pending),Plan)
+        catch Class:Why->{error,{mutation_provider,{completion,Class,Why}},provider_failed_plan(Plan)} end,
+    case maps:get(provider_stopping,S0,false) of
+        true->provider_stopped(Choice,S0);
+        false->case Result of
+            cancelled->infrastructure({mutation_provider,unexpected_cancellation},provider_worker_error(S0));
+            _->staged_choice(Choice,S0)
+        end
+    end.
+mutation_elapsed(Pending)->max(0,erlang:monotonic_time(microsecond)-maps:get(started_at,Pending)).
+provider_stopped(Choice,S)->
+    Next=element(tuple_size(Choice),Choice),
+    S0=provider_sync(S#{mutation_state=>Next}),
+    case Choice of
+        {error,Why,_}->infrastructure(Why,S0);
+        _->case maps:find(provider_stop_error,S0) of
+            {ok,Why}->infrastructure({mutation_provider,{cancel,Why}},provider_worker_error(S0));
+            error->finish(stopped_by_user,S0)
+        end
+    end.
+provider_latency(Elapsed,#{provider_stats:=Stats}=S)->
+    Samples=maps:get(latency_us,Stats),
+    New=Stats#{latency_total_us=>maps:get(latency_total_us,Stats)+Elapsed},
+    case length(Samples)<1024 of
+        true->S#{provider_stats=>New#{latency_us=>[Elapsed|Samples]}};
+        false->S#{provider_stats=>New#{latency_samples_dropped=>maps:get(latency_samples_dropped,Stats)+1}}
+    end.
+%% Child-reported generation time excludes VM startup, transport and cleanup.
+%% Keep independently bounded samples for generation and full request latency.
+provider_core_latency(#{core_us:=CoreUs},#{provider_stats:=Stats}=S)
+  when is_integer(CoreUs),CoreUs>=0,CoreUs<(1 bsl 63)->
+    Samples=maps:get(core_us,Stats),
+    Next=Stats#{core_total_us=>maps:get(core_total_us,Stats)+CoreUs},
+    case length(Samples)<1024 of
+        true->S#{provider_stats=>Next#{core_us=>[CoreUs|Samples]}};
+        false->S#{provider_stats=>Next#{core_samples_dropped=>maps:get(core_samples_dropped,Stats)+1}}
+    end;
+provider_core_latency(_,S)->S.
+provider_worker_error(#{mutation_state:=#{provider_counts:=Counts}=Plan}=S)->
+    provider_sync(S#{mutation_state=>Plan#{provider_counts=>Counts#{errors=>maps:get(errors,Counts)+1}}}).
+provider_failed_plan(#{provider_counts:=Counts}=Plan)->
+    Plan#{provider_counts=>Counts#{errors=>maps:get(errors,Counts)+1}}.
 infrastructure(Why,S)->notify_context(maps:get(failure_context,S,undefined),S),
     Primary=efz_stats:failure(Why),finish({infrastructure_failure,Primary},S).
 trace(R,S=#{trace_count:=N,mutation:=C,mutation_trace:=Ts})->
@@ -215,7 +318,7 @@ semantic_result(Input,Result,Meta,F1,S,Profile) ->
                     FailureState=diagnostic_failure_context(Result,S2),
                     infrastructure(Why,FailureState#{failure_context=>
                         (maps:get(failure_context,FailureState))#{metadata=>WithSemantic}});
-                Meta1 -> accepted(Input, public_result(Result), Meta1, F1, S2)
+                Meta1 -> accepted(Input, public_result(Result), Meta1, F1, provider_admission(Meta1,S2))
             end
     end.
 
@@ -455,6 +558,17 @@ accepted_success(Meta1,S1) ->
     notify_context(undefined,S3),
     self() ! iterate,
     {noreply, maps:without([current_recipe,failure_context,crash_decision,target_failure_recorded],S3)}.
+provider_admission(#{phase:=mutation,retention_reason:=Reason,corpus_id:=_,
+        mutation:=#{provider:=#{source:=Source}}},#{provider_stats:=Stats}=S)
+  when Reason=:=new_coverage;Reason=:=new_probe;Reason=:=new_hit_count;Reason=:=new_semantic ->
+    Discoveries=maps:get(discoveries,Stats),Retained=maps:get(retained,Stats),
+    CoverageDiscoveries=case Reason of
+        new_semantic->Discoveries;
+        _->Discoveries#{Source=>maps:get(Source,Discoveries,0)+1}
+    end,
+    S#{provider_stats=>Stats#{discoveries=>CoverageDiscoveries,
+        retained=>Retained#{Source=>maps:get(Source,Retained,0)+1}}};
+provider_admission(_,S)->S.
 notify_context(Context,S)->maps:get(coordinator,S)!{execution_context,self(),Context},ok.
 decision_metadata(#{mutation:=Recipe}=Meta)->
     Meta#{mutation=>maps:with([stage,primary_id,config_id,output_hash],Recipe)};
@@ -573,11 +687,15 @@ finish(Status0, S) ->
         error->Base;
         {ok,Store}->Base#{corpus_restore=>maps:with([dir,build_policy,restored_inputs,diagnostics],Store)}
     end,
-    Report0=case maps:get(mutation_state,S) of
+    MutationReport=case maps:get(mutation_state,S) of
         undefined->WithCorpus;
-        #{counts:=Counts}->WithCorpus#{mutation=>maps:get(mutation,S),mutation_stats=>Counts,
+        #{counts:=Counts}->WithCorpus#{mutation=>public_mutation(maps:get(mutation,S)),mutation_stats=>Counts,
             mutation_initial_corpus=>[efz_mutation:hash(B)||B<-maps:get(seeds,S)],
             mutation_trace=>lists:reverse(maps:get(mutation_trace,S))}
+    end,
+    Report0=case provider_configuration(S) of
+        native->MutationReport;
+        Provider->MutationReport#{provider=>public_provider(Provider),provider_stats=>maps:get(provider_stats,S)}
     end,
     Report=case maps:get(gleam_layer,S) of
         false->Report0;
@@ -592,6 +710,9 @@ finish(Status0, S) ->
         false->ok end,
     maps:get(coordinator, S) ! {campaign_done, self(), Report},
     {noreply, S#{campaign_finished=>true}}.
+public_provider(P)->maps:without([core_context,core_path],P).
+public_mutation(C)->case maps:find(provider,C) of
+    {ok,P}->C#{provider=>public_provider(P)};error->C end.
 handle_call(benchmark_snapshot, _, S) ->
     Global = maps:get(global, maps:get(feedback, S)),
     {reply, #{stats => efz_stats:get(),
@@ -612,12 +733,25 @@ handle_call(benchmark_coverage, _, S) ->
     {reply, efz_coverage:global_snapshot(Global), S};
 handle_call(_, _, S) -> {reply, ok, S}.
 handle_cast(request_stop,#{campaign_finished:=true}=S)->{noreply,S};
+handle_cast(request_stop,#{provider_stopping:=true}=S)->{noreply,S};
+handle_cast(request_stop,#{pending_mutation:=#{guardian:=Guardian,ref:=Ref}}=S)->
+    %% The guardian's reply confirms that the external request has been reaped.
+    %% Keep servicing monitoring and stop calls while cancellation completes.
+    Stopping=S#{provider_stopping=>true},
+    case catch efz_mutation_request:cancel(Guardian,Ref) of
+        ok->{noreply,Stopping};
+        Error->{noreply,Stopping#{provider_stop_error=>Error}}
+    end;
 handle_cast(request_stop,S)->finish(stopped_by_user,S);
 handle_cast(monitor_sample,S)->
     maps:get(coordinator,S)!{monitor_sample,self(),efz_monitor:snapshot(S)},
     {noreply,S};
 handle_cast(_, S) -> {noreply, S}.
 terminate(_, S) ->
+    case maps:find(pending_mutation,S) of
+        {ok,#{guardian:=Guardian,ref:=Ref}}->_=catch efz_mutation_request:cancel(Guardian,Ref),ok;
+        error->ok
+    end,
     case maps:find(coverage_schema, S) of
         {ok, Schema} -> _ = catch efz_coverage:release_schema(Schema), ok;
         error -> ok

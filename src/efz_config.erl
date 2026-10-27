@@ -10,7 +10,7 @@ defaults() -> #{max_input_bytes => efz_input:default_limit(), timeout => 100, wo
                 crash_dir => "_build/efz-crashes",crash_policy=>efz_crash:defaults()}.
 prepare(C0) when is_map(C0) ->
     Allowed = maps:keys(defaults()) ++ [target, seeds, artifacts, mutation, random_seed, selection_seed,
-                                      corpus_dir, corpus_build_policy, benchmark_replay_inputs],
+                                      corpus_dir, corpus_build_policy, benchmark_replay_inputs, mutation_provider],
     case lists:sort(maps:keys(C0) -- Allowed) of
         [] -> prepare_known(C0);
         Unknown -> {error, {unknown_campaign_keys, Unknown}}
@@ -42,9 +42,14 @@ prepare_inputs(C) ->
         [Why|_] -> {error,Why}
     end.
 prepare_mutation(#{mutation_mode:=random}=C) ->
-    case maps:is_key(mutation,C) of
-        true->{error,mutation_options_require_staged_mode};
-        false->prepare_coverage(C)
+    Provider=maps:get(mutation_provider,C,native),
+    Native=Provider=:=native orelse (is_map(Provider) andalso maps:get(mode,Provider,undefined)=:=native),
+    case Native of
+        false->{error,mutation_provider_requires_staged_mode};
+        true->case maps:is_key(mutation,C) of
+            true->{error,mutation_options_require_staged_mode};
+            false->prepare_provider(C)
+        end
     end;
 prepare_mutation(#{mutation_mode:=staged,max_iterations:=N,mutator:=efz_mutator_random}=C)
   when N=:=infinity; is_integer(N),N>=0,N=<1000000 ->
@@ -57,11 +62,24 @@ prepare_mutation(#{mutation_mode:=staged,max_iterations:=N,mutator:=efz_mutator_
         false->case maps:is_key(max_input_bytes,Options) of
         true -> {error,{campaign_level_option,max_input_bytes}};
         false -> case efz_mutation_plan:prepare(Options#{max_input_bytes=>maps:get(max_input_bytes,C)},maps:get(seeds,C)) of
-            {ok,Mutation}->prepare_coverage(C#{mutation=>Mutation});
+            {ok,Mutation}->prepare_provider(C#{mutation=>Mutation});
             Error->Error
         end
     end end;
 prepare_mutation(_) -> {error,invalid_mutation_mode_or_budget}.
+prepare_provider(C)->
+    case maps:find(mutation_provider,C) of
+        error->prepare_coverage(C);
+        {ok,Option}->case efz_mutation_provider:prepare(Option,maps:get(max_input_bytes,C)) of
+            {ok,native}->prepare_coverage(maps:remove(mutation_provider,C));
+            {ok,#{mode:=native}}->prepare_coverage(maps:remove(mutation_provider,C));
+            {ok,P}->
+                Mutation=(maps:get(mutation,C))#{provider=>P},
+                Prepared=Mutation#{config_id=>efz_mutation_plan:config_identity(Mutation)},
+                prepare_coverage((maps:remove(mutation_provider,C))#{mutation=>Prepared});
+            Error->Error
+        end
+    end.
 valid_field(target, V) -> is_atom(V);
 valid_field(mutator, V) -> is_atom(V);
 valid_field(workers, V) -> V =:= 1;
@@ -73,6 +91,7 @@ valid_field(timeout, V) -> is_integer(V) andalso V >= 0;
 valid_field(max_iterations, V) -> V =:= infinity orelse (is_integer(V) andalso V >= 0);
 valid_field(mutation_mode, V) -> lists:member(V, [random, staged]);
 valid_field(mutation, V) -> is_map(V);
+valid_field(mutation_provider,V)->is_map(V) orelse lists:member(V,[native,erlamsa,hybrid]);
 valid_field(coverage, V) -> lists:member(V, [automatic, manual]);
 valid_field(coverage_backend, V) -> lists:member(V, [ets, ets_member, bitmap, otp_native_public, none]);
 %% Bound allocation before starting a campaign (8 MiB payload at the limit).

@@ -1,6 +1,7 @@
 %% Lazy staged planning. All randomness is state-threaded and owned by this state.
 -module(efz_mutation_plan).
--export([prepare/2, defaults/0, new/1, next/2, next_continuous/2, deterministic/4, config_identity/1]).
+-export([prepare/2, defaults/0, new/1, next/2, next_continuous/2, deterministic/4,
+         config_identity/1, complete_provider/4]).
 
 defaults()->#{max_input_bytes=>efz_input:default_limit(),max_block_bytes=>128,max_token_bytes=>128,
     max_tokens=>256,max_dictionary_bytes=>16384,max_delta=>8,attempts_per_visit=>8,
@@ -44,11 +45,21 @@ prepare(Options,Seeds) when is_map(Options) ->
 prepare(_,_) -> {error,invalid_mutation_configuration}.
 config_identity(C)->
     %% Sorted pairs avoid ETF map ordering differences between VMs. Trace is observational.
-    efz_mutation:hash(term_to_binary(lists:sort(maps:to_list(maps:without([trace_limit,config_id],C))))).
-new(C)->#{config=>C,rng=>rand:seed_s(exsplus,maps:get(seed,C)),pending_entries=>[],
+    Portable=case maps:find(provider,C) of
+        {ok,P}->C#{provider=>maps:without([core_context,core_path],P)};
+        error->C
+    end,
+    efz_mutation:hash(term_to_binary(lists:sort(maps:to_list(maps:without([trace_limit,config_id],Portable))))).
+new(C)->Base=#{config=>C,rng=>rand:seed_s(exsplus,maps:get(seed,C)),pending_entries=>[],
           cursors=>#{},corpus_size=>0,idle=>0,idle_visits=>#{},
           counts=>#{visits=>0,mutation_attempts=>0,operation_attempts=>0,
-          skipped_operations=>0,skipped_candidates=>0,generated_candidates=>0,skip_reasons=>#{}}}.
+          skipped_operations=>0,skipped_candidates=>0,generated_candidates=>0,skip_reasons=>#{}}},
+    case maps:is_key(provider,C) of
+        false->Base;
+        true->Base#{provider_sequence=>0,provider_counts=>#{requests=>0,changed=>0,skips=>0,
+            errors=>0,timeouts=>0,cancelled=>0,fallbacks=>0,skip_reasons=>#{},
+            selected=>#{native=>0,erlamsa=>0},generated=>#{native=>0,erlamsa=>0}}}
+    end.
 next(S,[]) -> {done,empty_corpus,S};
 next(S=#{config:=C,corpus_size:=Size},Entries) ->
     %% The active corpus is append-only. New inputs can supply both finite work
@@ -58,9 +69,9 @@ next(S=#{config:=C,corpus_size:=Size},Entries) ->
         true->S;
         false->progress(S#{corpus_size=>CurrentSize})
     end,
-    case deterministic_pending(S0,Entries) of
+    case native_pending(S0,Entries) of
         true->visit(S0,Entries);
-        false->case lists:any(fun random_stage/1,maps:get(stages,C)) of
+        false->case maps:is_key(provider,C) orelse lists:any(fun random_stage/1,maps:get(stages,C)) of
             false->{done,mutation_exhausted,S0};
             true->case maps:get(idle,S0)>=maps:get(max_idle_visits,C) andalso
                        idle_sweep_complete(S0,Entries) of
@@ -73,6 +84,14 @@ next(S=#{config:=C,corpus_size:=Size},Entries) ->
 %% real mutation, preserving RNG, all content cursors and admission history.
 next_continuous(S=#{config:=#{max_input_bytes:=0}},_)->
     {error,continuous_requires_nonzero_input_limit,S};
+next_continuous(S=#{config:=#{provider:=_}},Entries)->
+    case next(S,Entries) of
+        {done,Why,Next} when Why=:=idle_budget_exhausted;Why=:=mutation_exhausted ->
+            %% An enabled provider keeps its selected schedule. In particular,
+            %% skip policy never silently switches an Erlamsa-only run to bytes.
+            visit(progress(Next),Entries);
+        Other->Other
+    end;
 next_continuous(S,Entries)->
     case next(S,Entries) of
         {done,Why,Next} when Why=:=idle_budget_exhausted;Why=:=mutation_exhausted ->
@@ -93,6 +112,13 @@ continuous_fallback(S=#{config:=C,rng:=R},Entries)->
     {candidate,Out,P,Next}.
 
 random_stage(Stage)->Stage=:=havoc orelse Stage=:=splice.
+native_pending(#{config:=#{provider:=P}}=S,Es)->
+    case maps:get(mode,P) of
+        erlamsa->false;
+        hybrid->case proplists:get_value(native,maps:get(weights,P),0)>0 of
+            true->deterministic_pending(S,Es);false->false end
+    end;
+native_pending(S,Es)->deterministic_pending(S,Es).
 deterministic_pending(#{config:=C,cursors:=Cs},Es)->
     lists:any(fun(E)->B=maps:get(input,E),Key={efz_mutation:hash(B),maps:get(config_id,C)},
         Cur=maps:get(Key,Cs,#{}),
@@ -118,7 +144,19 @@ visit(S=#{pending_entries:=Pending,config:=C,cursors:=Cs},Entries)->
     Stages=maps:get(stages,C),Lane=maps:get(lane,Cur),Stage=lists:nth((Lane rem length(Stages))+1,Stages),
     S0=inc(visits,S#{pending_entries=>Rest,cursors=>Cs#{Key=>Cur#{lane=>Lane+1}}}),
     {Result,S1}=attempts(maps:get(attempts_per_visit,C),Stage,B,Entries,Key,S0),
+    finish_visit(Result,S1,E,Stage,Key,Cur,Entries).
+finish_visit(Result,S1,E,Stage,Key,Cur,Entries)->
+    C=maps:get(config,S1),B=maps:get(input,E),
     case Result of
+        {provider_request,Request,Data}->
+            P=provenance(E,Stage,C),
+            Continuation=#{entry=>E,stage=>Stage,key=>Key,cursor=>Cur,entries=>Entries,
+                provenance=>P,provider=>Data},
+            {provider_request,B,Request,P#{source_kind=>provider,provider=>Data},Continuation,S1};
+        {ok,Candidate,Ops,{provider,Data}}->
+            P=(provenance(E,Stage,C))#{operations=>Ops,source_kind=>provider,provider=>Data},
+            {candidate,Candidate,P,provider_generated(maps:get(source,Data),
+                inc(generated_candidates,progress(S1)))};
         {ok,Candidate,Ops,Structured}->
             P=#{primary=>B,primary_id=>efz_mutation:hash(B),parent=>maps:get(id,E),stage=>Stage,
                 operations=>Ops,config_id=>maps:get(config_id,C),dictionary_id=>maps:get(dictionary_id,C),
@@ -139,12 +177,102 @@ visit(S=#{pending_entries:=Pending,config:=C,cursors:=Cs},Entries)->
             {skip,Why,inc(skipped_candidates,S2)};
         {error,Why}->{error,Why,S1}
     end.
+provenance(E,Stage,C)->B=maps:get(input,E),
+    #{primary=>B,primary_id=>efz_mutation:hash(B),parent=>maps:get(id,E),stage=>Stage,
+      config_id=>maps:get(config_id,C),dictionary_id=>maps:get(dictionary_id,C)}.
 attempts(0,_,_,_,_,S)->{{skip,visit_budget},S};
 attempts(N,Stage,B,Es,Key,S=#{config:=C})->
     case structured(B,C,S) of
-        {ordinary,SOrdinary}->ordinary_attempts(N,Stage,B,Es,Key,SOrdinary);
+        {ordinary,SOrdinary}->ordinary_source(N,Stage,B,Es,Key,SOrdinary);
         Result->Result
     end.
+ordinary_source(N,Stage,B,Es,Key,S=#{config:=#{provider:=P},rng:=R})->
+    {Source,R1}=case maps:get(mode,P) of
+        erlamsa->{erlamsa,R};
+        hybrid->Weights=maps:get(weights,P),Total=lists:sum([W||{_,W}<-Weights]),
+            {Pick,NextR}=zero(Total-1,R),{weighted_source(Pick,Weights),NextR}
+    end,
+    S0=provider_selected(Source,S#{rng=>R1}),
+    case Source of
+        native->Data=provider_data(P,none,none),
+            native_source(N,Stage,B,Es,Key,Data#{source=>native},S0);
+        erlamsa->
+            {A,R2}=zero((1 bsl 64)-1,R1),{D,R3}=zero((1 bsl 64)-1,R2),
+            {F,R4}=zero((1 bsl 64)-1,R3),
+            Request=#{seed=>{A,D,F},operator=>auto,pattern=>auto,strategy=>auto,
+                budget=>maps:get(operations,maps:get(limits,P))},
+            Number=maps:get(provider_sequence,S0)+1,Data=provider_data(P,Request,Number),
+            Next=provider_inc(requests,inc(mutation_attempts,inc(operation_attempts,
+                S0#{rng=>R4,provider_sequence=>Number}))),
+            {{provider_request,Request,Data},Next}
+    end;
+ordinary_source(N,Stage,B,Es,Key,S)->ordinary_attempts(N,Stage,B,Es,Key,S).
+weighted_source(Pick,[{Source,Weight}|_]) when Pick<Weight->Source;
+weighted_source(Pick,[{_,Weight}|Rest])->weighted_source(Pick-Weight,Rest).
+provider_data(P,Request,Number)->
+    #{schema_version=>1,wrapper_version=>1,source=>erlamsa,mode=>maps:get(mode,P),
+      identity=>maps:get(core_identity,P),config_identity=>maps:get(config_identity,P),
+      request=>Request,request_number=>Number,recipe=>#{},limits=>maps:get(limits,P),fallback=>none}.
+native_source(N,Stage,B,Es,Key,Data,S)->
+    case ordinary_attempts(N,Stage,B,Es,Key,S) of
+        {{ok,Out,Ops},Next}->{{ok,Out,Ops,{provider,Data}},Next};
+        Other->Other
+    end.
+
+%% Only the worker completes an already selected local request. The continuation
+%% contains trusted planner state; no artifact can select a callback here.
+complete_provider(Result,_RuntimeMeta,Cont,S)->
+    case Result of
+        {ok,Out,CoreRecipe} when is_binary(Out),is_map(CoreRecipe)->
+            E=maps:get(entry,Cont),B=maps:get(input,E),C=maps:get(config,S),
+            P=maps:get(provider,C),Max=min(maps:get(max_input_bytes,C),
+                maps:get(output_bytes,maps:get(limits,P))),
+            case {byte_size(Out)=<Max,Out=:=B,efz_gleam_adapter:portable(CoreRecipe),
+                    erlang:external_size(CoreRecipe)=<4096} of
+                {false,_,_,_}->provider_error(oversized_output,S);
+                {_,true,_,_}->provider_skip(no_change,Cont,S);
+                {_,_,true,true}->
+                    %% Opaque bounded data keeps optional-library atoms out of
+                    %% the outer recipe. Raw replay never needs their code.
+                    Data=(maps:get(provider,Cont))#{recipe=>term_to_binary(CoreRecipe,[deterministic])},
+                    Op={provider_replace,1,efz_mutation:hash(Out),Out},
+                    finish_provider_visit({ok,Out,[Op],{provider,Data}},Cont,provider_inc(changed,S));
+                _->provider_error(invalid_recipe_data,S)
+            end;
+        {skip,Why} when is_atom(Why)->provider_skip(Why,Cont,S);
+        {error,Why}->provider_error(Why,S);
+        {timeout,Why}->provider_error({timeout,Why},provider_inc(timeouts,S));
+        cancelled->{skip,provider_cancelled,provider_inc(cancelled,S)};
+        _->provider_error(invalid_reply,S)
+    end.
+provider_skip(Why0,Cont,S=#{config:=#{provider:=P}})->
+    Why=portable_skip_reason(Why0),Counts=maps:get(provider_counts,S),
+    Reasons=maps:get(skip_reasons,Counts),
+    S0=provider_inc(skips,S#{provider_counts=>Counts#{skip_reasons=>
+        Reasons#{Why=>maps:get(Why,Reasons,0)+1}}}),
+    case maps:get(on_skip,P) of
+        skip->finish_provider_visit({skip,{provider,Why}},Cont,reason({provider,Why},S0));
+        native->
+            E=maps:get(entry,Cont),Data=(maps:get(provider,Cont))#{source=>native,
+                recipe=>#{},fallback=>Why},C=maps:get(config,S0),
+            {Result,Next}=native_source(maps:get(attempts_per_visit,C),maps:get(stage,Cont),
+                maps:get(input,E),maps:get(entries,Cont),maps:get(key,Cont),Data,
+                provider_inc(fallbacks,S0)),
+            finish_provider_visit(Result,Cont,Next)
+    end.
+%% Core reason atoms are optional-library data. A saved recipe must decode
+%% safely in a fresh VM that has never loaded that library.
+portable_skip_reason(Why) when is_atom(Why)->atom_to_binary(Why,utf8);
+portable_skip_reason(Why) when is_binary(Why),byte_size(Why)=<256->Why;
+portable_skip_reason(_)-><<"other_skip">>.
+finish_provider_visit(Result,Cont,S)->finish_visit(Result,S,maps:get(entry,Cont),
+    maps:get(stage,Cont),maps:get(key,Cont),maps:get(cursor,Cont),maps:get(entries,Cont)).
+provider_error(Why,S)->{error,{mutation_provider,Why},provider_inc(errors,S)}.
+provider_inc(K,S=#{provider_counts:=Counts})->S#{provider_counts=>Counts#{K=>maps:get(K,Counts,0)+1}}.
+provider_selected(Source,S=#{provider_counts:=Counts})->Selected=maps:get(selected,Counts),
+    S#{provider_counts=>Counts#{selected=>Selected#{Source=>maps:get(Source,Selected,0)+1}}}.
+provider_generated(Source,S=#{provider_counts:=Counts})->Generated=maps:get(generated,Counts),
+    S#{provider_counts=>Counts#{generated=>Generated#{Source=>maps:get(Source,Generated,0)+1}}}.
 ordinary_attempts(0,_,_,_,_,S)->{{skip,visit_budget},S};
 ordinary_attempts(N,Stage,B,Es,Key,S=#{config:=C,cursors:=Cs})->
     case Stage=:=havoc orelse Stage=:=splice of
