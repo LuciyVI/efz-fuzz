@@ -1,0 +1,36 @@
+{
+  "status": "INCOMPLETE_NOT_ACCEPTED",
+  "reason": "Core correctness fix changed source/build identity during firstattempt. Three completed older-build trials and a warmup provider_transport failure are retained here and excluded from frozen revision comparisons.",
+  "core_commit": "92ebefd59d38cc73015a5892fdc7336a9f2139a9",
+  "trials": [
+    {
+      "mode": "baseline",
+      "seed": 29,
+      "exit_code": 0,
+      "driver_wall_seconds": 30.83986519500013,
+      "target_executions_per_second": 339.60834078351144
+    },
+    {
+      "mode": "semantic",
+      "seed": 29,
+      "exit_code": 0,
+      "driver_wall_seconds": 30.80235500500021,
+      "target_executions_per_second": 19.649896135311717
+    },
+    {
+      "mode": "erlamsa",
+      "seed": 89,
+      "exit_code": 0,
+      "driver_wall_seconds": 32.67321348099995,
+      "target_executions_per_second": 4.232752599676657
+    },
+    {
+      "mode": "erlamsa",
+      "seed": 17,
+      "exit_code": 127,
+      "driver_wall_seconds": 1.8229224490000888,
+      "target_executions_per_second": null
+    }
+  ],
+  "failure_log": "escript: exception error: no match of right hand side value \n                 {infrastructure_failure,\n                     {mutation_provider,provider_transport}}\n  in function  benchmark_erlamsa_escript__escript__1793__134708__961912__562:main/1 (/workspace/efz-erlamsa/scripts/benchmark_erlamsa.escript, line 31)\n  in call from escript:run/2 (escript.erl, line 904)\n  in call from escript:start/1 (escript.erl, line 418)\n  in call from init:start_it/1 \n  in call from init:start_em/1 \n  in call from init:do_boot/3 \n"
+}

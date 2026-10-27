@@ -258,6 +258,23 @@ escript scripts/replay.escript --input /absolute/path/to/artifact.input \
   --target efz_staged_parser --artifacts /absolute/path/to/instrumented
 ```
 
+To verify the provider's generation separately, pass a trusted local provider
+or campaign configuration containing the same normalized provider settings:
+
+```sh
+escript scripts/replay.escript --recipe /absolute/path/to/artifact.recipe \
+  --provider-config /absolute/path/to/trusted-provider.term \
+  --provider-regenerate /absolute/path/to/new-candidate.input \
+  --max-input-bytes 4096
+```
+
+This command starts no target. It prepares the caller-selected core, requires
+matching build/config identity, repeats the recorded request, compares bounded
+core metadata and candidate hash, and writes verified bytes to a new output.
+Identity or configuration mismatch fails explicitly. It accepts a provider map
+or a campaign map with `mutation_provider`; the artifact never supplies the
+executable location. Existing raw replay behavior is unchanged.
+
 See [replay](replay.md), [corpus](corpus.md), and
 [execution isolation](execution-isolation.md) for existing storage/executor rules.
 

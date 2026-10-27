@@ -1,6 +1,7 @@
 """Opt-in real local-runtime checks. No remote service is contacted."""
 import os
 import concurrent.futures
+import importlib.util
 from pathlib import Path
 import sys
 import tempfile
@@ -87,6 +88,12 @@ class RuntimeTests(unittest.TestCase):
                 self.assertGreaterEqual(report["provider_stats"]["changed"], 2)
                 self.assertEqual(report["provider_stats"]["errors"], 0)
                 self.assertEqual(load_summary(out)["provider"]["mode"], "hybrid")
+                spec = importlib.util.spec_from_file_location("efz_actual_tui", ROOT / "scripts/tui.py")
+                tui = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(tui)
+                rendered = "\n".join(tui.provider_lines(report))
+                self.assertIn(f'Requests {report["provider_stats"]["requests"]}', rendered)
+                self.assertIn("hybrid", rendered)
 
     @unittest.skipUnless(os.environ.get("PYEFZ_ARTIFACTS") and
                          os.environ.get("PYEFZ_TARGET", "efz_example_target") == "efz_example_target",

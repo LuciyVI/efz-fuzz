@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "environment": {
+    "ERL_FLAGS": "+S 2:2",
+    "CPU_AFFINITY": "2-4"
+  },
+  "checks": [
+    {
+      "command": "cd /workspace/erlamsa-core/core && rebar3 compile",
+      "exit_code": 0
+    },
+    {
+      "command": "cd /workspace/erlamsa-core/core && rebar3 eunit",
+      "exit_code": 0,
+      "tests": 61
+    },
+    {
+      "command": "ERLAMSA_SOURCE=/workspace/erlamsa-core GLEAM_BIN=/workspace/.efz-tools/gleam-1.10.0/gleam rebar3 as erlamsa,gleam compile",
+      "exit_code": 0
+    },
+    {
+      "command": "GLEAM_BIN=/workspace/.efz-tools/gleam-1.10.0/gleam rebar3 as gleam compile",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m pip install --no-deps --no-build-isolation --target /workspace/scratch/pyefz-installed ./packages/pyefz",
+      "exit_code": 0
+    },
+    {
+      "command": "PYTHONPATH=/workspace/scratch/pyefz-installed python3 (packages/pyefz/README.md native example, foreign cwd)",
+      "exit_code": 0,
+      "child_reaped": true
+    },
+    {
+      "command": "Independent GitHub EFZ clone + independent local --no-local core clone: prepare/2 then isolated byte_flip mutation",
+      "exit_code": 0,
+      "candidate_hex": "00FF84",
+      "remote_submodule_acceptance": false
+    }
+  ],
+  "unpublished_core": {
+    "branch": "efz-integration",
+    "commit": "86dd745aafb8ebe78f578c51f783132800b89238",
+    "path": "/workspace/erlamsa-core",
+    "bundle": "/workspace/scratch/erlamsa-integration.bundle",
+    "bundle_sha256": "e4b2495740126e8e25b2eabdf4023f69d3a58e92f7bf22e8f66ee758c4cd4b24",
+    "bundle_is_dependency_replacement": false
+  },
+  "remote_fork_acceptance": "BLOCKED: api.github.com Forbidden; fork parent/source and published object unverified; no gitlink",
+  "final_combined_build": {
+    "command": "ERLAMSA_SOURCE=/workspace/erlamsa-core GLEAM_BIN=/workspace/.efz-tools/gleam-1.10.0/gleam rebar3 as erlamsa,gleam compile",
+    "exit_code": 0,
+    "core_commit": "86dd745aafb8ebe78f578c51f783132800b89238",
+    "efz_implementation_commit": "ff50194eb3def35f3b164cb2fa4a3ff38ea5fa29",
+    "log_sha256": "2d7b28058c4eab206b6ff7f52cf44ba865b988f02cff5ebc104c0281371332ce"
+  }
+}

@@ -1,0 +1,47 @@
+[
+  {
+    "check": "compile",
+    "argv": [
+      "rebar3",
+      "compile"
+    ],
+    "exit_code": 0,
+    "wall_seconds": 16.555
+  },
+  {
+    "check": "eunit",
+    "argv": [
+      "rebar3",
+      "eunit"
+    ],
+    "exit_code": 0,
+    "wall_seconds": 81.782
+  },
+  {
+    "check": "ct",
+    "argv": [
+      "rebar3",
+      "ct"
+    ],
+    "exit_code": 0,
+    "wall_seconds": 7.299
+  },
+  {
+    "check": "xref",
+    "argv": [
+      "rebar3",
+      "xref"
+    ],
+    "exit_code": 0,
+    "wall_seconds": 0.443
+  },
+  {
+    "check": "dialyzer",
+    "argv": [
+      "rebar3",
+      "dialyzer"
+    ],
+    "exit_code": 0,
+    "wall_seconds": 90.632
+  }
+]
