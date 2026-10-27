@@ -141,6 +141,27 @@ A verified local Git bundle preserves the five unpublished core commits at
 [build evidence](erlamsa-evidence/builds.json). It is a source-history handoff,
 not a dependency/submodule replacement and not an accepted remote object.
 
+The local handoff can be reconstructed without sharing the first checkout's
+object database. These commands were verified with a fresh upstream clone and
+the bundle. They do not satisfy the blocked GitHub fork/submodule criterion:
+
+```sh
+git clone --branch feat/erlamsa-integration https://github.com/LuciyVI/efz-fuzz.git
+git clone --single-branch --branch master https://github.com/Darkkey/erlamsa.git erlamsa-local
+git -C erlamsa-local fetch /workspace/scratch/erlamsa-integration.bundle efz-integration
+git -C erlamsa-local switch -c efz-integration FETCH_HEAD
+export ERL_FLAGS='+S 2:2'
+cd efz-fuzz
+rebar3 compile
+ERLAMSA_SOURCE="$(cd ../erlamsa-local && pwd)" rebar3 as erlamsa compile
+```
+
+The final published implementation/evidence checkpoint `dd7c361` was also
+fetched into the independent EFZ clone and compiled successfully with both
+optional-tool paths deliberately unavailable. Its sources contain no prepared
+Erlamsa checkout. Later documentation-only commits do not establish the missing
+fork acceptance.
+
 Additional developer probes exercised 160 compressor variants and 12,000
 malformed wrapper inputs without unbounded results or exceptions. They
 supplement committed regression tests; they do not establish a hard bound for

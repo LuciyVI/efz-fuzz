@@ -53,5 +53,19 @@
     "core_commit": "86dd745aafb8ebe78f578c51f783132800b89238",
     "efz_implementation_commit": "ff50194eb3def35f3b164cb2fa4a3ff38ea5fa29",
     "log_sha256": "2d7b28058c4eab206b6ff7f52cf44ba865b988f02cff5ebc104c0281371332ce"
-  }
+  },
+  "additional_clean_checks": [
+    {
+      "efz_commit": "dd7c3613e1b29a9d54c19232718fa31f2a035614",
+      "command": "Independent GitHub fetch/checkout; GLEAM_BIN=/unavailable/gleam ERLAMSA_SOURCE=/unavailable/erlamsa rebar3 compile",
+      "exit_code": 0,
+      "vendor_core_present": false
+    },
+    {
+      "command": "Fresh HTTPS Darkkey/master clone; fetch verified local integration bundle; switch efz-integration; explicit ERLAMSA_SOURCE build hook",
+      "exit_code": 0,
+      "core_commit": "86dd745aafb8ebe78f578c51f783132800b89238",
+      "remote_fork_acceptance": false
+    }
+  ]
 }
