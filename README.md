@@ -11,6 +11,11 @@ EFZ — фаззер на Erlang с управлением корпусом, с�
 
 Непрерывный режим: [staged/Gleam без лимита исполнений](docs/continuous.md).
 
+Optional local Erlamsa provider: [configuration and replay](docs/erlamsa-integration.md) ·
+[validation](docs/erlamsa-validation.md) · [measurements](docs/erlamsa-benchmark.md).
+Mutation providers and semantic adapters are independent settings. Native builds
+need neither Erlamsa nor Gleam. See the [local Python SDK](packages/pyefz/README.md).
+
 TUI: [терминальная панель кампании](docs/tui.md) — `python3 scripts/tui.py --demo --out _build/tui-demo-1`.
 
 Документация: [архитектура и UML](docs/architecture.md) ·
