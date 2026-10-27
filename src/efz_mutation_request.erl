@@ -59,13 +59,22 @@ run(Input, Request, P) ->
     case start(self(), Input, Request, P) of
         {ok, Pid, Ref} ->
             Monitor = erlang:monitor(process, Pid),
-            receive
-                {efz_mutation_reply, Ref, Result, _Runtime} ->
-                    erlang:demonitor(Monitor, [flush]), Result;
-                {'DOWN', Monitor, process, Pid, _} ->
-                    {error, {infrastructure, provider_guardian_down}}
-            end;
+            await_run(Pid, Ref, Monitor);
         {error, _} = Error -> Error
+    end.
+
+%% The local controller owns the job process and sends only runtime reference
+%% tokens. Cancelling still waits for the original correlated reply, which is
+%% emitted after the disposable VM and launcher have been reaped.
+await_run(Pid, Ref, Monitor) ->
+    receive
+        {efz_mutation_reply, Ref, Result, _Runtime} ->
+            erlang:demonitor(Monitor, [flush]), Result;
+        {'DOWN', Monitor, process, Pid, _} ->
+            {error, {infrastructure, provider_guardian_down}};
+        {efz_mutation_cancel_run, CancelToken} when is_reference(CancelToken) ->
+            ok = cancel(Pid, Ref),
+            await_run(Pid, Ref, Monitor)
     end.
 
 guardian(Owner, Ref, Input, Request, P, Launch, Started, Deadline) ->
@@ -77,7 +86,7 @@ guardian(Owner, Ref, Input, Request, P, Launch, Started, Deadline) ->
              listener => undefined, dir => undefined, port_exit => false,
              cleanup => undefined, result => undefined, core_us => 0,
              os_pid => undefined, launcher_pid => undefined},
-    store(Base),
+    _ = store(Base),
     try
         {module, efz_provider_port} = code:ensure_loaded(efz_provider_port),
         {module, efz_provider_wire} = code:ensure_loaded(efz_provider_wire),
@@ -171,7 +180,7 @@ private_directory(Tries) ->
     Name = "/tmp/efz-provider-" ++ binary_to_list(binary:encode_hex(crypto:strong_rand_bytes(12))),
     case file:make_dir(Name) of
         ok -> case file:change_mode(Name, 8#700) of
-            ok -> Name; _ -> file:del_dir(Name), error(directory_permissions) end;
+            ok -> Name; _ -> _ = file:del_dir(Name), error(directory_permissions) end;
         {error, eexist} -> private_directory(Tries - 1);
         _ -> error(directory_unavailable)
     end.
@@ -345,7 +354,7 @@ finish(S, Confirmed) ->
         core_us => maps:get(core_us, S)},
     Runtime = maps:merge(Runtime0, maps:filter(fun(_, V) -> is_integer(V) end,
         maps:with([os_pid, launcher_pid], S))),
-    case maps:get(deliver, S) of
+    _ = case maps:get(deliver, S) of
         true -> maps:get(owner, S) ! {efz_mutation_reply, maps:get(ref, S), Result, Runtime};
         false -> ok
     end,

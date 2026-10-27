@@ -20,7 +20,7 @@ main() ->
                  {active, false}, {send_timeout, 1000},
                  {send_timeout_close, true}], 5000) of
             {ok, Socket} ->
-                try session(Socket, Nonce, CorePath)
+                _ = try session(Socket, Nonce, CorePath)
                 after gen_tcp:close(Socket) end,
                 0;
             {error, _} -> 2
@@ -50,9 +50,7 @@ session(Socket, Nonce, CorePath) ->
     case Prepared of
         {ok, Subset} -> receive_request(Socket, Subset);
         {error, Reason} ->
-            send(Socket, #{result => {error, bounded_reason(Reason)}, core_us => 0});
-        _ ->
-            send(Socket, #{result => {error, provider_initialization_failed}, core_us => 0})
+            send(Socket, #{result => {error, bounded_reason(Reason)}, core_us => 0})
     end.
 
 receive_request(Socket, Subset) ->

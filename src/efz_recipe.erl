@@ -370,6 +370,4 @@ provider_recipe_matches(Recorded,Actual) when is_binary(Recorded),is_map(Actual)
 provider_recipe_matches(Recorded,Actual)->Recorded=:=Actual.
 
 %% Match the planner's bounded fallback provenance representation.
-provider_skip_reason(Why) when is_atom(Why)->atom_to_binary(Why,utf8);
-provider_skip_reason(Why) when is_binary(Why),byte_size(Why)=<256->Why;
-provider_skip_reason(_)-><<"other_skip">>.
+provider_skip_reason(Why) when is_atom(Why)->atom_to_binary(Why,utf8).

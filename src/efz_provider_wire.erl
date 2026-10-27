@@ -55,6 +55,7 @@ scan(_) -> {error, wire_format}.
 
 require(true, _) -> ok;
 require(false, Reason) -> fail(Reason).
+-spec fail(term()) -> no_return().
 fail(Reason) -> throw({wire, Reason}).
 
 term(_, Depth, _) when Depth > ?MAX_DEPTH -> fail(wire_depth);

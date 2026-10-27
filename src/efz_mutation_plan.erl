@@ -262,9 +262,7 @@ provider_skip(Why0,Cont,S=#{config:=#{provider:=P}})->
     end.
 %% Core reason atoms are optional-library data. A saved recipe must decode
 %% safely in a fresh VM that has never loaded that library.
-portable_skip_reason(Why) when is_atom(Why)->atom_to_binary(Why,utf8);
-portable_skip_reason(Why) when is_binary(Why),byte_size(Why)=<256->Why;
-portable_skip_reason(_)-><<"other_skip">>.
+portable_skip_reason(Why) when is_atom(Why)->atom_to_binary(Why,utf8).
 finish_provider_visit(Result,Cont,S)->finish_visit(Result,S,maps:get(entry,Cont),
     maps:get(stage,Cont),maps:get(key,Cont),maps:get(cursor,Cont),maps:get(entries,Cont)).
 provider_error(Why,S)->{error,{mutation_provider,Why},provider_inc(errors,S)}.

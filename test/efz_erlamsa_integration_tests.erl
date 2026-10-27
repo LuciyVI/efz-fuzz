@@ -7,14 +7,14 @@ erlamsa_integration_test_()->
     case os:getenv("EFZ_ERLAMSA_CORE_PATH") of
         false->[];
         Path->{timeout,90,[
-            {"real core preserves deterministic arbitrary binary requests",fun()->binary_requests(Path) end},
-            {"real core planner provenance regenerates exactly",fun()->planner_recipe(Path) end},
-            {"real core mutates decoded wrappers",fun()->wrapped_inputs(Path) end},
-            {"continuous provider stop persists provenance across restart",fun()->continuous_restart(Path) end},
-            {"hybrid keeps the existing semantic adapter",fun()->semantic_hybrid(Path) end}
+            {"real core preserves deterministic arbitrary binary requests",{timeout,30,fun()->binary_requests(Path) end}},
+            {"real core planner provenance regenerates exactly",{timeout,30,fun()->planner_recipe(Path) end}},
+            {"real core mutates decoded wrappers",{timeout,30,fun()->wrapped_inputs(Path) end}},
+            {"continuous provider stop persists provenance across restart",{timeout,30,fun()->continuous_restart(Path) end}},
+            {"hybrid keeps the existing semantic adapter",{timeout,30,fun()->semantic_hybrid(Path) end}}
             ]++case code:which(efz_qs_model) of
                 non_existing->[];
-                _->[{"hybrid keeps compiled Gleam observation",fun()->gleam_hybrid(Path) end}]
+                _->[{"hybrid keeps compiled Gleam observation",{timeout,30,fun()->gleam_hybrid(Path) end}}]
             end}
     end.
 

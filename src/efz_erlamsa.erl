@@ -268,4 +268,5 @@ small_binary(B, Maximum) -> is_binary(B) andalso byte_size(B) > 0 andalso byte_s
 hash(B, Size) -> is_binary(B) andalso byte_size(B) =:= Size.
 require(true, _) -> ok;
 require(false, Reason) -> fail(Reason).
+-spec fail(term()) -> no_return().
 fail(Reason) -> throw({erlamsa_configuration, Reason}).

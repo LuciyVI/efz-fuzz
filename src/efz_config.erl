@@ -71,7 +71,6 @@ prepare_provider(C)->
     case maps:find(mutation_provider,C) of
         error->prepare_coverage(C);
         {ok,Option}->case efz_mutation_provider:prepare(Option,maps:get(max_input_bytes,C)) of
-            {ok,native}->prepare_coverage(maps:remove(mutation_provider,C));
             {ok,#{mode:=native}}->prepare_coverage(maps:remove(mutation_provider,C));
             {ok,P}->
                 Mutation=(maps:get(mutation,C))#{provider=>P},
