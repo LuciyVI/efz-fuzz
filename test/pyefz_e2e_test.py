@@ -104,6 +104,7 @@ class RuntimeTests(unittest.TestCase):
                 result = replay_client.raw_replay(representative["input"], target="efz_example_target",
                     artifacts=os.environ["PYEFZ_ARTIFACTS"], expect=representative["expect"])
                 self.assertEqual(result["status"], "reproduced")
+                self.assertEqual(result["target_executions"], 1)
                 self.assertEqual(result["input_sha256"], representative["input_sha256"])
 
     @unittest.skipUnless(os.environ.get("PYEFZ_CORE_PATH") and Path("/proc/self").exists(),

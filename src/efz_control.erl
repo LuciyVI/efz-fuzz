@@ -356,4 +356,5 @@ raw_replay({Input,Expect,Target,Artifacts,Options}) ->
     E=need(efz_replay:load(Expect),bad_config),
     R=need(efz_replay:run(raw,Input,Target,Artifacts,E,Options),replay_failure),
     #{status=>status(maps:get(status,R)),input_sha256=>hex(maps:get(input_hash,R)),
-      compatibility=><<"verified">>,outcome=>efz_control_json:text(maps:get(outcome,maps:get(result,R),unavailable))}.
+      compatibility=><<"verified">>,target_executions=>1,
+      outcome=>efz_control_json:text(maps:get(outcome,maps:get(result,R),unavailable))}.
