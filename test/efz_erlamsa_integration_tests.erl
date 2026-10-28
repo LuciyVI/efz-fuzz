@@ -16,6 +16,10 @@ erlamsa_integration_test_()->
             {"persistent worker recycles between requests without changing output",{timeout,30,fun()->persistent_recycle(Path) end}},
             {"sequential request waits under deadline across rapid recycle",{timeout,30,fun()->persistent_recycle_handoff(Path) end}},
             {"disposable and persistent provider results agree",{timeout,30,fun()->transport_differential(Path) end}},
+            {"persistent timeout kills and reaps the isolated VM exactly once",{timeout,30,fun()->persistent_timeout_reaps(Path) end}},
+            {"persistent cancellation kills and reaps the isolated VM exactly once",{timeout,30,fun()->persistent_cancel_reaps(Path) end}},
+            {"persistent malformed reply is an infrastructure error",{timeout,30,fun()->persistent_malformed_reply(Path) end}},
+            {"persistent owner death closes its VM",{timeout,30,fun()->persistent_owner_death(Path) end}},
             {"persistent campaign stop saves corpus and confirms cleanup",{timeout,30,fun()->persistent_campaign_stop(Path) end}}
             ]++case code:which(efz_qs_model) of
                 non_existing->[];
@@ -119,15 +123,107 @@ persistent_campaign_stop(Path)->
         Started=erlang:monotonic_time(millisecond),
         ok=efz:request_stop(),ok=efz:request_stop(),Report=efz:await(10000),
         ?assert(erlang:monotonic_time(millisecond)-Started<10000),
-        case maps:get(status,Report) of stopped_by_user->ok;Failure->
-            io:format("persistent stop diagnostic: ~tp~n",[maps:with([status,failure_context,provider_stats,stats],Report)]),
-            ?assertEqual(stopped_by_user,Failure) end,
+        ?assertEqual(stopped_by_user,maps:get(status,Report)),
         Session=maps:get(session,maps:get(provider_stats,Report)),
         ?assert(maps:get(vm_starts,Session)>=1),
         ?assertEqual(true,maps:get(cleanup_confirmed,Session)),
         ?assertEqual(down,maps:get(state,Session)),
         ?assert(filelib:is_dir(Dir))
     after efz:stop(),_=file:del_dir_r(Dir) end.
+
+persistent_timeout_reaps(Path)->
+    {ok,Pid,SessionRef,_}=open_fault_session(Path,"hang",self()),
+    try
+        Before=efz_mutation_session:stats(Pid,SessionRef),
+        {ok,RequestRef}=efz_mutation_session:submit(Pid,SessionRef,self(),
+            <<"bounded timeout">>,request(byte_flip),100),
+        receive
+            {efz_mutation_reply,RequestRef,{timeout,deadline},Runtime}->
+                ?assertEqual(true,maps:get(cleanup_confirmed,Runtime)),
+                assert_os_dead(maps:get(os_pid,Before)),
+                assert_os_dead(maps:get(launcher_pid,Before));
+            {efz_mutation_reply,RequestRef,Other,_}->?assertEqual({timeout,deadline},Other)
+        after 10000->error(missing_persistent_timeout_reply)
+        end,
+        receive {efz_mutation_reply,RequestRef,_,_}->error(duplicate_terminal_reply)
+        after 100->ok end,
+        ?assertEqual(false,is_process_alive(Pid))
+    after
+        case is_process_alive(Pid) of true->_=efz_mutation_session:close(Pid,SessionRef,5000);false->ok end
+    end.
+
+persistent_cancel_reaps(Path)->
+    {ok,Pid,SessionRef,_}=open_fault_session(Path,"hang",self()),
+    try
+        Before=efz_mutation_session:stats(Pid,SessionRef),
+        {ok,RequestRef}=efz_mutation_session:submit(Pid,SessionRef,self(),
+            <<"cancelled request">>,request(byte_flip),5000),
+        ok=efz_mutation_session:cancel(Pid,SessionRef,RequestRef),
+        receive
+            {efz_mutation_reply,RequestRef,cancelled,Runtime}->
+                ?assertEqual(true,maps:get(cleanup_confirmed,Runtime)),
+                assert_os_dead(maps:get(os_pid,Before)),
+                assert_os_dead(maps:get(launcher_pid,Before));
+            {efz_mutation_reply,RequestRef,Other,_}->?assertEqual(cancelled,Other)
+        after 10000->error(missing_persistent_cancel_reply)
+        end,
+        receive {efz_mutation_reply,RequestRef,_,_}->error(duplicate_terminal_reply)
+        after 100->ok end,
+        ?assertEqual(false,is_process_alive(Pid))
+    after
+        case is_process_alive(Pid) of true->_=efz_mutation_session:close(Pid,SessionRef,5000);false->ok end
+    end.
+
+persistent_malformed_reply(Path)->
+    {ok,Pid,SessionRef,_}=open_fault_session(Path,"malformed",self()),
+    try
+        {ok,RequestRef}=efz_mutation_session:submit(Pid,SessionRef,self(),
+            <<"malformed">>,request(byte_flip),2000),
+        receive
+            {efz_mutation_reply,RequestRef,{error,invalid_provider_reply},Runtime}->
+                ?assertEqual(true,maps:get(cleanup_confirmed,Runtime));
+            {efz_mutation_reply,RequestRef,Other,_}->?assertEqual(
+                {error,invalid_provider_reply},Other)
+        after 10000->error(missing_malformed_reply_outcome)
+        end,
+        ?assertEqual(false,is_process_alive(Pid))
+    after
+        case is_process_alive(Pid) of true->_=efz_mutation_session:close(Pid,SessionRef,5000);false->ok end
+    end.
+
+persistent_owner_death(Path)->
+    Owner=spawn(fun()->receive owner_test_stop->ok end end),
+    {ok,Pid,SessionRef,_}=open_fault_session(Path,"success",Owner),
+    Before=efz_mutation_session:stats(Pid,SessionRef),
+    Monitor=erlang:monitor(process,Pid),
+    exit(Owner,kill),
+    receive {'DOWN',Monitor,process,Pid,_}->ok after 10000->error(owner_death_did_not_stop_session) end,
+    assert_os_dead(maps:get(os_pid,Before)),
+    assert_os_dead(maps:get(launcher_pid,Before)),
+    ?assertEqual(#{state=>down},efz_mutation_session:stats(Pid,SessionRef)).
+
+open_fault_session(Path,Mode,Owner)->
+    Provider=prepared(Path,persistent_provider(Path,100),1024),
+    {module,efz_provider_fault_fixture}=code:ensure_loaded(efz_provider_fault_fixture),
+    FixtureEbin=filename:dirname(code:which(efz_provider_fault_fixture)),
+    Launch=fun(_Socket,_Nonce,Args)->
+        Replaced=[case Arg of "efz_provider_port"->"efz_provider_fault_fixture";_->Arg end
+            ||Arg<-Args],
+        ["-pa",FixtureEbin|Replaced]++[Mode]
+    end,
+    efz_mutation_session:open_test(Owner,Provider,Launch).
+
+assert_os_dead(Pid)->
+    Deadline=erlang:monotonic_time(millisecond)+3000,
+    assert_os_dead(Pid,Deadline).
+assert_os_dead(Pid,Deadline)->
+    case filelib:is_dir("/proc/"++integer_to_list(Pid)) of
+        false->ok;
+        true->case erlang:monotonic_time(millisecond)<Deadline of
+            true->receive after 20->assert_os_dead(Pid,Deadline) end;
+            false->error({provider_process_not_reaped,Pid})
+        end
+    end.
 
 prepared(Path,Options,Max)->
     {ok,Provider}=efz_mutation_provider:prepare(Options#{core_path=>Path},Max),Provider.
