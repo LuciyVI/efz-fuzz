@@ -45,8 +45,6 @@ init(C) ->
     MutationState = case maps:get(mutation_mode,C) of
         random->undefined; staged->efz_mutation_plan:new(maps:get(mutation,C))
     end,
-    ok=efz_external_worker:ready(),
-    self() ! iterate,
     Replay=maps:get(benchmark_replay_inputs,C,undefined),
     Initial=C1#{monitor_index=>efz_monitor:prepare(C1),pending_seeds => case Replay of undefined -> efz_corpus:all(); _ -> [] end,
             replay_remaining=>Replay,
@@ -60,7 +58,13 @@ init(C) ->
             mutation_trace=>[],trace_count=>0,coverage_seen=>efz_coverage:new_global(),coverage_empty=>0,coverage_broken=>0,coverage_unstarted=>0,
             profile=>#{},input_size_buckets=>#{},input_bytes_total=>0,input_count=>0,
             calibration_started_at => erlang:monotonic_time(microsecond)},
-    {ok,provider_init(Initial)}.
+    case provider_init(Initial) of
+        {ok,Ready} ->
+            ok=efz_external_worker:ready(),
+            self() ! iterate,
+            {ok,Ready};
+        {error,Reason} -> {stop,{mutation_provider_startup,Reason}}
+    end.
 
 handle_info(iterate, #{campaign_finished:=true}=S) -> {noreply,S};
 handle_info(iterate, #{pending_mutation:=_}=S) -> {noreply,S};
@@ -97,6 +101,15 @@ handle_info({efz_mutation_reply,Ref,Result,RuntimeMeta},
         #{pending_mutation:=#{ref:=Ref}=Pending}=S)->
     provider_reply(Result,RuntimeMeta,Pending,S);
 handle_info({efz_mutation_reply,_,_,_},S)->{noreply,S};
+handle_info({efz_mutation_session_event,SessionRef,Runtime},
+        #{provider_session:=#{ref:=SessionRef}}=S)->
+    {noreply,provider_session_event(Runtime,S)};
+handle_info({'DOWN',Monitor,process,Session,Why},
+        #{provider_session:=#{monitor:=Monitor,pid:=Session}}=S)->
+    case maps:is_key(pending_mutation,S) of
+        true->{noreply,S};
+        false->infrastructure({mutation_provider,{session_down,Why}},provider_worker_error(S))
+    end;
 handle_info({'DOWN',Monitor,process,Guardian,Why},
         #{pending_mutation:=#{monitor:=Monitor,guardian:=Guardian}=Pending}=S)->
     Cleared=provider_latency(mutation_elapsed(Pending),clear_pending_mutation(S)),
@@ -137,30 +150,107 @@ staged_choice(Choice,S=#{iteration:=N})->
 
 provider_init(S)->
     case provider_configuration(S) of
-        native->S;
-        _->provider_sync(S#{provider_stats=>#{latency_us=>[],latency_total_us=>0,
-            latency_samples_dropped=>0,core_us=>[],core_total_us=>0,core_samples_dropped=>0,
-            discoveries=>#{native=>0,erlamsa=>0},
-            retained=>#{native=>0,erlamsa=>0}}})
+        native->{ok,S};
+        P when is_map(P)->
+            Stats=#{latency_us=>[],latency_total_us=>0,
+                latency_samples_dropped=>0,core_us=>[],core_total_us=>0,
+                core_samples_dropped=>0,discoveries=>#{native=>0,erlamsa=>0},
+                retained=>#{native=>0,erlamsa=>0},phase_us=>#{},
+                byte_totals=>#{},
+                phase_samples_dropped=>#{},session=>#{state=>disabled,
+                    vm_starts=>0,restarts=>0,completed_requests=>0,
+                    startup_samples=>[],request_samples=>[],recycle_samples=>[],
+                    recycle_startup_samples=>[],recycle_cleanup_samples=>[]}},
+            Prepared=provider_sync(S#{provider_stats=>Stats}),
+            case maps:get(transport,P,disposable) of
+                persistent ->
+                    case efz_mutation_session:open(self(),P) of
+                        {ok,Pid,SessionRef,Runtime} ->
+                            Monitor=erlang:monitor(process,Pid),
+                            Session=#{pid=>Pid,ref=>SessionRef,monitor=>Monitor},
+                            {ok,provider_session_event(Runtime#{type=>startup},
+                                Prepared#{provider_session=>Session})};
+                        {error,Reason} -> {error,Reason}
+                    end;
+                disposable -> {ok,provider_session_event(#{type=>disabled},Prepared)}
+            end
     end.
 provider_configuration(S)->maps:get(provider,maps:get(mutation,S,#{}),native).
 provider_sync(#{mutation_state:=#{provider_counts:=Counts},provider_stats:=Stats}=S)->
     S#{provider_stats=>maps:merge(Stats,Counts)};
 provider_sync(S)->S.
+
+provider_session_event(#{type:=Type}=Runtime,#{provider_stats:=Stats}=S)->
+    Session0=maps:get(session,Stats,#{}),
+    Session=case Type of
+        startup->Session0#{state=>ready,
+            vm_starts=>maps:get(vm_starts,Runtime,maps:get(vm_starts,Session0,0)),
+            restarts=>maps:get(restarts,Runtime,maps:get(restarts,Session0,0)),
+            startup_samples=>bounded_metric(maps:get(worker_startup_us,Runtime,0),
+                                            maps:get(startup_samples,Session0,[]),128)};
+        recycle->Session0#{state=>ready,
+            vm_starts=>maps:get(vm_starts,Runtime,maps:get(vm_starts,Session0,0)),
+            restarts=>maps:get(restarts,Runtime,maps:get(restarts,Session0,0)),
+            startup_samples=>bounded_metric(maps:get(worker_startup_us,Runtime,0),
+                                            maps:get(startup_samples,Session0,[]),128),
+            recycle_startup_samples=>bounded_metric(maps:get(worker_startup_us,Runtime,0),
+                                            maps:get(recycle_startup_samples,Session0,[]),128),
+            recycle_cleanup_samples=>bounded_metric(maps:get(recycle_cleanup_us,Runtime,0),
+                                            maps:get(recycle_cleanup_samples,Session0,[]),128)};
+        down->Session0#{state=>down,
+            cleanup_confirmed=>maps:get(cleanup_confirmed,Runtime,false)};
+        _->Session0
+    end,
+    S#{provider_stats=>Stats#{session=>Session}};
+provider_session_event(_,S)->S.
+
+bounded_metric(Value,Values,Maximum) when is_integer(Value),Value>=0,length(Values)<Maximum->
+    [Value|Values];
+bounded_metric(_,Values,_)->Values.
 start_provider(Input,Request,P,Continuation,S)->
     Context=#{phase=>mutation_provider,input=>Input,input_hash=>crypto:hash(sha256,Input),
         parent=>maps:get(parent,P),provider=>maps:get(provider,P),request=>Request},
     Prepared=S#{failure_context=>Context},notify_context(Context,Prepared),
     Started=erlang:monotonic_time(microsecond),
-    StartedRequest=try efz_mutation_request:start(self(),Input,Request,provider_configuration(S))
+    Provider=provider_configuration(S),
+    case maps:get(transport,Provider,disposable) of
+        persistent -> start_persistent_provider(Input,Request,Continuation,Provider,Prepared,Started);
+        _ -> start_disposable_provider(Input,Request,Continuation,Provider,Prepared,Started)
+    end.
+
+start_disposable_provider(Input,Request,Continuation,Provider,Prepared,Started)->
+    StartedRequest=try efz_mutation_request:start(self(),Input,Request,Provider)
         catch Class:Why->{error,{Class,Why}} end,
     case StartedRequest of
         {ok,Guardian,Ref} when is_pid(Guardian),is_reference(Ref)->
             Monitor=monitor(process,Guardian),
             {noreply,Prepared#{pending_mutation=>#{guardian=>Guardian,ref=>Ref,
-                monitor=>Monitor,continuation=>Continuation,started_at=>Started}}};
+                monitor=>Monitor,continuation=>Continuation,started_at=>Started,
+                transport=>disposable}}};
         Bad->infrastructure({mutation_provider,{request_start,Bad}},provider_worker_error(
             provider_latency(max(0,erlang:monotonic_time(microsecond)-Started),Prepared)))
+    end.
+
+start_persistent_provider(Input,Request,Continuation,_Provider,Prepared,Started)->
+    case maps:get(provider_session,Prepared,undefined) of
+        #{pid:=SessionPid,ref:=SessionRef} ->
+            Timeout=maps:get(timeout,provider_configuration(Prepared),1000),
+            StartedRequest=try efz_mutation_session:submit(SessionPid,SessionRef,
+                self(),Input,Request,Timeout)
+                catch Class:Why->{error,{Class,Why}} end,
+            case StartedRequest of
+                {ok,Ref} when is_reference(Ref)->
+                    Monitor=monitor(process,SessionPid),
+                    {noreply,Prepared#{pending_mutation=>#{guardian=>SessionPid,
+                        session_ref=>SessionRef,ref=>Ref,monitor=>Monitor,
+                        continuation=>Continuation,started_at=>Started,
+                        transport=>persistent}}};
+                Bad->infrastructure({mutation_provider,{request_start,Bad}},
+                    provider_worker_error(provider_latency(max(0,
+                        erlang:monotonic_time(microsecond)-Started),Prepared)))
+            end;
+        _ -> infrastructure({mutation_provider,missing_persistent_session},
+                provider_worker_error(Prepared))
     end.
 clear_pending_mutation(#{pending_mutation:=#{monitor:=Monitor}}=S)->
     demonitor(Monitor,[flush]),maps:remove(pending_mutation,S).
@@ -169,17 +259,18 @@ provider_reply(Result,RuntimeMeta,Pending,S)->
     Elapsed=mutation_elapsed(Pending),
     Context=(maps:get(failure_context,Cleared))#{provider_result=>Result,provider_runtime=>RuntimeMeta},
     WithContext=Cleared#{failure_context=>Context},notify_context(Context,WithContext),
-    S0=provider_core_latency(RuntimeMeta,
-        provider_latency(Elapsed,efz_perf_profile:add_state(WithContext,mutation,Elapsed))),
-    Plan=maps:get(mutation_state,S0),
+    S0=provider_timing_latency(RuntimeMeta,provider_core_latency(RuntimeMeta,
+        provider_latency(Elapsed,efz_perf_profile:add_state(WithContext,mutation,Elapsed)))),
+    S00=provider_request_session_stats(RuntimeMeta,S0),
+    Plan=maps:get(mutation_state,S00),
     Choice=try efz_mutation_plan:complete_provider(Result,RuntimeMeta,
             maps:get(continuation,Pending),Plan)
         catch Class:Why->{error,{mutation_provider,{completion,Class,Why}},provider_failed_plan(Plan)} end,
-    case maps:get(provider_stopping,S0,false) of
-        true->provider_stopped(Choice,S0);
+    case maps:get(provider_stopping,S00,false) of
+        true->provider_stopped(Choice,S00);
         false->case Result of
-            cancelled->infrastructure({mutation_provider,unexpected_cancellation},provider_worker_error(S0));
-            _->staged_choice(Choice,S0)
+            cancelled->infrastructure({mutation_provider,unexpected_cancellation},provider_worker_error(S00));
+            _->staged_choice(Choice,S00)
         end
     end.
 mutation_elapsed(Pending)->max(0,erlang:monotonic_time(microsecond)-maps:get(started_at,Pending)).
@@ -211,6 +302,52 @@ provider_core_latency(#{core_us:=CoreUs},#{provider_stats:=Stats}=S)
         false->S#{provider_stats=>Next#{core_samples_dropped=>maps:get(core_samples_dropped,Stats)+1}}
     end;
 provider_core_latency(_,S)->S.
+
+provider_timing_latency(Runtime,#{provider_stats:=Stats}=S)->
+    Keys=[request_total_us,worker_startup_us,handshake_prepare_us,
+        handshake_identity_check_us,handshake_core_prepare_us,handshake_decode_us,
+        identity_check_us,direct_core_mutation_us,
+        request_validation_us,result_validation_us,request_decode_us,
+        provider_encode_us,parent_encode_us,parent_send_us,parent_decode_us,
+        cleanup_us],
+    {Samples,Dropped}=lists:foldl(fun(Key,{Acc,Drop}) ->
+        case maps:get(Key,Runtime,undefined) of
+            Value when is_integer(Value),Value>=0 ->
+                Values=maps:get(Key,Acc,[]),
+                case length(Values)<1024 of
+                    true->{Acc#{Key=>[Value|Values]},Drop};
+                    false->{Acc,Drop#{Key=>maps:get(Key,Drop,0)+1}}
+                end;
+            _->{Acc,Drop}
+        end
+    end,{maps:get(phase_us,Stats,#{}),maps:get(phase_samples_dropped,Stats,#{})},Keys),
+    ByteKeys=[input_bytes,output_bytes,request_frame_bytes,response_frame_bytes],
+    ByteTotals=lists:foldl(fun(Key,Acc)->
+        case maps:get(Key,Runtime,undefined) of
+            Value when is_integer(Value),Value>=0->
+                Acc#{Key=>maps:get(Key,Acc,0)+Value};
+            _->Acc
+        end
+    end,maps:get(byte_totals,Stats,#{}),ByteKeys),
+    Session0=maps:get(session,Stats,#{}),
+    Session=maps:merge(Session0,maps:with([vm_starts,restarts,cleanup_confirmed],Runtime)),
+    S#{provider_stats=>Stats#{phase_us=>Samples,byte_totals=>ByteTotals,
+                              phase_samples_dropped=>Dropped,
+                              session=>Session}}.
+
+provider_request_session_stats(#{vm_start_number:=Starts,requests_per_vm:=PerVm}=Runtime,
+        #{provider_stats:=Stats}=S)->
+    Session0=maps:get(session,Stats,#{}),
+    Samples=maps:get(request_samples,Session0,[]),
+    Session=Session0#{state=>ready,vm_starts=>Starts,
+        restarts=>max(0,Starts-1),completed_requests=>maps:get(completed_requests,Session0,0)+1,
+        requests_this_vm=>PerVm,request_samples=>bounded_runtime(Runtime,Samples,1024)},
+    S#{provider_stats=>Stats#{session=>Session}};
+provider_request_session_stats(_,S)->S.
+
+bounded_runtime(Value,Values,Maximum) when length(Values)<Maximum->[Value|Values];
+bounded_runtime(_,Values,_)->Values.
+
 provider_worker_error(#{mutation_state:=#{provider_counts:=Counts}=Plan}=S)->
     provider_sync(S#{mutation_state=>Plan#{provider_counts=>Counts#{errors=>maps:get(errors,Counts)+1}}}).
 provider_failed_plan(#{provider_counts:=Counts}=Plan)->
@@ -643,8 +780,33 @@ diagnostic_status(Status,#{policy:=strict,status:=no_probes_observed}=D) ->
     Why=#{kind=>coverage_not_observed,diagnostic=>D,stop_reason=>Status},
     {infrastructure_failure,efz_stats:failure(Why)};
 diagnostic_status(Status,_) -> Status.
-finish(Status0, S) ->
-    Diagnostic=diagnostic(S),Status=diagnostic_status(Status0,Diagnostic),
+close_provider_session(#{provider_session:=#{pid:=Pid,ref:=Ref,monitor:=Monitor}}=S)->
+    Timeout=maps:get(cleanup_timeout,provider_configuration(S),3000),
+    Result=try efz_mutation_session:close(Pid,Ref,Timeout)
+        catch Class:Reason->{error,{Class,Reason}} end,
+    erlang:demonitor(Monitor,[flush]),
+    Stats0=maps:get(provider_stats,S),
+    Session0=maps:get(session,Stats0,#{}),
+    {Session,Error}=case Result of
+        {ok,Final}->
+            Merged=maps:merge(Session0,Final),
+            Confirmed=maps:get(last_cleanup_confirmed,Merged,
+                maps:get(cleanup_confirmed,Merged,false)),
+            {Merged#{cleanup_confirmed=>Confirmed,state=>down},
+             case Confirmed of true->none;false->{cleanup_unconfirmed,Final} end};
+        {error,Why}->{Session0#{state=>down,cleanup_error=>efz_control_json:text(Why)},Why}
+    end,
+    {maps:remove(provider_session,S#{provider_stats=>Stats0#{session=>Session}}),Error};
+close_provider_session(S)->{S,none}.
+
+finish(Status0, SIn) ->
+    {S,ProviderCloseError}=close_provider_session(SIn),
+    StatusBeforeDiagnostic=case ProviderCloseError of
+        none->Status0;
+        Why->{infrastructure_failure,efz_stats:failure(
+            {mutation_provider,{session_cleanup,Why}})}
+    end,
+    Diagnostic=diagnostic(S),Status=diagnostic_status(StatusBeforeDiagnostic,Diagnostic),
     End = erlang:monotonic_time(microsecond),
     MutationStart = maps:get(mutation_started_at, S, End),
     CalibrationStart = maps:get(calibration_started_at, S),
@@ -710,7 +872,7 @@ finish(Status0, S) ->
         false->ok end,
     maps:get(coordinator, S) ! {campaign_done, self(), Report},
     {noreply, S#{campaign_finished=>true}}.
-public_provider(P)->maps:without([core_context,core_path],P).
+public_provider(P)->maps:without([core_context,core_path,runtime_modules],P).
 public_mutation(C)->case maps:find(provider,C) of
     {ok,P}->C#{provider=>public_provider(P)};error->C end.
 handle_call(benchmark_snapshot, _, S) ->
@@ -738,7 +900,12 @@ handle_cast(request_stop,#{pending_mutation:=#{guardian:=Guardian,ref:=Ref}}=S)-
     %% The guardian's reply confirms that the external request has been reaped.
     %% Keep servicing monitoring and stop calls while cancellation completes.
     Stopping=S#{provider_stopping=>true},
-    case catch efz_mutation_request:cancel(Guardian,Ref) of
+    Cancel=case maps:get(transport,maps:get(pending_mutation,S),disposable) of
+        persistent->efz_mutation_session:cancel(Guardian,
+            maps:get(session_ref,maps:get(pending_mutation,S)),Ref);
+        _->efz_mutation_request:cancel(Guardian,Ref)
+    end,
+    case catch Cancel of
         ok->{noreply,Stopping};
         Error->{noreply,Stopping#{provider_stop_error=>Error}}
     end;
@@ -749,12 +916,24 @@ handle_cast(monitor_sample,S)->
 handle_cast(_, S) -> {noreply, S}.
 terminate(_, S) ->
     case maps:find(pending_mutation,S) of
-        {ok,#{guardian:=Guardian,ref:=Ref}}->_=catch efz_mutation_request:cancel(Guardian,Ref),ok;
+        {ok,#{guardian:=Guardian,ref:=RequestRef}=Pending}->
+            _=case maps:get(transport,Pending,disposable) of
+                persistent->catch efz_mutation_session:cancel(Guardian,
+                    maps:get(session_ref,Pending),RequestRef);
+                _->catch efz_mutation_request:cancel(Guardian,RequestRef)
+            end,ok;
         error->ok
     end,
     case maps:find(coverage_schema, S) of
         {ok, Schema} -> _ = catch efz_coverage:release_schema(Schema), ok;
         error -> ok
+    end,
+    case maps:find(provider_session,S) of
+        {ok,#{pid:=Pid,ref:=SessionRef,monitor:=Monitor}}->
+            _=catch efz_mutation_session:close(Pid,SessionRef,
+                maps:get(cleanup_timeout,provider_configuration(S),3000)),
+            erlang:demonitor(Monitor,[flush]),ok;
+        error->ok
     end.
 code_change(_, S, _) -> {ok, S}.
 

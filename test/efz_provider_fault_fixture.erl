@@ -17,7 +17,8 @@ main() ->
             [binary, {packet, 4}, {packet_size, 1200000}, {active, false},
              {send_timeout, 1000}, {send_timeout_close, true}], 5000),
         try
-            ok = send(Socket, #{hello => Nonce}),
+            ok = send(Socket, #{hello => Nonce, prepare_timing =>
+                #{identity_check_us => 0, core_prepare_us => 0, prepare_total_us => 0}}),
             {ok, Frame} = gen_tcp:recv(Socket, 0, 5000),
             {ok, Envelope} = efz_provider_wire:decode(Frame),
             Input = maps:get(input, Envelope),
@@ -44,7 +45,11 @@ fault(_, _, _) -> halt(64).
 success(Socket, Input) ->
     reply(Socket, {ok, <<Input/binary, 0>>, #{operation => fixture}}).
 
-reply(Socket, Result) -> send(Socket, #{result => Result, core_us => 0}).
+reply(Socket, Result) -> send(Socket, #{result => Result, core_us => 0,
+    request_validation_us => 0, identity_check_us => 0,
+    direct_core_mutation_us => 0, result_validation_us => 0,
+    provider_encode_us => 0, request_decode_us => 0,
+    request_frame_bytes => 0}).
 
 send(Socket, Message) ->
     {ok, Frame} = efz_provider_wire:encode(Message),

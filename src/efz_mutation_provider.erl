@@ -1,7 +1,7 @@
 %% Mutation sources are separate from semantic interpretation and targets.
 %% Only trusted configuration selects code; saved provenance is data only.
 -module(efz_mutation_provider).
--export([prepare/2, mutate/3, valid_recipe_data/1, operators/0, effective/1]).
+-export([prepare/2, mutate/3, mutate_session/6, valid_recipe_data/1, operators/0, effective/1]).
 -define(MIB,1048576).
 
 operators() -> [byte_flip,byte_insert,byte_drop,block_repeat,block_drop,block_swap,
@@ -11,7 +11,8 @@ operators() -> [byte_flip,byte_insert,byte_drop,block_repeat,block_drop,block_sw
 prepare(Mode,Max) when Mode=:=native;Mode=:=erlamsa;Mode=:=hybrid -> prepare(#{mode=>Mode},Max);
 prepare(O,Max) when is_map(O),is_integer(Max),Max>=0,Max=< ?MIB ->
     try
-        known(O,[mode,weights,options,limits,timeout,on_skip,core_path]),
+        known(O,[mode,weights,options,limits,timeout,on_skip,core_path,transport,
+                 startup_timeout,cleanup_timeout,max_requests]),
         Mode=maps:get(mode,O,hybrid),
         require(lists:member(Mode,[native,erlamsa,hybrid]),invalid_mode),
         case Mode of
@@ -30,6 +31,14 @@ prepare_enabled(O,Mode,Max) ->
         {error,Unavailable}->throw({configuration,Unavailable})
     end,
     Timeout=maps:get(timeout,O,1000),require(integer(Timeout,1,60000),invalid_timeout),
+    Transport=maps:get(transport,O,disposable),
+    require(lists:member(Transport,[disposable,persistent]),invalid_transport),
+    StartupTimeout=maps:get(startup_timeout,O,10000),
+    require(integer(StartupTimeout,1,60000),invalid_startup_timeout),
+    CleanupTimeout=maps:get(cleanup_timeout,O,3000),
+    require(integer(CleanupTimeout,1,30000),invalid_cleanup_timeout),
+    MaxRequests=maps:get(max_requests,O,10000),
+    require(integer(MaxRequests,1,1000000),invalid_max_requests),
     OnSkip=maps:get(on_skip,O,native),require(lists:member(OnSkip,[native,skip]),invalid_skip_policy),
     Weights=weights(maps:get(weights,O,[{native,70},{erlamsa,30}])),
     CoreOptions=maps:get(options,O,#{}),require(is_map(CoreOptions),invalid_core_options),
@@ -45,7 +54,9 @@ prepare_enabled(O,Mode,Max) ->
             Base=#{mode=>Mode,weights=>Weights,options=>maps:get(options,C),limits=>maps:get(limits,C),
                 timeout=>Timeout,on_skip=>OnSkip,core_identity=>maps:get(core_identity,Core)},
             Id=crypto:hash(sha256,term_to_binary(canonical(Base),[deterministic])),
-            {ok,maps:merge(Core,Base#{config_identity=>Id})}
+            Runtime=#{transport=>Transport,startup_timeout=>StartupTimeout,
+                cleanup_timeout=>CleanupTimeout,max_requests=>MaxRequests},
+            {ok,maps:merge(Core,maps:merge(Base#{config_identity=>Id},Runtime))}
     end.
 
 weights(L) when is_list(L),length(L)=<2 ->
@@ -87,6 +98,22 @@ mutate(Input,Request,P=#{mode:=Mode,limits:=L})
         end
     end;
 mutate(_,_,_)->{error,invalid_provider_request}.
+
+%% The session handle is runtime-only and must never enter recipes or config.
+mutate_session(Input,Request,P,SessionPid,SessionRef,Timeout)
+  when is_pid(SessionPid),is_reference(SessionRef),is_binary(Input),is_map(Request),
+       is_map(P) ->
+    Limits=maps:get(limits,P,#{}),
+    InputMax=maps:get(input_bytes,Limits,0),
+    case valid_request(Request) andalso byte_size(Input)=<InputMax of
+        false when byte_size(Input)>InputMax->{skip,input_limit};
+        false->{error,invalid_provider_request};
+        true->case efz_mutation_session:run(SessionPid,SessionRef,Input,Request,Timeout) of
+            {ok,Result,_Runtime}->validate_result(Result,Input,Limits);
+            {error,_}=Error->Error
+        end
+    end;
+mutate_session(_,_,_,_,_,_)->{error,invalid_provider_session}.
 native_selected(#{seed:=Seed},#{weights:=W})->
     {N,_}=rand:uniform_s(lists:sum([V||{_,V}<-W]),rand:seed_s(exsplus,Seed)),
     N=<proplists:get_value(native,W,0).
@@ -171,7 +198,7 @@ valid_core_recipe(M) when is_map(M)->
 valid_core_recipe(_)->false.
 
 effective(native)->#{mode=>native};
-effective(P) when is_map(P)->maps:without([core_path,core_context],P).
+effective(P) when is_map(P)->maps:without([core_path,core_context,runtime_modules],P).
 known(M,A)->require((maps:keys(M)--A)=:=[],unknown_option).
 require(true,_)->ok;
 require(false,R)->throw({configuration,R}).

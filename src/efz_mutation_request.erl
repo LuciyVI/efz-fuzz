@@ -1,6 +1,7 @@
 %% Disposable mutation VM; the C launcher owns process-group kill and reaping.
 -module(efz_mutation_request).
--export([availability/0, start/4, cancel/2, run/3, start_test/4]).
+-export([availability/0, start/4, cancel/2, run/3, start_test/4,
+         launcher_path/0, bootstrap_path/0]).
 -define(MAX_FRAME, 1200000).
 -define(CLEANUP_MS, 3000).
 
@@ -85,7 +86,8 @@ guardian(Owner, Ref, Input, Request, P, Launch, Started, Deadline) ->
              deliver => true, port => undefined, socket => undefined,
              listener => undefined, dir => undefined, port_exit => false,
              cleanup => undefined, result => undefined, core_us => 0,
-             os_pid => undefined, launcher_pid => undefined},
+             os_pid => undefined, launcher_pid => undefined,
+             input_bytes => byte_size(Input)},
     _ = store(Base),
     try
         {module, efz_provider_port} = code:ensure_loaded(efz_provider_port),
@@ -103,8 +105,10 @@ store(S) -> put({?MODULE, state}, S), S.
 
 initialize(S0, Input, Request, P, Launch) ->
     CorePath = path(maps:get(core_path, P)),
+    EncodeStarted = erlang:monotonic_time(microsecond),
     {ok, Payload} = efz_provider_wire:encode(#{input => Input, request => Request,
         context => maps:get(core_context, P), identity => maps:get(core_identity, P)}),
+    PayloadEncodeUs = elapsed(EncodeStarted),
     Nonce = crypto:strong_rand_bytes(32),
     Guardian = self(), Token = make_ref(),
     spawn(fun() -> directory_owner(Guardian, Token) end),
@@ -126,12 +130,16 @@ initialize(S0, Input, Request, P, Launch) ->
             true = valid_args(Args),
             Erl = os:find_executable("erl"), true = is_list(Erl),
             Python = os:find_executable("python3"), true = is_list(Python),
+            LaunchStarted = erlang:monotonic_time(microsecond),
             Port = open_port({spawn_executable, Python},
                 [binary, exit_status, use_stdio, stderr_to_stdout, {line, 16384},
                  {env, [{"ERL_CRASH_DUMP", "/dev/null"}]},
                  {args, ["-u", bootstrap(), launcher(), Erl | Args]}]),
             store(S2#{port => Port, phase => accept, payload => Payload,
-                      nonce => Nonce, context => maps:get(core_context, P)})
+                      nonce => Nonce, context => maps:get(core_context, P),
+                      payload_encode_us => PayloadEncodeUs,
+                      request_frame_bytes => byte_size(Payload),
+                      launch_started_us => LaunchStarted})
     end.
 
 path(B) when is_binary(B) -> path(binary_to_list(B));
@@ -164,6 +172,9 @@ launcher_candidates() ->
 %% It proxies only the stop byte/EOF; C stdout goes directly to the port. Port
 %% exit follows wait() of C, whose own confirmation follows VM/descendant reap.
 bootstrap() -> filename:join(filename:dirname(launcher()), "efz_mutation_launcher.py").
+
+launcher_path() -> launcher().
+bootstrap_path() -> bootstrap().
 
 %% Independent directory owner survives an untrappable guardian kill. Its
 %% monitor exists before directory creation, so every exit path removes it.
@@ -256,13 +267,23 @@ active_wait(S, Remaining) ->
     after Remaining -> loop(begin_cleanup({timeout, deadline}, S)) end.
 
 socket_frame(Bytes, #{phase := hello} = S) ->
+    DecodeStarted = erlang:monotonic_time(microsecond),
     case efz_provider_wire:decode(Bytes) of
-        {ok, #{hello := Nonce} = Hello} when map_size(Hello) =:= 1 ->
+        {ok, #{hello := Nonce, prepare_timing := PrepareTiming} = Hello}
+          when map_size(Hello) =:= 2, is_map(PrepareTiming) ->
             case Nonce =:= maps:get(nonce, S) of
-                true -> case gen_tcp:send(maps:get(socket, S), maps:get(payload, S)) of
+                true ->
+                    SendStarted = erlang:monotonic_time(microsecond),
+                    case gen_tcp:send(maps:get(socket, S), maps:get(payload, S)) of
                     ok ->
                         ok = inet:setopts(maps:get(socket, S), [{active, once}]),
-                        S#{phase => result};
+                        S#{phase => result,
+                           worker_startup_us => elapsed(maps:get(launch_started_us, S)),
+                           handshake_prepare_us => maps:get(prepare_total_us, PrepareTiming, 0),
+                           handshake_identity_check_us => maps:get(identity_check_us, PrepareTiming, 0),
+                           handshake_core_prepare_us => maps:get(core_prepare_us, PrepareTiming, 0),
+                           handshake_decode_us => elapsed(DecodeStarted),
+                           parent_send_us => elapsed(SendStarted)};
                     _ -> begin_cleanup({error, provider_transport}, S)
                 end;
                 false -> begin_cleanup({error, provider_handshake}, S)
@@ -270,13 +291,41 @@ socket_frame(Bytes, #{phase := hello} = S) ->
         _ -> begin_cleanup({error, provider_handshake}, S)
     end;
 socket_frame(Bytes, #{phase := result} = S) ->
+    DecodeStarted = erlang:monotonic_time(microsecond),
     case efz_provider_wire:decode(Bytes) of
-        {ok, #{result := Result, core_us := CoreUs} = Reply}
-          when map_size(Reply) =:= 2, is_integer(CoreUs), CoreUs >= 0, CoreUs < (1 bsl 63) ->
+        {ok, #{result := Result, core_us := CoreUs,
+               request_validation_us := RequestValidationUs,
+               identity_check_us := IdentityUs,
+               direct_core_mutation_us := DirectCoreUs,
+               result_validation_us := ResultValidationUs,
+               provider_encode_us := ProviderEncodeUs,
+               request_decode_us := RequestDecodeUs,
+               request_frame_bytes := RequestFrameBytes} = Reply}
+          when map_size(Reply) =:= 9,
+               is_integer(CoreUs), CoreUs >= 0, CoreUs < (1 bsl 63),
+               is_integer(RequestValidationUs), RequestValidationUs >= 0,
+               is_integer(IdentityUs), IdentityUs >= 0,
+               is_integer(DirectCoreUs), DirectCoreUs >= 0,
+               is_integer(ResultValidationUs), ResultValidationUs >= 0,
+               is_integer(ProviderEncodeUs), ProviderEncodeUs >= 0,
+               is_integer(RequestDecodeUs), RequestDecodeUs >= 0,
+               is_integer(RequestFrameBytes), RequestFrameBytes >= 0 ->
             case valid_result(Result, maps:get(context, S)) of
                 true -> case erlang:monotonic_time(millisecond) < maps:get(deadline, S) of
-                    true -> begin_cleanup(Result, S#{core_us => CoreUs});
-                    false -> begin_cleanup({timeout, deadline}, S#{core_us => CoreUs})
+                    true -> begin_cleanup(Result, S#{core_us => CoreUs,
+                        provider_timing => (maps:with([request_validation_us,
+                            identity_check_us,direct_core_mutation_us,
+                            result_validation_us,provider_encode_us,
+                            request_decode_us,request_frame_bytes],Reply))#{
+                                parent_decode_us => elapsed(DecodeStarted),
+                                response_frame_bytes => byte_size(Bytes)} });
+                    false -> begin_cleanup({timeout, deadline}, S#{core_us => CoreUs,
+                        provider_timing => (maps:with([request_validation_us,
+                            identity_check_us,direct_core_mutation_us,
+                            result_validation_us,provider_encode_us,
+                            request_decode_us,request_frame_bytes],Reply))#{
+                                parent_decode_us => elapsed(DecodeStarted),
+                                response_frame_bytes => byte_size(Bytes)} })
                 end;
                 false -> begin_cleanup({error, invalid_provider_result}, S)
             end;
@@ -318,6 +367,7 @@ begin_cleanup(Result, S) ->
         false -> ok
     end,
     store(S#{phase => cleanup, result => Result,
+             cleanup_started_us => erlang:monotonic_time(microsecond),
              cleanup_deadline => erlang:monotonic_time(millisecond) + ?CLEANUP_MS}).
 
 cleanup_loop(#{port := undefined} = S) -> finish(S, true);
@@ -349,10 +399,27 @@ finish(S, Confirmed) ->
         true -> maps:get(result, S);
         false -> {error, {infrastructure, cleanup_unconfirmed}}
     end,
-    Runtime0 = #{cleanup_confirmed => Confirmed,
-        latency_us => max(0, erlang:monotonic_time(microsecond) - maps:get(started, S)),
+    TotalUs = max(0, erlang:monotonic_time(microsecond) - maps:get(started, S)),
+    OutputBytes = case Result of {ok, Candidate, _} when is_binary(Candidate) ->
+        byte_size(Candidate); _ -> 0 end,
+    Runtime0 = #{cleanup_confirmed => Confirmed, latency_us => TotalUs,
+        request_total_us => TotalUs,
+        cleanup_us => max(0, erlang:monotonic_time(microsecond) -
+            maps:get(cleanup_started_us, S, erlang:monotonic_time(microsecond))),
+        worker_startup_us => maps:get(worker_startup_us, S, 0),
+        handshake_prepare_us => maps:get(handshake_prepare_us, S, 0),
+        handshake_identity_check_us => maps:get(handshake_identity_check_us, S, 0),
+        handshake_core_prepare_us => maps:get(handshake_core_prepare_us, S, 0),
+        handshake_decode_us => maps:get(handshake_decode_us, S, 0),
+        parent_encode_us => maps:get(payload_encode_us, S, 0),
+        parent_send_us => maps:get(parent_send_us, S, 0),
+        parent_decode_us => maps:get(parent_decode_us, S, 0),
+        request_frame_bytes => maps:get(request_frame_bytes, S, 0),
+        response_frame_bytes => maps:get(response_frame_bytes, S, 0),
+        input_bytes => maps:get(input_bytes, S, 0), output_bytes => OutputBytes,
         core_us => maps:get(core_us, S)},
-    Runtime = maps:merge(Runtime0, maps:filter(fun(_, V) -> is_integer(V) end,
+    RuntimeBase = maps:merge(Runtime0, maps:get(provider_timing,S,#{})),
+    Runtime = maps:merge(RuntimeBase, maps:filter(fun(_, V) -> is_integer(V) end,
         maps:with([os_pid, launcher_pid], S))),
     _ = case maps:get(deliver, S) of
         true -> maps:get(owner, S) ! {efz_mutation_reply, maps:get(ref, S), Result, Runtime};
@@ -369,3 +436,5 @@ close_all(_) -> ok.
 
 remove_directory(Dir) ->
     _ = file:delete(filename:join(Dir, "socket")), _ = file:del_dir(Dir), ok.
+
+elapsed(Started) -> max(0, erlang:monotonic_time(microsecond) - Started).
