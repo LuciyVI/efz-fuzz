@@ -160,9 +160,19 @@ gleam(V) -> object(V,#{adapter=>fun(X)->enum(X,[efz_qs_adapter]) end,
 boolean(B) when is_boolean(B) -> B;
 boolean(_) -> error(expected_boolean).
 runtime(V) -> object(V,#{enabled=>fun boolean/1,
-    stability=>fun(X)->integer_object(X,[seed_runs,interesting_runs,suspicious_runs,failure_runs,max_extra_executions]) end,
-    resources=>fun(X)->integer_object(X,[sample_interval_ms]) end,
-    hangs=>fun(X)->integer_object(X,[max_sample_age_ms]) end}).
+    stability=>fun(X)->runtime_part(X,[enabled,compare_return],
+        [seed_runs,interesting_runs,suspicious_runs,failure_runs,max_extra_executions,
+         max_groups,max_features_per_group]) end,
+    resources=>fun(X)->runtime_part(X,[enabled],
+        [sample_interval_ms,max_samples,max_sampled_processes,ets_interval_ms,
+         max_ets_tables,memory_bytes,mailbox_messages,ets_memory_bytes,
+         residual_memory_bytes,quiescence_ms,memory_observation_timeout_ms]) end,
+    hangs=>fun(X)->runtime_part(X,[enabled],
+        [max_stack_frames,busy_reductions,max_sample_age_ms]) end}).
+runtime_part(V,Bools,Ints)->
+    BooleanFields=maps:from_list([{K,fun boolean/1}||K<-Bools]),
+    IntegerFields=maps:from_list([{K,fun(X)->integer(X,0,1099511627776) end}||K<-Ints]),
+    object(V,maps:merge(BooleanFields,IntegerFields)).
 integer_object(V,Ks) -> object(V,maps:from_list([{K,fun(X)->integer(X,0,1073741824) end}||K<-Ks])).
 object(V,Fs) ->
     keys(V,[atom_to_binary(K,utf8)||K<-maps:keys(Fs)]),

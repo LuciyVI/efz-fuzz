@@ -34,7 +34,8 @@ class ProviderSnapshotTests(unittest.TestCase):
         self.assertNotIn("9,999", text)
 
     def test_missing_or_invalid_observations_do_not_become_zero(self):
-        self.assertEqual(tui.provider_lines({"stats": {"executions": 12}}), [])
+        self.assertEqual(tui.provider_lines({"stats": {"executions": 12}}),
+                         ['Mode       native', 'Transport  none', 'Worker     none'])
         text = "\n".join(tui.provider_lines({
             "provider": {"mode": "erlamsa", "options": "invalid"},
             "provider_stats": {"requests": True, "changed": -1,
