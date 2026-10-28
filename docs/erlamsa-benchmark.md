@@ -1,5 +1,69 @@
 # Erlamsa integration benchmark
 
+## Published fork rerun (2026-10-28)
+
+This is the authoritative measurement for the pinned fork core
+`191f3d9d30d8932319b98f4af25d3dff9ddc5824` and the EFZ build at
+`f0768323ca746476adf34aac8d5af8ac2c4a3cc5`. The older matrix below used an
+unpublished core revision and does not describe this gitlink.
+
+The accepted matrix contains baseline, native, Erlamsa, and hybrid modes: five
+fixed seeds (`17,29,43,61,89`), 30 mutation seconds per run, fresh VM per run,
+ten discarded warm-up mutations, identical six initial byte inputs and
+instrumented Cowlib `cow_qs` artifact, CPU affinity `[0,1]`, and
+`ERL_FLAGS='+S 2:2'`. The baseline source is the actual EFZ main commit
+`db1add0bc47bc1011d55a4cb528b741a0b870f97`; its Cowboy/Cowlib/Ranch source
+checkouts match the locked revisions recorded in the environment evidence.
+The driver shuffled all 20 mode/seed pairs with order seed `20261027`. Every
+trial exited 0 and retained unchanged build identities.
+
+The table reports median and observed min–max across five runs. “Decode” is the
+harness's direct parser-acceptance fraction; it is not coverage.
+
+| Mode | Target executions/s | Target lines | Parser accepts | Provider request p50/p95 | Core call p50/p95 | Sampled process-tree RSS median |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Baseline | 345.00 [256.86–420.86] | 48 [48–48] | 69.07% | — | — | 108.9 MB |
+| Native | 345.10 [243.26–385.04] | 48 [48–48] | 68.59% | — | — | 108.3 MB |
+| Erlamsa | 4.33 [3.76–4.86] | 45 [44–47] | 69.08% | 224 / 252 ms | 87 / 134 µs | 195.5 MB |
+| Hybrid, native 70 / Erlamsa 30 | 12.56 [10.29–15.29] | 48 [46–48] | 63.49% | 228 / 262 ms | 90 / 159 µs | 195.3 MB |
+
+Across the five trials, provider mode produced zero provider errors and zero
+timeouts. Erlamsa mode made 660 requests, changed 517 candidates, skipped 138,
+and used native fallback for those 138 skips; hybrid made 583 requests,
+changed 454, skipped 125, and fell back 125 times. Five and four requests,
+respectively, were cancelled at orderly stop. The 31 Erlamsa-source and 11
+Erlamsa-source discoveries retained in the hybrid corpus are descriptive
+counts, not independent-defect or coverage claims.
+
+The core operator call itself is around 0.1 ms, while the complete isolated
+request is around 0.2 seconds because each request starts and reaps a disposable
+Erlang VM. That startup cost explains the large throughput loss in Erlamsa
+mode and the smaller, still substantial loss in hybrid mode. The target lines
+are limited to the small parser harness. RSS is sampled aggregate process-tree
+RSS and may count shared pages repeatedly; it is neither PSS nor a hard memory
+bound.
+
+The paired native-off median change was +0.03%, but individual primary pairs
+ranged from −35.92% to +30.67%. Three disputed pairs were repeated: changes were
+−4.31%, −1.77%, and +4.17% (median −1.77%). These repeats are supplemental
+three-seed probes, not a new accepted five-seed matrix. Their median is within
+the predeclared 5% budget, but noise prevents claiming a strict 5% upper bound.
+
+The semantic/Gleam measurement was **NOT RUN**. The probe stopped before target
+execution because `efz_qs_adapter` requires `efz_qs_model`, and Gleam is not
+installed in this environment. The historical semantic row below used the
+older unpublished core and is not evidence for the published gitlink.
+
+Raw evidence for this run:
+
+- [Primary manifest, source/build hashes and shuffled run order](erlamsa-evidence/benchmark-published-191f3d9-manifest.json)
+- [Raw primary trial summaries](erlamsa-evidence/benchmark-published-191f3d9-runs.json)
+- [Primary aggregate statistics](erlamsa-evidence/benchmark-published-191f3d9-summary.json)
+- [Environment and baseline dependency identities](erlamsa-evidence/benchmark-published-191f3d9-environment.json)
+- [Native-off repeat manifest](erlamsa-evidence/benchmark-published-191f3d9-off-repeat-manifest.json)
+- [Raw native-off repeat trials](erlamsa-evidence/benchmark-published-191f3d9-off-repeat-runs.json)
+- [Native-off repeat statistics](erlamsa-evidence/benchmark-published-191f3d9-off-repeat-summary.json)
+
 This measures local candidate generation and execution of the ordinary Cowlib
 query-string parser. It does not search for vulnerabilities or claim that one
 mutation source discovers more independent defects.

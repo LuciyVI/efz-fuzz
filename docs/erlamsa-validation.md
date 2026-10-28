@@ -1,8 +1,10 @@
 # Erlamsa integration validation
 
-Status on 2026-10-27: **PARTIAL; remote fork/submodule acceptance BLOCKED**.
-This report records execution evidence; installed tools and implemented test
-files do not count as completed checks. Main's completed P5 semantic-adapter
+Historical status on 2026-10-27: **PARTIAL; remote fork/submodule acceptance
+was BLOCKED at that time**. The final 2026-10-28 verification section below
+supersedes earlier fork, gitlink, and clean-checkout status statements. This
+report records execution evidence; installed tools and implemented test files
+do not count as completed checks. Main's completed P5 semantic-adapter
 acceptance is not repeated and does not establish Erlamsa acceptance.
 
 ## Source and environment audit
@@ -195,6 +197,95 @@ After API access is available, verify parent/source, create the fork if absent,
 publish local commits, independently fetch the exact object, add the real
 submodule/gitlink, commit EFZ, and run a fresh recursive checkout. No automatic
 merge to main is part of this work.
+
+## Final publication and clean-checkout recheck (2026-10-28)
+
+Status: **PARTIAL**. This section supersedes the historical remote-blocked
+statements above. The fork and submodule acceptance now pass. The remaining
+limits are the deliberately selected core operator subset and the unavailable
+Gleam tool/profile; those prevent the requested full-catalogue COMPLETE claim.
+
+### Repositories and pinned source
+
+| Item | Verified value |
+| --- | --- |
+| EFZ worktree | `/home/fbogoslavskii/test/efz-fuzz` |
+| EFZ branch | `feat/erlamsa-integration` |
+| EFZ upstream default/main | `db1add0bc47bc1011d55a4cb528b741a0b870f97` (`main`) |
+| Published EFZ provider/gitlink commit | `f0768323ca746476adf34aac8d5af8ac2c4a3cc5` |
+| Fork | [LuciyVI/erlamsa](https://github.com/LuciyVI/erlamsa), API reports `fork: true`, parent `Darkkey/erlamsa` |
+| Fork default branch | `master` at upstream base `4a844bcd1083e3278c10405bb415a32871b216c3` |
+| Published fork integration branch | `efz-integration` at `191f3d9d30d8932319b98f4af25d3dff9ddc5824` |
+| EFZ submodule | `vendor/erlamsa`, mode `160000`, exact SHA `191f3d9d30d8932319b98f4af25d3dff9ddc5824` |
+| `.gitmodules` URL | `https://github.com/LuciyVI/erlamsa.git` |
+| Environment | Linux x86_64, kernel `6.8.0-nyx+`, OTP 27 / ERTS 15.0, Rebar3 3.25.0, Python 3.12.3, Gleam absent |
+
+GitHub API verified the fork parent and default branch. Independent
+`git ls-remote` returned the integration SHA from the public fork. A new
+`--single-branch --recurse-submodules` clone checked out EFZ commit `f076832`
+and the exact published fork object; it had no tracked or submodule changes.
+EFZ was pushed only to `feat/erlamsa-integration`; no merge to `main` occurred.
+The fork commits, in order, are `760ff8f`, `c8700d7`, `e4919d1`, `90d3333`, and
+`191f3d9`. The standalone profile adds no nested submodules and no Rebar
+dependencies.
+
+### Verification commands
+
+| Command/check | Result |
+| --- | --- |
+| EFZ `ERL_FLAGS='+S 2:2' rebar3 compile` | PASS, exit 0 |
+| EFZ `ERL_FLAGS='+S 2:2' rebar3 eunit` with no core override | PASS, exit 0, 386 tests |
+| EFZ `EFZ_ERLAMSA_CORE_PATH="$PWD/vendor/erlamsa" ERL_FLAGS='+S 2:2' rebar3 eunit` | PASS, exit 0, 391 tests, including five real-core scenarios |
+| EFZ `ERL_FLAGS='+S 2:2' rebar3 ct` | PASS, exit 0, 3 tests |
+| EFZ `ERL_FLAGS='+S 2:2' rebar3 xref` | PASS, exit 0 |
+| EFZ `ERL_FLAGS='+S 2:2' rebar3 dialyzer` | PASS, exit 0, no EFZ warnings |
+| EFZ `ERL_FLAGS='+S 2:2' rebar3 as erlamsa compile` | PASS, exit 0 |
+| Fresh recursive clone: `rebar3 compile` | PASS, exit 0 |
+| Fresh recursive clone: `sh scripts/build_erlamsa.sh` and `rebar3 as erlamsa compile` | PASS, exit 0; reports core SHA `191f3d9` |
+| Fresh clone without initialized submodule: ordinary `rebar3 compile` | PASS, exit 0 |
+| Same no-submodule clone: `rebar3 as erlamsa compile` | Expected failure, exit 1, before any target: “Missing Erlamsa library. Initialize the pinned submodule…” |
+| Fork core on current checkout and independent fresh HTTPS fork clone: `rebar3 compile`, `eunit`, `xref`, `dialyzer` | PASS, exit 0 for all; 12 EUnit tests in each checkout |
+| Fork root upstream `ERL_FLAGS='+S 2:2' make compile` and `make test` | PASS, exit 0; 28 EUnit tests. Existing upstream deprecation/unused-code warnings remain. |
+| Direct fork-root `rebar3 compile` without generating `src/version.hrl` | FAIL as expected for the unsupported shortcut; upstream's `Makefile` generates that header, and its documented `make compile` passed. |
+| `python3 -m pip install --no-build-isolation --no-deps --target /tmp/pyefz-install-final packages/pyefz` | PASS; installed `pyefz-0.1.0` |
+| Python SDK/CLI/TUI suite with pinned core and instrumented synthetic parser | PASS, exit 0, 21 tests; includes binary and batch mutation, campaign stop, saved raw replay, cancellation/reap, and runtime TUI counters |
+| `escript scripts/fuzz.escript --help`, `escript scripts/mutate.escript --help`, `escript scripts/prepare.escript` | PASS, exit 0 |
+| `ERL_FLAGS='+S 2:2' rebar3 as gleam compile` | NOT RUN to completion / BLOCKED, exit 1: Gleam executable is not installed |
+| Combined Erlamsa+Gleam build and semantic/Gleam benchmark mode | NOT RUN; requires the unavailable Gleam build |
+
+The initial clean recursive build used a configured proxy and failed while
+fetching Cowboy. Repeating with that proxy unset fetched all three lock-pinned
+EFZ dependencies and the clean recursive default and provider builds passed.
+This was an environment proxy issue; no dependency version was changed.
+
+### Measurements and remaining scope
+
+The accepted four-mode benchmark completed 20/20 trials: five seeds, 30 seconds
+per trial, baseline/native/Erlamsa/hybrid, same instrumented Cowlib target,
+`+S 2:2`, CPUs 0 and 1. Native median was 345.10 target executions/s versus
+345.00 for the pristine baseline. Erlamsa was 4.33/s and hybrid 12.56/s. The
+core call median was 87–90 microseconds, while the isolated full provider
+request median was 224–228 milliseconds. The paired native-off median was
+within 5%; high per-seed variance means the upper-bound guarantee is
+unproven. Full measurements and the semantic-mode limitation are in
+[benchmark results](erlamsa-benchmark.md).
+
+The new core profile is not a complete copy or implementation of every
+upstream operator. It supports bounded byte/block/line/number/delimiter/Unicode
+operations, JSON primitive-value edits, simple balanced-tag SGML comment
+insertion, Base64, gzip/zlib, stored ZIP entries, selected length/XOR8/CRC32
+fields, and bounded once/many/burst/skip patterns. ZIP Deflate and advanced
+JSON/SGML tree operations are excluded and explicitly documented. The
+heuristics do not infer arbitrary protocols. The provider has disposable OS
+worker isolation and bounded streaming decompression, but no whole-VM hard
+memory guarantee. Raw replay uses stored bytes and does not need the core;
+regeneration checks the recorded build/config identity.
+
+Therefore the fork, published commit, gitlink, core builds, EFZ provider,
+native/erlamsa/hybrid scheduling, Python SDK, persistence/replay, and tested
+synthetic end-to-end path are implemented. Full upstream catalogue parity,
+the Gleam-enabled build/run, and the corresponding semantic benchmark remain
+open acceptance criteria; this is **PARTIAL**, not COMPLETE.
 
 ## Recheck in the active checkout (2026-10-28)
 

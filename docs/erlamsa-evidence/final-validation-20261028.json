@@ -1,0 +1,184 @@
+{
+  "checks": [
+    {
+      "command": "ERL_FLAGS='+S 2:2' rebar3 compile",
+      "exit_code": 0,
+      "name": "EFZ compile default",
+      "status": "PASS"
+    },
+    {
+      "command": "ERL_FLAGS='+S 2:2' rebar3 eunit",
+      "exit_code": 0,
+      "name": "EFZ EUnit native/off",
+      "status": "PASS",
+      "tests": 386
+    },
+    {
+      "command": "EFZ_ERLAMSA_CORE_PATH=vendor/erlamsa ERL_FLAGS='+S 2:2' rebar3 eunit",
+      "exit_code": 0,
+      "name": "EFZ EUnit core enabled",
+      "status": "PASS",
+      "tests": 391
+    },
+    {
+      "command": "ERL_FLAGS='+S 2:2' rebar3 ct",
+      "exit_code": 0,
+      "name": "EFZ Common Test",
+      "status": "PASS",
+      "tests": 3
+    },
+    {
+      "command": "ERL_FLAGS='+S 2:2' rebar3 xref",
+      "exit_code": 0,
+      "name": "EFZ xref",
+      "status": "PASS"
+    },
+    {
+      "command": "ERL_FLAGS='+S 2:2' rebar3 dialyzer",
+      "exit_code": 0,
+      "name": "EFZ dialyzer",
+      "status": "PASS",
+      "warnings": 0
+    },
+    {
+      "command": "ERL_FLAGS='+S 2:2' rebar3 as erlamsa compile",
+      "exit_code": 0,
+      "name": "EFZ enabled profile",
+      "status": "PASS"
+    },
+    {
+      "command": "git clone --recurse-submodules; rebar3 compile",
+      "core_commit": "191f3d9d30d8932319b98f4af25d3dff9ddc5824",
+      "efz_commit": "f0768323ca746476adf34aac8d5af8ac2c4a3cc5",
+      "exit_code": 0,
+      "name": "Fresh recursive checkout default build",
+      "status": "PASS"
+    },
+    {
+      "command": "sh scripts/build_erlamsa.sh; rebar3 as erlamsa compile",
+      "exit_code": 0,
+      "name": "Fresh recursive checkout core/profile build",
+      "status": "PASS"
+    },
+    {
+      "command": "rebar3 compile",
+      "exit_code": 0,
+      "name": "Fresh checkout without submodule default build",
+      "status": "PASS"
+    },
+    {
+      "command": "rebar3 as erlamsa compile",
+      "diagnostic": "Missing Erlamsa library. Initialize the pinned submodule...",
+      "exit_code": 1,
+      "name": "Explicit provider build without submodule",
+      "status": "EXPECTED_ERROR"
+    },
+    {
+      "command": "rebar3 compile eunit xref dialyzer",
+      "eunit_tests": 12,
+      "exit_code": 0,
+      "fresh_https_clone": true,
+      "name": "Fork core current and independent clean checkout",
+      "status": "PASS"
+    },
+    {
+      "command": "ERL_FLAGS='+S 2:2' make compile; make test",
+      "eunit_tests": 28,
+      "exit_code": 0,
+      "name": "Upstream application supported entrypoint",
+      "notes": "Existing upstream warnings remain.",
+      "status": "PASS"
+    },
+    {
+      "command": "python3 -m pip install --no-build-isolation --no-deps --target /tmp/pyefz-install-final packages/pyefz",
+      "exit_code": 0,
+      "name": "Python package install",
+      "status": "PASS"
+    },
+    {
+      "command": "python3 -m unittest discover -s test -p 'pyefz_*test.py' -v",
+      "exit_code": 0,
+      "name": "Python SDK/CLI/TUI real-core suite",
+      "status": "PASS",
+      "tests": 21
+    },
+    {
+      "commands": [
+        "escript scripts/fuzz.escript --help",
+        "escript scripts/mutate.escript --help",
+        "escript scripts/prepare.escript"
+      ],
+      "exit_code": 0,
+      "name": "EFZ/fuzzer/mutator help and preparation",
+      "status": "PASS"
+    },
+    {
+      "command": "ERL_FLAGS='+S 2:2' rebar3 as gleam compile",
+      "exit_code": 1,
+      "name": "Gleam profile",
+      "reason": "Gleam executable not installed",
+      "status": "BLOCKED"
+    },
+    {
+      "accepted_trials": 20,
+      "exit_code": 0,
+      "modes": [
+        "baseline",
+        "native",
+        "erlamsa",
+        "hybrid"
+      ],
+      "name": "Published-core performance matrix",
+      "seconds_per_trial": 30,
+      "seeds": [
+        17,
+        29,
+        43,
+        61,
+        89
+      ],
+      "status": "PASS"
+    },
+    {
+      "name": "Semantic/Gleam benchmark",
+      "reason": "efz_qs_model unavailable without Gleam",
+      "status": "NOT_RUN"
+    }
+  ],
+  "date": "2026-10-28",
+  "efz": {
+    "branch": "feat/erlamsa-integration",
+    "gitlink_commit": "f0768323ca746476adf34aac8d5af8ac2c4a3cc5",
+    "main_default": "db1add0bc47bc1011d55a4cb528b741a0b870f97",
+    "submodule_commit": "191f3d9d30d8932319b98f4af25d3dff9ddc5824",
+    "submodule_mode": "160000",
+    "submodule_path": "vendor/erlamsa",
+    "submodule_url": "https://github.com/LuciyVI/erlamsa.git"
+  },
+  "environment": {
+    "erlang_flags": "+S 2:2",
+    "erts": "15.0",
+    "gleam": "not installed",
+    "os": "Linux x86_64 kernel 6.8.0-nyx+",
+    "otp": "27",
+    "python": "3.12.3",
+    "rebar3": "3.25.0"
+  },
+  "fork": {
+    "default_branch": "master",
+    "is_fork": true,
+    "parent": "Darkkey/erlamsa",
+    "published_branch": "efz-integration",
+    "published_commit": "191f3d9d30d8932319b98f4af25d3dff9ddc5824",
+    "upstream_base": "4a844bcd1083e3278c10405bb415a32871b216c3",
+    "url": "https://github.com/LuciyVI/erlamsa"
+  },
+  "remaining_acceptance": [
+    "Full upstream operator/catalog parity",
+    "Advanced JSON/SGML tree operations",
+    "ZIP Deflate entries",
+    "Gleam-enabled build/runtime and semantic benchmark"
+  ],
+  "schema_version": 1,
+  "status": "PARTIAL"
+}

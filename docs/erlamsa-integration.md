@@ -20,11 +20,11 @@ version selector.
 
 ## Build and version ownership
 
-The intended dependency is a real Git submodule at `vendor/erlamsa`, using the
-portable HTTPS URL `https://github.com/LuciyVI/erlamsa.git`. Its gitlink must name
-a published commit on the fork's `efz-integration` branch. EFZ must not fetch the
-same dependency through Rebar, follow a branch head during builds, or copy the
-fork's sources into `src/`.
+The dependency is a real Git submodule at `vendor/erlamsa`, using the portable
+HTTPS URL `https://github.com/LuciyVI/erlamsa.git`. Its mode-160000 gitlink pins
+published core commit `191f3d9d30d8932319b98f4af25d3dff9ddc5824` on the fork's
+`efz-integration` branch. EFZ does not fetch the same dependency through Rebar,
+follow a branch head during builds, or copy the fork's sources into `src/`.
 
 The reproducible checkout and build procedure is:
 
@@ -331,5 +331,6 @@ checkout and recursive initialization. Never build with `submodule update
 
 Initial decisions are separate provider/semantic contracts, immutable request
 state, fixed weights, OS isolation including native compression, independent
-raw-byte replay, and explicit blocked remote acceptance. Results belong in
-[validation](erlamsa-validation.md) and [benchmarks](erlamsa-benchmark.md).
+raw-byte replay, and a pinned public fork commit. The fork, submodule, and
+recursive-checkout evidence is in [validation](erlamsa-validation.md); measured
+performance and its limits are in [benchmarks](erlamsa-benchmark.md).
