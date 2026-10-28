@@ -70,14 +70,19 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--engine", required=True, help="Integration _build/erlamsa+gleam")
     parser.add_argument("--baseline", required=True, help="Pristine baseline _build/default")
+    parser.add_argument("--baseline-source-commit", required=True,
+                        help="Commit used to build the baseline engine")
+    parser.add_argument("--baseline-build-note", default="",
+                        help="Local build detail, such as dependency cache reuse")
     parser.add_argument("--core", required=True, help="Clean built core checkout")
     parser.add_argument("--out", required=True, help="New output directory")
     parser.add_argument("--seconds", type=int, default=30)
     parser.add_argument("--profile", action="store_true",
         help="Enable EFZ stage profiling for a separate diagnostic run; omit for acceptance throughput")
     parser.add_argument("--seeds", default="17,29,43,61,89")
-    parser.add_argument("--modes", default=("baseline,native,erlamsa,erlamsa_persistent,"
-                                             "hybrid,hybrid_persistent"))
+    parser.add_argument("--modes", default=("baseline,native,native_semantic,erlamsa,"
+                                             "erlamsa_persistent,hybrid,hybrid_persistent,"
+                                             "semantic_persistent"))
     parser.add_argument("--cpus", default="0,1")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
@@ -90,9 +95,13 @@ def main():
             or any(not 0 < s < 2**31 for s in seeds)
             or len(set(modes)) != len(modes)
             or any(m not in ("baseline", "native", "erlamsa", "erlamsa_persistent",
-                             "hybrid", "hybrid_persistent", "semantic_persistent") for m in modes)
+                             "hybrid", "hybrid_persistent", "semantic_persistent",
+                             "native_semantic") for m in modes)
             or not cpus or not set(cpus).issubset(os.sched_getaffinity(0))):
         parser.error("Invalid duration, seeds, modes, or CPU affinity")
+    if len(args.baseline_source_commit) != 40 or any(
+            c not in "0123456789abcdef" for c in args.baseline_source_commit.lower()):
+        parser.error("--baseline-source-commit must be a 40-character commit SHA")
     if out.exists():
         parser.error("Refusing to overwrite existing results")
     out.mkdir(parents=True)
@@ -119,6 +128,9 @@ def main():
         *root.glob("scripts/benchmark_erlamsa*"),root/"scripts/benchmark_erlamsa_target.erl",
         *root.glob("packages/pyefz/src/pyefz/*.py"),
         *root.glob("packages/pyefz/test/*.py"),root/"test/efz_erlamsa_integration_tests.erl"]))
+    shared_dependencies = {p.relative_to(root).as_posix():sha(p)
+        for app in ("cowlib", "cowboy", "ranch")
+        for p in sorted((root/"_build/default/lib"/app/"ebin").glob("*.beam"))}
     manifest = {"schema_version": 1, "seed_triples": [[s,s+1,s+2] for s in seeds],
         "mutation_wall_seconds": args.seconds, "cpu_affinity": cpus, "ERL_FLAGS": "+S 2:2",
         "environment":{"platform":platform.platform(),"kernel":platform.release(),
@@ -142,6 +154,9 @@ def main():
         "source_sha256":{str(p.relative_to(root)):sha(p) for p in source_paths},
         "engine_beams":{mode:beam_identity(build)
                          for mode,build in (("baseline",baseline),("integration",engine))},
+        "baseline_source_commit":args.baseline_source_commit.lower(),
+        "baseline_build_note":args.baseline_build_note,
+        "shared_runtime_dependency_beams":shared_dependencies,
         "core_beams":{p.name:sha(p) for p in sorted((core/"core/_build/default/lib/erlamsa_core/ebin").glob("*.beam"))},
         "core_commit":subprocess.check_output(["git","rev-parse","HEAD"],cwd=core,text=True).strip(),
         "efz_commit":subprocess.check_output(["git","rev-parse","HEAD"],cwd=root,text=True).strip()}
@@ -150,6 +165,10 @@ def main():
     def check_identity():
         return (beam_identity(baseline)==manifest["engine_beams"]["baseline"] and
             beam_identity(engine)==manifest["engine_beams"]["integration"] and
+            {p.relative_to(root).as_posix():sha(p)
+                for app in ("cowlib", "cowboy", "ranch")
+                for p in sorted((root/"_build/default/lib"/app/"ebin").glob("*.beam"))}==
+                manifest["shared_runtime_dependency_beams"] and
             {p.name:sha(p) for p in sorted((core/"core/_build/default/lib/erlamsa_core/ebin").glob("*.beam"))}==manifest["core_beams"] and
             subprocess.check_output(["git","rev-parse","HEAD"],cwd=core,text=True).strip()==manifest["core_commit"] and
             not subprocess.check_output(["git","status","--porcelain"],cwd=core,text=True).strip())

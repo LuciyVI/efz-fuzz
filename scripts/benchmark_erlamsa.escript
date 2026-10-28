@@ -7,7 +7,7 @@ main([Engine, Mode, SeedText, SecondsText, Out, Root, ArtifactFile, Core]) ->
     Seed = list_to_integer(SeedText), Seconds = list_to_integer(SecondsText),
     true = Seed > 0 andalso Seconds >= 1 andalso Seconds =< 3600,
     true = lists:member(Mode, ["baseline", "native", "erlamsa", "erlamsa_persistent",
-        "hybrid", "hybrid_persistent", "semantic_persistent"]),
+        "hybrid", "hybrid_persistent", "semantic_persistent", "native_semantic"]),
     Paths = filelib:wildcard(filename:join([Engine, "lib", "*", "ebin"])),
     true = Paths =/= [], [true = code:add_patha(P) || P <- Paths],
     true = code:add_patha(filename:join([Root,"_build","default","lib","cowlib","ebin"])),
@@ -120,6 +120,8 @@ main([Engine, Mode, SeedText, SecondsText, Out, Root, ArtifactFile, Core]) ->
     end;
 main(_) -> io:format("Usage: benchmark_erlamsa.escript ENGINE_BUILD MODE SEED SECONDS OUT SOURCE_ROOT SHARED_ARTIFACT CORE_ROOT~n"), halt(2).
 
+config("native_semantic", C, _Core) -> C#{gleam_layer => semantic_layer()};
+
 config(Mode,C,Core) when Mode=:= "erlamsa";Mode=:= "hybrid";Mode=:= "semantic";
         Mode=:= "erlamsa_persistent";Mode=:= "hybrid_persistent";
         Mode=:= "semantic_persistent" ->
@@ -129,12 +131,14 @@ config(Mode,C,Core) when Mode=:= "erlamsa";Mode=:= "hybrid";Mode=:= "semantic";
         transport=>Transport,max_requests=>10000,on_skip=>native,
         options=>#{profile=>bytes},weights=>[{native,70},{erlamsa,30}]}},
     case Mode of
-        "semantic_persistent"->Base#{gleam_layer=>#{adapter=>efz_qs_adapter,
-            adapter_options=>#{fields=>32,component=>128},
-            structured_fraction=>10,feedback=>guided,oracle=>disabled}};
+        "semantic_persistent"->Base#{gleam_layer=>semantic_layer()};
         _->Base
     end;
 config(_,C,_)->C.
+
+semantic_layer()->#{adapter=>efz_qs_adapter,
+    adapter_options=>#{fields=>32,component=>128},
+    structured_fraction=>10,feedback=>guided,oracle=>disabled}.
 
 bench_profile() -> os:getenv("EFZ_BENCH_PROFILE") =:= "1".
 
