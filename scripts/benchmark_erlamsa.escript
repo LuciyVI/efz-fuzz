@@ -3,9 +3,11 @@
 -mode(compile).
 
 %% One fresh VM per measurement. This driver never substitutes for Erlamsa.
-main([Engine, Mode, SeedText, SecondsText, Out, Root, ArtifactFile, Core]) ->
+main([Engine, Mode, SeedText, SecondsText, Out, Root, ArtifactFile, Core, MaxRequestsText]) ->
     Seed = list_to_integer(SeedText), Seconds = list_to_integer(SecondsText),
+    MaxRequests = list_to_integer(MaxRequestsText),
     true = Seed > 0 andalso Seconds >= 1 andalso Seconds =< 3600,
+    true = MaxRequests >= 1 andalso MaxRequests =< 1000000,
     true = lists:member(Mode, ["baseline", "native", "erlamsa", "erlamsa_persistent",
         "hybrid", "hybrid_persistent", "semantic_persistent", "native_semantic"]),
     Paths = filelib:wildcard(filename:join([Engine, "lib", "*", "ebin"])),
@@ -25,7 +27,7 @@ main([Engine, Mode, SeedText, SecondsText, Out, Root, ArtifactFile, Core]) ->
         mutation=>#{seed=>{Seed,Seed+1,Seed+2},stages=>[havoc],trace_limit=>0},
         selection_seed=>{Seed,Seed+1,Seed+2}, random_seed=>{Seed,Seed+1,Seed+2},
         performance_profile=>bench_profile(),timeout=>1000,crash_dir=>Out++"/crashes"},
-    C = config(Mode, C0, Core),
+    C = config(Mode, C0, Core, MaxRequests),
     %% A separate finite campaign warms code and executor without reusing corpus.
     {ok, _} = efz:start(C#{max_iterations=>10,crash_dir=>Out++"/warmup-crashes"}),
     Warm = efz:await(30000),
@@ -118,23 +120,23 @@ main([Engine, Mode, SeedText, SecondsText, Out, Root, ArtifactFile, Core]) ->
         stopped_by_user -> ok;
         Status -> io:format("campaign ended early: ~tp~n",[Status]), halt(3)
     end;
-main(_) -> io:format("Usage: benchmark_erlamsa.escript ENGINE_BUILD MODE SEED SECONDS OUT SOURCE_ROOT SHARED_ARTIFACT CORE_ROOT~n"), halt(2).
+main(_) -> io:format("Usage: benchmark_erlamsa.escript ENGINE_BUILD MODE SEED SECONDS OUT SOURCE_ROOT SHARED_ARTIFACT CORE_ROOT MAX_REQUESTS~n"), halt(2).
 
-config("native_semantic", C, _Core) -> C#{gleam_layer => semantic_layer()};
+config("native_semantic", C, _Core, _MaxRequests) -> C#{gleam_layer => semantic_layer()};
 
-config(Mode,C,Core) when Mode=:= "erlamsa";Mode=:= "hybrid";Mode=:= "semantic";
+config(Mode,C,Core,MaxRequests) when Mode=:= "erlamsa";Mode=:= "hybrid";Mode=:= "semantic";
         Mode=:= "erlamsa_persistent";Mode=:= "hybrid_persistent";
         Mode=:= "semantic_persistent" ->
     ProviderMode = case Mode of "erlamsa"->erlamsa;"erlamsa_persistent"->erlamsa;_->hybrid end,
     Transport = case lists:suffix("_persistent",Mode) of true->persistent;false->disposable end,
     Base=C#{mutation_provider=>#{mode=>ProviderMode,core_path=>Core,timeout=>2000,
-        transport=>Transport,max_requests=>10000,on_skip=>native,
+        transport=>Transport,max_requests=>MaxRequests,on_skip=>native,
         options=>#{profile=>bytes},weights=>[{native,70},{erlamsa,30}]}},
     case Mode of
         "semantic_persistent"->Base#{gleam_layer=>semantic_layer()};
         _->Base
     end;
-config(_,C,_)->C.
+config(_,C,_,_)->C.
 
 semantic_layer()->#{adapter=>efz_qs_adapter,
     adapter_options=>#{fields=>32,component=>128},

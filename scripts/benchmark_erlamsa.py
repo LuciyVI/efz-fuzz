@@ -74,11 +74,14 @@ def main():
                         help="Commit used to build the baseline engine")
     parser.add_argument("--baseline-build-note", default="",
                         help="Local build detail, such as dependency cache reuse")
+    parser.add_argument("--target-artifact", help="Reuse an existing instrumented target artifact")
     parser.add_argument("--core", required=True, help="Clean built core checkout")
     parser.add_argument("--out", required=True, help="New output directory")
     parser.add_argument("--seconds", type=int, default=30)
     parser.add_argument("--profile", action="store_true",
         help="Enable EFZ stage profiling for a separate diagnostic run; omit for acceptance throughput")
+    parser.add_argument("--recycle-every", type=int, default=10000,
+                        help="Persistent worker max_requests before orderly recycle")
     parser.add_argument("--seeds", default="17,29,43,61,89")
     parser.add_argument("--modes", default=("baseline,native,native_semantic,erlamsa,"
                                              "erlamsa_persistent,hybrid,hybrid_persistent,"
@@ -91,7 +94,8 @@ def main():
     seeds = [int(s) for s in args.seeds.split(",")]
     modes = args.modes.split(",")
     cpus = [int(s) for s in args.cpus.split(",")]
-    if (not 1 <= args.seconds <= 3600 or not seeds or len(set(seeds)) != len(seeds)
+    if (not 1 <= args.seconds <= 3600 or not 1 <= args.recycle_every <= 1000000
+            or not seeds or len(set(seeds)) != len(seeds)
             or any(not 0 < s < 2**31 for s in seeds)
             or len(set(modes)) != len(modes)
             or any(m not in ("baseline", "native", "erlamsa", "erlamsa_persistent",
@@ -111,15 +115,20 @@ def main():
     source.mkdir()
     for name in ("src/cow_qs.erl", "include/cow_inline.hrl"):
         shutil.copy2(root/"_build/default/lib/cowlib"/name, source/Path(name).name)
-    artifact = out/"shared-artifact.term"
-    prepare = ["erl", "+S", "2:2", "-noshell", "-pa", str(engine/"lib/efz/ebin"),
-               "-eval", '[Source,TargetDir,Artifact]=init:get_plain_arguments(),'
-               '{ok,A}=efz_cov_native_public:compile(Source,TargetDir),'
-               'ok=file:write_file(Artifact,io_lib:format("~tp.~n",[A])),halt(0).',
-               "-extra", str(source/"cow_qs.erl"), str(out/"target"), str(artifact)]
-    with (out/"prepare.log").open("w") as log:
-        subprocess.run(prepare, cwd=root, env=env, stdout=log, stderr=subprocess.STDOUT,
-                       check=True, timeout=30)
+    if args.target_artifact:
+        artifact = Path(args.target_artifact).resolve()
+        if not artifact.is_file():
+            parser.error("--target-artifact must name an existing artifact term")
+    else:
+        artifact = out/"shared-artifact.term"
+        prepare = ["erl", "+S", "2:2", "-noshell", "-pa", str(engine/"lib/efz/ebin"),
+                   "-eval", '[Source,TargetDir,Artifact]=init:get_plain_arguments(),'
+                   '{ok,A}=efz_cov_native_public:compile(Source,TargetDir),'
+                   'ok=file:write_file(Artifact,io_lib:format("~tp.~n",[A])),halt(0).',
+                   "-extra", str(source/"cow_qs.erl"), str(out/"target"), str(artifact)]
+        with (out/"prepare.log").open("w") as log:
+            subprocess.run(prepare, cwd=root, env=env, stdout=log, stderr=subprocess.STDOUT,
+                           check=True, timeout=30)
     jobs = [(seed, mode) for seed in seeds for mode in modes]
     random.Random(20261027).shuffle(jobs)
     cpu_model = next((line.split(":",1)[1].strip() for line in
@@ -148,7 +157,8 @@ def main():
         "rss_sampler":"proc_stat_ppid_v2",
         "candidate_source_selection":"independent state-threaded planner RNG",
         "decode_definition":"ordinary cow_qs harness returned accepted pairs; separate from coverage",
-        "persistent_worker":{"one_external_vm_per_campaign":True,"max_requests":10000,
+        "persistent_worker":{"one_external_vm_per_campaign":True,"max_requests":args.recycle_every,
+            "configured_recycle_every":args.recycle_every,
             "one_inflight_request":True,"request_process":"fresh per mutation"},
         "benchmark_kind":"accepted_wall_time" if len(seeds)>=5 and args.seconds>=30 else "probe_only",
         "source_sha256":{str(p.relative_to(root)):sha(p) for p in source_paths},
@@ -182,7 +192,7 @@ def main():
         destination.mkdir()
         command=["escript",str(root/"scripts/benchmark_erlamsa.escript"),
             str(baseline if mode=="baseline" else engine),mode,str(seed),str(args.seconds),
-            str(destination),str(root),str(artifact),str(core)]
+            str(destination),str(root),str(artifact),str(core),str(args.recycle_every)]
         start,peak=time.monotonic(),0
         with (out/(label+".log")).open("w") as log:
             process=subprocess.Popen(command,cwd=root,env=env,stdout=log,stderr=subprocess.STDOUT,
