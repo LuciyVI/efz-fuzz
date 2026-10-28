@@ -10,10 +10,13 @@ The implementation is opt-in. Ordinary builds and native campaigns do not need
 Erlamsa or Gleam. An enabled provider is prepared before target execution; a
 missing, dirty, incompatible, or unbuilt core is a configuration error.
 
-**Publication status:** the local implementation is under validation. Creation
-and verification of `https://github.com/LuciyVI/erlamsa` are blocked by GitHub API
-access in this environment. No published fork, gitlink, or recursive-checkout
-acceptance is implied. See [validation](erlamsa-validation.md) for actual results.
+**Fork publication:** `https://github.com/LuciyVI/erlamsa` is a verified GitHub
+fork of `Darkkey/erlamsa`, based on upstream
+`4a844bcd1083e3278c10405bb415a32871b216c3`. Its public `efz-integration`
+branch currently contains core commit `191f3d9d30d8932319b98f4af25d3dff9ddc5824`.
+The EFZ submodule commit and independent recursive checkout are recorded in
+[validation](erlamsa-validation.md); the fork branch name is not a build-time
+version selector.
 
 ## Build and version ownership
 
@@ -23,7 +26,7 @@ a published commit on the fork's `efz-integration` branch. EFZ must not fetch th
 same dependency through Rebar, follow a branch head during builds, or copy the
 fork's sources into `src/`.
 
-After publication and gitlink acceptance, the checkout procedure is:
+The reproducible checkout and build procedure is:
 
 ```sh
 git clone --branch feat/erlamsa-integration https://github.com/LuciyVI/efz-fuzz.git
@@ -34,11 +37,11 @@ rebar3 compile
 rebar3 as erlamsa compile
 ```
 
-That remote procedure is currently **BLOCKED**, not a successful clean-checkout
-result. For independent local development, the build hook accepts an explicit
-`ERLAMSA_SOURCE=/absolute/path/to/clean/erlamsa`. This override is not a
-replacement for the required published submodule. `sh scripts/build_erlamsa.sh`
-builds the core directly without rebuilding EFZ.
+The EFZ gitlink pins a concrete commit; this procedure does not update the
+submodule to the branch head. `sh scripts/build_erlamsa.sh` builds the already
+checked out core without rebuilding EFZ. An optional trusted local override is
+`ERLAMSA_SOURCE=/absolute/path/to/clean/erlamsa`; the default path is the pinned
+submodule.
 
 The fork's standalone `core/` project builds and tests independently:
 
@@ -52,7 +55,9 @@ It has no external Rebar dependencies, application callback, services,
 supervisor, named ETS tables, network modes, or testcase file writes. Upstream's
 original source tree and entrypoints remain separate and unchanged. The full
 upstream application and its native/network dependencies are outside the
-validated core profile. OTP 27+ is required. Gleam builds separately with
+validated core profile. Run its tests and analyzers with `rebar3 eunit`,
+`rebar3 xref`, and `rebar3 dialyzer` from `vendor/erlamsa/core/`. OTP 27+ is
+required. Gleam builds separately with
 `GLEAM_BIN=/path/to/gleam rebar3 as gleam compile`; a combined optional build is
 `GLEAM_BIN=/path/to/gleam rebar3 as erlamsa,gleam compile`.
 
@@ -149,8 +154,10 @@ The planner's state-threaded RNG chooses sources and assigns child seeds. Core
 decisions use explicit child state. Target randomness, previous requests, and
 request ordering do not alter repeated-request output. An omitted/native
 provider adds no provider draws to the old campaign path. Contexts contain no
-PID, port, reference, implicit RNG state, or adaptive score. Guardian-local
-cleanup bookkeeping is not generator state or provenance.
+PID, port, reference, implicit RNG state, or adaptive score. The provider
+context's versioned configuration and SplitMix64 seed fully select the core
+request. Guardian-local cleanup bookkeeping is not generator state or
+provenance.
 
 Regeneration applies to identical bytes, normalized options, request, limits,
 BEAM identity, and OTP/ERTS. No cross-runtime compressed-byte guarantee is
@@ -159,27 +166,28 @@ Deflate bytes still depend on the pinned runtime's compression implementation.
 
 ## Catalogue and upstream correspondence
 
-This is a bounded library adaptation, not complete preservation of upstream
-mutators or probability distributions. Most operators are explicit-state
-equivalents of upstream families. JSON/SGML retain adapted pure parser code and
-original notices. Tests below live in the fork's `core/test/`.
+This is a bounded library profile, not complete preservation of upstream
+mutators or probability distributions. The current core implements bounded
+equivalents of selected operator families. Its JSON walker and simple SGML
+markup checker are new limited implementations; they do not copy the upstream
+JSON/SGML parsers. Tests below live in the fork's `core/test/`.
 
 | Upstream operator/pattern | Core / EFZ name | Observable test | Scope and limits |
 | --- | --- | --- | --- |
-| `bf`, `bi`, `bd` | `byte_flip`, `byte_insert`, `byte_drop` | bytes: `all_operators_changed_and_deterministic_test`, `every_byte_including_nul_test` | Bounded bytes; explicit RNG |
-| `br`, `sr`, `sd`, `sp` | `block_repeat`, `block_drop`, `block_swap` | bytes: `all_operators_changed_and_deterministic_test`, `limits_before_growth_test` | Bounded repeats/blocks; not all permutation variants |
-| `ld`, `lds`, `lr2`, `lr`, `ls`, `lp` family | `line_drop`, `line_repeat`, `line_swap` | bytes: `line_semantics_and_no_change_test` | Bounded newline-delimited equivalents |
-| `num` | `number` | bytes: `number_digit_bound_test` | Bounded decimal runs |
-| `ad`, ASCII/string family | `delimiter` | bytes: `all_operators_changed_and_deterministic_test` | Finite local delimiter set |
-| `ui`, `uw` family | `unicode` | bytes: `unicode_preserves_existing_utf8_boundaries_test` | Valid Unicode insertion; overlong UTF-8 operator excluded |
-| `js`, JSON tree family | `json` | tree: `json_tree_operations_preserve_grammar_test`, `escaped_json_strings_roundtrip_test` | Pure parser port; bounded tree edits |
-| `sgm`, SGML tree family | `sgml` | tree: `sgml_tree_operations_preserve_grammar_test`, `sgml_input_names_remain_data_test` | No entity resolution/declarations/processing instructions |
-| `b64` | `base64` | pack: `wrappers_roundtrip_test`, `strict_base64_test` | Canonical padded whole-input Base64 |
-| `cp` compressed pattern | `gzip`, `zlib` | pack: `wrappers_roundtrip_test`, `compressed_budgets_test`, `native_output_chunk_drain_test` | Deflate preflight; gzip CM8/flags0; no zlib preset dictionary |
-| `ar` archive pattern | `zip` | pack: `zip_content_roundtrip_and_determinism_test`, `zip_entry_and_expansion_budgets_test` | In-memory content; methods0/8; single disk; no encryption/descriptors/Zip64/unsafe names |
-| `len`, `sz` | `length` | fields: `length_preserve_test`, `length_widths_and_endians_test`, `length_perturb_test` | Explicit or unique supported heuristic; bounded field edits |
-| `cs`, XOR8/CRC32 helpers | `xor8`, `crc32` | fields: `xor8_preserve_and_perturb_test`, `crc32_little_endian_before_payload_test` | Contiguous payload range; recorded interpretation |
-| `od`, `nd`, `bu`, `sk` | `once`, `many`, `burst`, `skip` | core: `operation_budget_and_metadata_test`, `skip_pattern_preserves_prefix_test`, `pattern_combinations_are_bounded_test` | Bounded repeats/prefix variants; no unbounded decay recursion |
+| `bf`, `bi`, `bd` | `byte_flip`, `byte_insert`, `byte_drop` | `byte_operator_families_test` | Bounded binary offsets; explicit request RNG |
+| `br`, `sr`, `sd`, `sp` | `block_repeat`, `block_drop`, `block_swap` | `byte_operator_families_test`, `bounded_inputs_and_invalid_requests_test` | Repeat/drop/swap; configured block and output limits |
+| `ld`, `lds`, `lr2`, `lr`, `ls`, `lp` family | `line_drop`, `line_repeat`, `line_swap` | `byte_operator_families_test` | Newline-delimited byte lines |
+| `num` | `number` | `byte_operator_families_test` | Decimal digit runs; one digit run per operation |
+| `ad`, ASCII/string family | `delimiter` | `byte_operator_families_test` | Inserts one byte from a finite delimiter set |
+| `ui`, `uw` family | `unicode` | `byte_operator_families_test` | Inserts one valid UTF-8 code point; no malformed UTF-8 patterns |
+| `js`, JSON tree family | `json` | `json_and_sgml_tree_mutations_test` | Bounded JSON grammar walk; edits primitive values only, no full upstream tree catalogue |
+| `sgm`, SGML tree family | `sgml` | `json_and_sgml_tree_mutations_test` | Simple balanced tag names; inserts a comment node; no entities, DTDs, processing instructions, or full SGML grammar |
+| `b64` | `base64` | `wrappers_roundtrip_and_determinism_test` | Canonical padded whole-input Base64 only |
+| `cp` compressed pattern | `gzip`, `zlib` | `wrappers_roundtrip_and_determinism_test`, `compressed_expansion_limit_test` | OTP `safeInflate/2`, output and expansion-ratio checks per bounded chunk; no preset zlib dictionary |
+| `ar` archive pattern | `zip` | `zip_in_memory_roundtrip_test` | Stored (method 0) entries only; no inflate, Deflate, encryption, data descriptors, Zip64, multi-disk, comments, or unsafe names |
+| `len`, `sz` | `length` | `length_preserve_and_perturb_test` | Explicit fields or a unique prefix field at offset 0..3; payload is the remaining bytes |
+| `cs`, XOR8/CRC32 helpers | `xor8`, `crc32` | `checksum_preserve_and_perturb_test` | Explicit field or unique trailing checksum over a contiguous payload; heuristic payload begins at byte 0..30 |
+| `od`, `nd`, `bu`, `sk` | `once`, `many`, `burst`, `skip` | `pattern_combinations_are_bounded_test` | Combination length at most four; operation and repeat budgets bound application |
 
 Excluded families include URI/network-specific transformations and specialized
 payload catalogues; ZIP path manipulation; HTTP/cloud/proxy/scanning/monitoring
@@ -212,11 +220,14 @@ operations64, repeats16. Campaign/provider input and output bounds must agree.
 Nested decoded data uses the intermediate limit; final candidates use output
 limits. Wrappers and inner transformations both consume operation budget.
 
-Compressed data is structurally walked to calculate expansion/work bounds
-before inflation. ZIP limits apply per entry and cumulatively. Handles close
-in `after` branches. Checking size only after unrestricted `gunzip` would not
-provide these bounds. Neither these guards nor a disposable process are a hard
-whole-VM/native-memory quota.
+Gzip/zlib data is decoded with OTP's `safeInflate/2`; each returned chunk is
+checked against both the unpacked-byte and expansion-ratio bounds before it is
+retained. OTP 27 uses a 16 KiB output chunk. The compressed input itself is
+bounded before inflate. ZIP central-directory and local-header sizes, method,
+entry count, names, and CRCs are checked before entry content is sliced; only
+stored entries are accepted. Deflate ZIP entries are an explicit
+`zip_limits_or_format` skip. zlib handles close on all branches. These guards
+and the disposable worker do not impose a hard whole-VM or native-memory quota.
 
 Each request runs in a disposable Erlang VM controlled by EFZ's Linux launcher.
 Its guardian enforces an absolute deadline, correlates replies, handles

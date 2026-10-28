@@ -10,19 +10,17 @@ Upstream: <https://github.com/Darkkey/erlamsa>
 Inspected upstream revision:
 `4a844bcd1083e3278c10405bb415a32871b216c3`.
 
-Intended fork: <https://github.com/LuciyVI/erlamsa>, pinned through
-`vendor/erlamsa` only after publication/verification. Current status appears in
-[validation](docs/erlamsa-validation.md); listing the URL does not assert remote
-acceptance has passed.
+Fork: <https://github.com/LuciyVI/erlamsa>, parent
+<https://github.com/Darkkey/erlamsa>, core base
+`4a844bcd1083e3278c10405bb415a32871b216c3`, integration commit
+`191f3d9d30d8932319b98f4af25d3dff9ddc5824`. EFZ pins the fork through the real
+`vendor/erlamsa` submodule; current verification is in
+[validation](docs/erlamsa-validation.md).
 
-Erlamsa is MIT-licensed. Its library adaptation retains upstream history and
-LICENSE. Adapted JSON/SGML parser and serializer modules preserve their original
-copyright/license notices and explicit provenance/modification comments. Byte
-and dependent-field implementations also adapt upstream algorithms, retaining
-their MIT notices and source references while making randomness and bounds
-explicit. EFZ scheduling and provider wrappers remain in EFZ. The byte adapter
-also retains the upstream module's Copyright (c) 2014-2019 Alexander Bolshev
-aka dark_k3y notice, in addition to the root-license notices below.
+Erlamsa is MIT-licensed. The fork retains upstream history and its root
+`LICENSE`. The `core/` implementation is a bounded EFZ-specific implementation
+of selected operator families; it does not copy the upstream JSON or SGML
+parser sources. EFZ scheduling and provider wrappers remain in EFZ.
 
 The upstream license states:
 
@@ -46,20 +44,6 @@ The upstream license states:
 > DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 > OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
 > THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-### JSON parser ancestry
-
-The Erlamsa JSON parser credits JSONE's decoder:
-<https://github.com/sile/jsone>, Copyright (c) 2013-2016 Takeru Ohta,
-`phjgt308@gmail.com`, MIT. The adapted module preserves this attribution and
-the MIT permission/disclaimer. No JSONE package is fetched by the core build.
-
-### SGML parser ancestry
-
-The Erlamsa SGML tokenizer credits Mats Cronqvist's `trane` parser:
-<https://github.com/massemanet/trane>, Copyright (c) 2010 Mats Cronqvist, MIT.
-The adapted module preserves the attribution and MIT permission/disclaimer.
-No `trane` package is fetched by the core build.
 
 ## Runtime and existing EFZ dependencies
 
