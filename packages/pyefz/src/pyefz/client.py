@@ -115,6 +115,10 @@ class MutationCall:
         try:
             value = self._future.result(timeout=remaining)
         except concurrent.futures.TimeoutError as exc:
+            # ProviderTimeout is a remote, completed outcome and subclasses
+            # TimeoutError too. Preserve its more specific public type.
+            if self._future.done():
+                raise
             self._client._forget(self.request_id)
             raise RequestTimeout("Mutation exceeded its client deadline") from exc
         finally:

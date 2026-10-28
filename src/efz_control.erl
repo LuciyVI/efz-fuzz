@@ -239,7 +239,8 @@ prepare_mutation(A) ->
     true=maps:is_key(seed,Request),{Input,Provider,Request,Max}.
 prepare_mutation_runtime({_Input,Provider,_Request,Max}=Item,S) ->
     Identity=crypto:hash(sha256,term_to_binary({Provider,Max},[deterministic])),
-    case maps:get(transport,Provider,disposable) of
+    Transport=case Provider of native->disposable;_->maps:get(transport,Provider,disposable) end,
+    case Transport of
         persistent -> case maps:get(provider_session,S,undefined) of
             #{identity:=Identity,prepared:=P,pid:=Pid,ref:=SessionRef} ->
                 case reusable_control_session(Pid,SessionRef) of
@@ -318,6 +319,7 @@ mutate_one({Input,Provider,Request,Max},Runtime) ->
         {error,R}->fail(provider_failure,R);
         Other->fail(provider_failure,{invalid_provider_result,Other})
     end.
+mutation_runtime(native,_) -> #{transport=>none};
 mutation_runtime(#{mode:=native},_) -> #{transport=>none};
 mutation_runtime(Provider,#{session:=#{pid:=Pid,ref:=Ref}}) ->
     Stats=efz_mutation_session:stats(Pid,Ref),
