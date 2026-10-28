@@ -1,0 +1,21 @@
+{
+  "accepted": false,
+  "command": "python3 scripts/benchmark_erlamsa.py --engine _build/default --baseline /tmp/efz-perf-baseline-a42/_build/default --baseline-source-commit a42c2c504401562efb35442a01c8bbe16da0ab2e --target-artifact ACCEPTANCE/shared-artifact.term --core vendor/erlamsa --seconds 1 --seeds 17 --modes erlamsa_persistent --recycle-every 3",
+  "completed": true,
+  "exit_code": 0,
+  "kind": "driver_correctness_probe_not_acceptance_measurement",
+  "schema_version": 1,
+  "summary": {
+    "executions_per_second": {
+      "max": 16.38771140147708,
+      "median": 16.38771140147708,
+      "min": 16.38771140147708
+    },
+    "recycle_cleanup_p50_us": 12770,
+    "recycle_cleanup_p95_us": 18892,
+    "recycle_startup_p50_us": 197299,
+    "samples": 1,
+    "warm_request_p50_us": 522,
+    "worker_startup_p50_us": 201665
+  }
+}

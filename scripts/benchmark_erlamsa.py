@@ -249,9 +249,15 @@ def main():
             "worker_startup_p50_us":statistics.median(m["worker_startup_p50_p95_us"]["p50"]
                 for m in data if m.get("worker_startup_p50_p95_us",{}).get("p50") is not None)
                 if any(m.get("worker_startup_p50_p95_us",{}).get("p50") is not None for m in data) else None,
+            "recycle_startup_p50_us":statistics.median(m["recycle_startup_p50_p95_us"]["p50"]
+                for m in data if m.get("recycle_startup_p50_p95_us",{}).get("p50") is not None)
+                if any(m.get("recycle_startup_p50_p95_us",{}).get("p50") is not None for m in data) else None,
             "recycle_cleanup_p50_us":statistics.median(m["recycle_cleanup_p50_p95_us"]["p50"]
                 for m in data if m.get("recycle_cleanup_p50_p95_us",{}).get("p50") is not None)
                 if any(m.get("recycle_cleanup_p50_p95_us",{}).get("p50") is not None for m in data) else None,
+            "recycle_cleanup_p95_us":statistics.median(m["recycle_cleanup_p50_p95_us"]["p95"]
+                for m in data if m.get("recycle_cleanup_p50_p95_us",{}).get("p95") is not None)
+                if any(m.get("recycle_cleanup_p50_p95_us",{}).get("p95") is not None for m in data) else None,
             "process_tree_rss_bytes":{"median":statistics.median(r["sampled_process_tree_rss_peak_bytes"] for r in rows)} if rows else None}
     ratios=[]
     for seed in seeds:
@@ -264,7 +270,7 @@ def main():
         "native_off_paired_changes":ratios,
         "native_off_median_change_percent":statistics.median(r["throughput_change_percent"] for r in ratios) if ratios else None,
         "limitations":["Single local query-string workload and one pinned OTP/ERTS build; no discovery advantage claim.",
-            "Diagnostic message, performance profiling, corpus persistence, and sampling enabled equally in every mode.",
+            "Stage profiling was disabled for acceptance throughput; diagnostic message, corpus persistence, and sampling were enabled equally in every mode.",
         "Full campaign throughput includes startup, count-based recycle, and orderly shutdown; request percentiles distinguish warm requests from startup/recycle.",
             "Memory is sampled; aggregate RSS double-counts shared pages and may miss short peaks."]}
     write(out/"summary.json",final)

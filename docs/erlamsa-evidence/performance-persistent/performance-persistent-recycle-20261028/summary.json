@@ -1,0 +1,110 @@
+{
+  "accepted": false,
+  "completed": false,
+  "groups": {
+    "erlamsa_persistent": {
+      "accepted_fraction": null,
+      "coverage": null,
+      "direct_core_p50_us": null,
+      "executions_per_second": null,
+      "identity_check_p50_us": null,
+      "input_bytes": null,
+      "legacy_core_wrapper_p50_us": null,
+      "legacy_core_wrapper_p95_us": null,
+      "process_tree_rss_bytes": null,
+      "provider_p50_us": null,
+      "provider_p95_us": null,
+      "recycle_cleanup_p50_us": null,
+      "samples": 0,
+      "steady_state_executions_per_second": null,
+      "warm_request_p50_us": null,
+      "warm_request_p95_us": null,
+      "worker_startup_p50_us": null
+    },
+    "hybrid_persistent": {
+      "accepted_fraction": null,
+      "coverage": null,
+      "direct_core_p50_us": null,
+      "executions_per_second": null,
+      "identity_check_p50_us": null,
+      "input_bytes": null,
+      "legacy_core_wrapper_p50_us": null,
+      "legacy_core_wrapper_p95_us": null,
+      "process_tree_rss_bytes": null,
+      "provider_p50_us": null,
+      "provider_p95_us": null,
+      "recycle_cleanup_p50_us": null,
+      "samples": 0,
+      "steady_state_executions_per_second": null,
+      "warm_request_p50_us": null,
+      "warm_request_p95_us": null,
+      "worker_startup_p50_us": null
+    },
+    "semantic_persistent": {
+      "accepted_fraction": {
+        "max": 0.7146401985111662,
+        "median": 0.6766561514195584,
+        "min": 0.6258942348155422
+      },
+      "coverage": {
+        "max": 48,
+        "median": 48,
+        "min": 48
+      },
+      "direct_core_p50_us": 32,
+      "executions_per_second": {
+        "max": 274.4447687970071,
+        "median": 234.77032487286374,
+        "min": 212.14349085667476
+      },
+      "identity_check_p50_us": 36,
+      "input_bytes": {
+        "max": 57.86062517923717,
+        "median": 55.422780193575534,
+        "min": 50.2636476426799
+      },
+      "legacy_core_wrapper_p50_us": {
+        "max": 78,
+        "median": 68,
+        "min": 67
+      },
+      "legacy_core_wrapper_p95_us": {
+        "max": 166,
+        "median": 123,
+        "min": 109
+      },
+      "process_tree_rss_bytes": {
+        "median": 209338368
+      },
+      "provider_p50_us": {
+        "max": 620,
+        "median": 613,
+        "min": 588
+      },
+      "provider_p95_us": {
+        "max": 1945,
+        "median": 1941,
+        "min": 1553
+      },
+      "recycle_cleanup_p50_us": null,
+      "samples": 3,
+      "steady_state_executions_per_second": {
+        "max": 278.01501584055734,
+        "median": 237.5554626526758,
+        "min": 214.92788132941027
+      },
+      "warm_request_p50_us": 522,
+      "warm_request_p95_us": 1573,
+      "worker_startup_p50_us": 255118
+    }
+  },
+  "kind": "accepted_wall_time",
+  "limitations": [
+    "Single local query-string workload and one pinned OTP/ERTS build; no discovery advantage claim.",
+    "Diagnostic message, performance profiling, corpus persistence, and sampling enabled equally in every mode.",
+    "Full campaign throughput includes startup, count-based recycle, and orderly shutdown; request percentiles distinguish warm requests from startup/recycle.",
+    "Memory is sampled; aggregate RSS double-counts shared pages and may miss short peaks."
+  ],
+  "native_off_median_change_percent": null,
+  "native_off_paired_changes": []
+}

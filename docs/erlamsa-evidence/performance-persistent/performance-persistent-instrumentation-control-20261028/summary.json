@@ -1,0 +1,74 @@
+{
+  "accepted": true,
+  "completed": true,
+  "groups": {
+    "erlamsa_persistent": {
+      "accepted_fraction": {
+        "max": 0.6488331131660061,
+        "median": 0.6323870540152435,
+        "min": 0.5276607437259572
+      },
+      "coverage": {
+        "max": 49,
+        "median": 48,
+        "min": 48
+      },
+      "direct_core_p50_us": 20,
+      "executions_per_second": {
+        "max": 360.2709033926544,
+        "median": 309.1390171281243,
+        "min": 298.90306569947495
+      },
+      "identity_check_p50_us": 23,
+      "input_bytes": {
+        "max": 226.73500873277703,
+        "median": 47.6689809869686,
+        "min": 28.8720866011267
+      },
+      "legacy_core_wrapper_p50_us": {
+        "max": 44,
+        "median": 44,
+        "min": 42
+      },
+      "legacy_core_wrapper_p95_us": {
+        "max": 100,
+        "median": 87,
+        "min": 59
+      },
+      "process_tree_rss_bytes": {
+        "median": 206700544
+      },
+      "provider_p50_us": {
+        "max": 381,
+        "median": 345,
+        "min": 340
+      },
+      "provider_p95_us": {
+        "max": 1338,
+        "median": 1252,
+        "min": 1011
+      },
+      "recycle_cleanup_p50_us": 16468.5,
+      "recycle_cleanup_p95_us": 16468.5,
+      "recycle_startup_p50_us": 218308.5,
+      "samples": 5,
+      "steady_state_executions_per_second": {
+        "max": 363.92596989787575,
+        "median": 312.0581058726289,
+        "min": 301.7393290834517
+      },
+      "warm_request_p50_us": 299,
+      "warm_request_p95_us": 1074,
+      "worker_startup_p50_us": 222720.0
+    }
+  },
+  "kind": "accepted_wall_time",
+  "limitations": [
+    "Single local query-string workload and one pinned OTP/ERTS build; no discovery advantage claim.",
+    "Stage profiling was disabled for acceptance throughput; diagnostic message, corpus persistence, and sampling were enabled equally in every mode.",
+    "Full campaign throughput includes startup, count-based recycle, and orderly shutdown; request percentiles distinguish warm requests from startup/recycle.",
+    "Memory is sampled; aggregate RSS double-counts shared pages and may miss short peaks."
+  ],
+  "native_off_median_change_percent": null,
+  "native_off_paired_changes": []
+}

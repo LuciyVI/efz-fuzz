@@ -1,0 +1,118 @@
+{
+  "checks": [
+    {
+      "exit_code": 0,
+      "name": "rebar3 compile",
+      "result": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "rebar3 eunit",
+      "passed": 400,
+      "result": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "rebar3 ct",
+      "passed": 3,
+      "result": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "rebar3 xref",
+      "result": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "rebar3 dialyzer",
+      "result": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "rebar3 as erlamsa compile",
+      "result": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "rebar3 as gleam compile",
+      "result": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "rebar3 as gleam eunit",
+      "passed": 457,
+      "result": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "rebar3 as gleam ct",
+      "passed": 3,
+      "result": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "rebar3 as gleam xref",
+      "result": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "rebar3 as gleam dialyzer",
+      "result": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "installed pyefz local IPC suite",
+      "note": "wheel built from final source using --no-deps --no-build-isolation and installed into /tmp",
+      "passed": 3,
+      "result": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "pyefz runtime/control end-to-end",
+      "note": "synthetic simple-parser raw-replay case skipped because this run used the cow_qs target artifact",
+      "passed": 5,
+      "result": "PASS",
+      "skipped": 1
+    },
+    {
+      "exit_code": 0,
+      "name": "Python syntax and CLI help",
+      "python_files": 14,
+      "result": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "direct core microbench",
+      "result": "PASS",
+      "samples_per_fixture": 1000
+    },
+    {
+      "cleanup_samples": 5,
+      "exit_code": 0,
+      "name": "benchmark driver recycle percentile smoke",
+      "note": "1 second probe with max_requests=3, includes Python roll-up; not an acceptance run",
+      "recycle_cleanup_p50_us": 12770,
+      "recycle_cleanup_p95_us": 18892,
+      "recycle_startup_p50_us": 197299,
+      "result": "PASS",
+      "samples": 1,
+      "startup_samples": 5,
+      "vm_starts": 6,
+      "worker_restarts": 6
+    }
+  ],
+  "environment": {
+    "erts": "15.0",
+    "gleam": "1.10.0",
+    "otp": "27",
+    "platform": "Linux x86_64",
+    "python": "3.12.3",
+    "rebar3": "3.25.0"
+  },
+  "notes": [
+    "A restricted-sandbox EUnit attempt failed during launcher/socket creation with eperm; reruns with local IPC permission passed as reported.",
+    "The initial recycle and stale-profile attempts are preserved separately and are not mixed into successful summaries.",
+    "One full-suite rerun returned provider_setup_failed in 22 tests; the new disposable/provider lifecycle modules passed standalone, and a complete final default EUnit retry then passed all 400 tests with exit 0. The transient cause was not established."
+  ],
+  "schema_version": 1
+}
