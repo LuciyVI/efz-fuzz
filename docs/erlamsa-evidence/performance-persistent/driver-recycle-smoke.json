@@ -11,6 +11,7 @@
       "median": 16.38771140147708,
       "min": 16.38771140147708
     },
+    "final_worktree_commit_under_test": "cbd92d121db949ea8be7b2656fafd15031cdf4ae",
     "recycle_cleanup_p50_us": 12770,
     "recycle_cleanup_p95_us": 18892,
     "recycle_startup_p50_us": 197299,

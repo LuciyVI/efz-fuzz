@@ -3,12 +3,14 @@
 ## Build identity and environment
 
 Performance implementation branch: `perf/erlamsa-persistent-worker`.
-The persistent lifecycle fix was built from EFZ commit
+The final branch head validated here is
+`cbd92d121db949ea8be7b2656fafd15031cdf4ae`. The persistent lifecycle fix first
+landed in EFZ commit
 `f8fd5acea09b06248f1824dccbce2a18155e4db6`; the original no-recycle
 comparison matrix used `e22346d8de9fd7eef732b8410c9be0bdb1eb3218`. The latter
-predates the rapid-recycle handoff fix. That fix only changes requests arriving
-while a worker is recycling; both matrices and the fixed-recycle matrix below
-are reported separately. The Erlamsa core was unchanged: fork/gitlink
+predates the rapid-recycle handoff fix. The final exact-commit matrices below
+run on the completed branch; earlier build snapshots are retained separately.
+The Erlamsa core was unchanged: fork/gitlink
 `191f3d9d30d8932319b98f4af25d3dff9ddc5824`, upstream base
 `4a844bcd1083e3278c10405bb415a32871b216c3`.
 
@@ -45,6 +47,10 @@ The benchmark driver produced these matrices:
 - `performance-persistent-native-overhead-repeat-20261028`: a repeated native
   versus pristine-baseline pair because the initial five-seed comparison had
   high between-seed noise.
+- `performance-persistent-final-acceptance-gleam-20261028`: 40 final-commit
+  runs across eight modes and five seeds, using `_build/gleam`.
+- `performance-persistent-final-recycle-gleam-20261028`: 15 final-commit runs
+  across the three persistent provider modes with count-based recycling.
 
 Each manifest records full BEAM identities, target artifact SHA-256, core
 commit, command arguments, seed order, sampling interval, and per-run exit
@@ -56,7 +62,73 @@ private-memory measurement.
 
 ## Throughput and behavior
 
-The original paired matrix measured the following medians (ranges are the five
+### Final committed build
+
+The final acceptance used EFZ commit
+`cbd92d121db949ea8be7b2656fafd15031cdf4ae` and `_build/gleam` so the semantic
+adapter was available. It used the same target artifact
+(`b8acd6177dd782e520c995cfdcea3494d2d48c993337fee3eafbc9cda1f2ef71`), five
+seeds and 30 seconds per run for every mode. All 40 runs exited 0. The baseline
+was the separately built exact A42 source with locked dependency revisions
+verified against its lock file.
+
+| Mode | Target executions/s (median [min, max]) | Coverage lines | Parser accepted fraction |
+|---|---:|---:|---:|
+| Pristine A42 baseline | 440.29 [373.58, 443.31] | 48 | 69.24% |
+| Native, final integration | 441.10 [417.52, 447.70] | 48 | 69.26% |
+| Native + semantic adapter | 438.45 [431.24, 439.65] | 48 | 65.37% |
+| Disposable Erlamsa | 4.86 [4.49, 4.89] | 44–47 | 69.18% |
+| Persistent Erlamsa | 387.72 [373.72, 389.67] | 48–49 | 63.24% |
+| Disposable hybrid 70/30 | 15.72 [14.28, 16.14] | 47–48 | 65.08% |
+| Persistent hybrid 70/30 | 408.68 [402.04, 412.85] | 48 | 64.35% |
+| Persistent hybrid + semantic adapter | 404.47 [400.90, 416.32] | 48 | 67.98% |
+
+Campaign throughput includes startup, any recycle, orderly shutdown, and target
+execution. At `max_requests=10000`, every Erlamsa-only run crossed the limit
+once (two VM starts); hybrid and semantic-hybrid each used one VM per run. The
+paired native-vs-baseline median was -0.50%, within the predeclared 5% median
+overhead budget. Per-seed changes ranged from -4.49% to +19.84%, so the samples
+do not establish a 5% bound for each seed. Rates and coverage are observations
+on this one local parser fixture, not evidence of general coverage improvement.
+
+The provider's warm Erlamsa-only request p50/p95 was 277/838 µs; the public
+provider-latency p50 was 320 µs. Direct `erlamsa_core:mutate/3` p50 was 18 µs,
+the live per-request identity fingerprint took 21 µs, and the legacy wrapper
+(`core_us`) p50 was 40 µs. Initial startup p50 was about 212 ms. Disposable
+provider request p50 was 209 ms. The warm p50 is not a startup-inclusive
+percentile; the end-to-end rates above include the measured VM lifecycle. The
+full campaign medians were about 80× faster for Erlamsa-only and 26× faster for
+hybrid than disposable transport.
+
+The final recycling acceptance used the same commit, target, seeds and duration
+with `max_requests=1000`; all 15 runs exited 0:
+
+| Mode | Target executions/s (median [min, max]) | Warm request p50/p95 |
+|---|---:|---:|
+| Persistent Erlamsa | 352.74 [348.14, 355.52] | 277/854 µs |
+| Persistent hybrid 70/30 | 397.55 [395.15, 398.35] | 337/879 µs |
+| Persistent hybrid + semantic adapter | 395.08 [384.69, 407.70] | 325/844 µs |
+
+Across 80 observed restarts, pooled nearest-rank startup p50/p95/p99 was
+210,175/225,810/232,801 µs; cleanup was 16,936/21,853/25,670 µs. The five
+Erlamsa-only runs each restarted ten times, while hybrid and semantic-hybrid
+restarted three times each. The per-run samples and VM counts are in
+`erlamsa-evidence/performance-persistent/recycle-lifecycle-final.json`.
+
+The current-commit raw matrices, including manifests and every run's results,
+are in `erlamsa-evidence/performance-persistent/`. A first final-code attempt
+used `_build/default` and exited 127 before sampling because `efz_qs_model` was
+not available there. That failed run is preserved at
+`erlamsa-evidence/performance-persistent/performance-persistent-final-acceptance-misprofile-20261028`; the accepted
+final matrices used `_build/gleam`.
+
+### Earlier build snapshots
+
+The following measurements were recorded before the final commit and are kept
+for historical comparison. Do not conflate them with the exact-final-build
+acceptance above.
+
+The earlier paired matrix measured the following medians (ranges are the five
 per-seed campaign throughputs):
 
 | Mode | Target executions/s | Target coverage lines | Parser accepted fraction | Notes |
@@ -70,7 +142,7 @@ per-seed campaign throughputs):
 | Native + semantic adapter | 307.43 [275.02, 385.27] | 48 | 65.52% | Existing semantic observer |
 | Persistent hybrid + semantic adapter, no recycle | 350.39 [202.52, 363.18] | 48 | 68.08% | High per-seed spread; no causal advantage claimed |
 
-The fixed-recycle matrix ran the final lifecycle code with `max_requests=1000`.
+The earlier fixed-recycle matrix ran the then-current lifecycle code with `max_requests=1000`.
 Its Erlamsa-only median was 212.67 executions/s [151.44, 275.55], with 48–49
 coverage lines. Persistent hybrid was 138.05/s [117.30, 177.63], and persistent
 hybrid plus semantic observer was 263.21/s [158.22, 308.86]. All 15 runs exited
@@ -118,20 +190,21 @@ stage-profiling diagnostic measured medians of 310.50/s with profiling and
 
 `benchmark_erlamsa_core.escript` prepares the core before timing and then times
 batches of 1,000 direct `erlamsa_core:mutate/3` calls. It consumes outputs,
-records outcome counts and candidate hashes, and reports wrapper identity time
-separately. No core source or gitlink change was justified by these results.
+records outcome counts and candidate hashes, and records prepare identity time
+separately. This final-HEAD run used the same unchanged core SHA. No core source
+or gitlink change was justified by these results.
 
 | Input / operator | 64 B | 4 KiB | 64 KiB |
 |---|---:|---:|---:|
-| Byte flip | 1.46 µs | 3.63 µs | 38.76 µs |
-| Line repeat | 1.72 µs | 25.93 µs | 476.76 µs |
-| CRC32 field | 11.18 µs | 59.47 µs | 804.20 µs |
-| JSON tree | 5.28 µs | 66.77 µs | 1,006.68 µs |
-| gzip wrapper | 8.38 µs (78 B compressed) | 32.67 µs (662 B) | 186.39 µs (1,012 B) |
+| Byte flip | 1.52 µs | 3.59 µs | 34.56 µs |
+| Line repeat | 1.61 µs | 27.13 µs | 463.34 µs |
+| CRC32 field | 10.85 µs | 56.71 µs | 735.93 µs |
+| JSON tree | 4.92 µs | 58.91 µs | 965.41 µs |
+| gzip wrapper | 8.25 µs (78 B compressed) | 31.12 µs (662 B) | 184.03 µs (1,012 B) |
 
 All 1,000 timed requests in each operator fixture succeeded. The benchmark
 shows that large line/checksum/JSON inputs can become core-bound, while the
-small query-string workload's direct core p50 is only 28 µs out of 434 µs warm
+small query-string workload's direct core p50 is only 18 µs out of 277 µs warm
 request time; changing core algorithms without an old/new differential proof
 would add risk without addressing the dominant startup overhead found here.
 
@@ -183,7 +256,7 @@ The final validation matrix on this performance branch was:
 | Gleam 1.10.0 compile, EUnit, CT, xref, Dialyzer | PASS; 457 EUnit and 3 CT passed; all exit 0 |
 | Installed `pyefz` local IPC tests | PASS, 3 tests |
 | Python runtime/control end-to-end | PASS, 5 passed, 1 skipped |
-| Python syntax checks and CLI `--help` | PASS, 13 Python files compiled; exit 0 |
+| Python syntax checks and CLI `--help` | PASS, 14 Python files compiled; exit 0 |
 | Direct-core batch microbench | PASS, 1,000 calls per fixture, outputs checked |
 
 The skipped Python case is raw replay of the synthetic `simple_parser` fixture;
