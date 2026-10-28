@@ -5,10 +5,12 @@
 
 main() ->
     Exit = try
-        [Path, NonceHex, CorePath, Mode] = init:get_plain_arguments(),
-        %% Cold preparation interns the fixed core vocabulary before safe ETF
-        %% request decoding. Fixtures also accept deliberately minimal contexts.
-        _ = efz_erlamsa:prepare(#{}, #{}, CorePath),
+        [Path, NonceHex, _CorePath, Mode] = init:get_plain_arguments(),
+        %% This scripted transport fixture deliberately does not prepare or
+        %% call the optional core. Real core preparation is exercised by the
+        %% integration tests; these cases isolate guardian lifecycle behavior.
+        {module, efz_mutation_request_tests} =
+            code:ensure_loaded(efz_mutation_request_tests),
         _ = code:ensure_loaded(efz_provider_port),
         Nonce = binary:decode_hex(list_to_binary(NonceHex)),
         {ok, Socket} = gen_tcp:connect({local, Path}, 0,

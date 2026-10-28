@@ -195,3 +195,49 @@ After API access is available, verify parent/source, create the fork if absent,
 publish local commits, independently fetch the exact object, add the real
 submodule/gitlink, commit EFZ, and run a fresh recursive checkout. No automatic
 merge to main is part of this work.
+
+## Recheck in the active checkout (2026-10-28)
+
+This recheck used `/home/fbogoslavskii/test/efz-fuzz`, branch
+`feat/erlamsa-integration`, starting HEAD `73a65d77657d6a23f5e4e9cdf4e15291648abba2`.
+The worktree was clean at the start. It has only the EFZ `origin` remote, no
+`.gitmodules`, no `vendor/erlamsa`, and no Erlamsa source checkout. The
+environment is Linux x86_64, kernel `6.8.0-nyx+`, OTP 27 / ERTS 15.0,
+Rebar3 3.25.0, Python 3.12.3; Gleam is not installed.
+
+| Command or check | Result in this checkout |
+| --- | --- |
+| `ERL_FLAGS='+S 2:2' rebar3 compile` | PASS, exit 0 |
+| `ERL_FLAGS='+S 2:2' rebar3 eunit` | PASS, 386 tests; run outside the restricted sandbox because its AF_UNIX bind returns `EPERM` inside it |
+| `ERL_FLAGS='+S 2:2' rebar3 ct` | PASS, 3 tests |
+| `ERL_FLAGS='+S 2:2' rebar3 xref` | PASS, exit 0 |
+| `ERL_FLAGS='+S 2:2' rebar3 dialyzer` | PASS, exit 0, no warnings |
+| `ERL_FLAGS='+S 2:2' rebar3 as erlamsa compile` | BLOCKED as expected, exit 1: pinned submodule is absent |
+| `ERL_FLAGS='+S 2:2' rebar3 as gleam compile` | BLOCKED, exit 1: `gleam` is not installed |
+| `python3 -m pip install --no-build-isolation --no-deps --target /tmp/pyefz-install-efz packages/pyefz` | PASS; built and installed `pyefz-0.1.0` locally |
+| Python SDK/CLI/TUI suite with a real local simple-parser fixture | PASS, 21 tests; 4 core-dependent provider checks skipped because no core checkout exists |
+| `escript scripts/fuzz.escript --help` and `escript scripts/prepare.escript` | PASS, exit 0 |
+
+The local SDK run exercised native binary mutation, a real short campaign and
+saved results, and raw replay in a fresh client. It did not exercise Erlamsa
+mutation, provider campaign scheduling, or provider cancellation; those four
+checks require the missing core. The four core-dependent skips are not counted
+as Erlamsa acceptance.
+
+The provider fault fixture was adjusted so lifecycle tests do not prepare an
+optional core just to test request correlation, timeout, cancellation, or
+reaping. The production provider and separate real-core integration tests are
+unchanged by that test-only adjustment. The focused lifecycle suite passed
+12/12, and the complete default EUnit suite passed 386/386.
+
+For the remote check, the connected GitHub account was `LuciyVI` and the
+upstream repository metadata confirmed `Darkkey/erlamsa` default branch
+`master`. The same API returned 404 for `LuciyVI/erlamsa`; this does not prove
+whether it is absent or hidden from the account. Local `gh auth status` reports
+an invalid stored token. Git transport failed with `Proxy CONNECT aborted`,
+including an escalated read-only `git ls-remote`. No fork was created and no
+submodule/gitlink was added. The connected GitHub tools in this session expose
+repository reads and ref/commit operations but no fork-creation operation, so
+there is no safe path here to create the requested fork and publish its core
+commits. The fork, clean recursive checkout, real-core build, and final
+gitlink acceptance remain BLOCKED.
