@@ -163,6 +163,31 @@ accept_submission(ReplyTo, Input, Request, Timeout,
                       pending_request := undefined}) ->
     Active = new_request(ReplyTo, Input, Request, Timeout, S),
     {reply, {ok, maps:get(ref, Active)}, S#{pending_request => Active}};
+accept_submission(ReplyTo, Input, Request, Timeout,
+                  S=#{phase := cleaning_directory, cleanup_kind := recycle,
+                      pending_request := undefined}) ->
+    Active = new_request(ReplyTo, Input, Request, Timeout, S),
+    {reply, {ok, maps:get(ref, Active)}, S#{pending_request => Active}};
+accept_submission(ReplyTo, Input, Request, Timeout,
+                  S=#{phase := starting, restarts := Restarts,
+                      pending_request := undefined}) when Restarts > 0 ->
+    Active = new_request(ReplyTo, Input, Request, Timeout, S),
+    {reply, {ok, maps:get(ref, Active)}, S#{pending_request => Active}};
+accept_submission(ReplyTo, Input, Request, Timeout,
+                  S=#{phase := accepting, restarts := Restarts,
+                      pending_request := undefined}) when Restarts > 0 ->
+    Active = new_request(ReplyTo, Input, Request, Timeout, S),
+    {reply, {ok, maps:get(ref, Active)}, S#{pending_request => Active}};
+accept_submission(ReplyTo, Input, Request, Timeout,
+                  S=#{phase := hello, restarts := Restarts,
+                      pending_request := undefined}) when Restarts > 0 ->
+    Active = new_request(ReplyTo, Input, Request, Timeout, S),
+    {reply, {ok, maps:get(ref, Active)}, S#{pending_request => Active}};
+accept_submission(ReplyTo, Input, Request, Timeout,
+                  S=#{phase := starting_handshake, restarts := Restarts,
+                      pending_request := undefined}) when Restarts > 0 ->
+    Active = new_request(ReplyTo, Input, Request, Timeout, S),
+    {reply, {ok, maps:get(ref, Active)}, S#{pending_request => Active}};
 accept_submission(_ReplyTo, _Input, _Request, _Timeout, S) ->
     {reply, {error, busy}, S}.
 

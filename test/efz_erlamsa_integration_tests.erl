@@ -14,6 +14,7 @@ erlamsa_integration_test_()->
             {"hybrid keeps the existing semantic adapter",{timeout,30,fun()->semantic_hybrid(Path) end}},
             {"persistent worker reuses one VM for 1000 deterministic requests",{timeout,60,fun()->persistent_worker(Path) end}},
             {"persistent worker recycles between requests without changing output",{timeout,30,fun()->persistent_recycle(Path) end}},
+            {"sequential request waits under deadline across rapid recycle",{timeout,30,fun()->persistent_recycle_handoff(Path) end}},
             {"disposable and persistent provider results agree",{timeout,30,fun()->transport_differential(Path) end}},
             {"persistent campaign stop saves corpus and confirms cleanup",{timeout,30,fun()->persistent_campaign_stop(Path) end}}
             ]++case code:which(efz_qs_model) of
@@ -72,6 +73,25 @@ persistent_recycle(Path)->
     {ok,Closed}=efz_mutation_session:close(Pid,SessionRef,5000),
     ?assertEqual(true,maps:get(last_cleanup_confirmed,Closed)),
     ?assertEqual(false,is_process_alive(Pid)).
+
+persistent_recycle_handoff(Path)->
+    Provider=prepared(Path,persistent_provider(Path,1),1024),
+    {ok,Pid,SessionRef,_}=efz_mutation_session:open(self(),Provider),
+    Input = <<"rapid recycle handoff",0,255>>,
+    try
+        lists:foreach(fun(N)->
+            Req=(request(byte_flip))#{seed=>{N,N+1,N+2}},
+            ?assertMatch({ok,_,_},efz_mutation_provider:mutate_session(
+                Input,Req,Provider,Pid,SessionRef,10000))
+        end,[107,109,113]),
+        Stats=efz_mutation_session:stats(Pid,SessionRef),
+        ?assertEqual(3,maps:get(completed_requests,Stats)),
+        ?assertEqual(3,maps:get(vm_starts,Stats)),
+        ?assertEqual(2,maps:get(restarts,Stats))
+    after
+        {ok,Closed}=efz_mutation_session:close(Pid,SessionRef,5000),
+        ?assertEqual(true,maps:get(last_cleanup_confirmed,Closed))
+    end.
 
 transport_differential(Path)->
     Persistent=prepared(Path,persistent_provider(Path,100),1024),
