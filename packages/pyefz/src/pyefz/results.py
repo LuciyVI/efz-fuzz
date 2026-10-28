@@ -46,6 +46,7 @@ class MutationResult:
     input_sha256: object = None
     output_sha256: object = None
     error: object = None
+    runtime: object = None
 
     @property
     def changed(self):

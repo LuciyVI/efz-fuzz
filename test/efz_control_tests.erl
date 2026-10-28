@@ -29,6 +29,9 @@ static_config_test() ->
 
 request_schema_test() ->
     ?assertEqual({12,stats,#{}},efz_control_json:request(#{<<"version">>=>1,<<"id">>=>12,<<"op">>=><<"stats">>})),
+    ?assertEqual({12,cancel,#{<<"target_id">>=>11}},efz_control_json:request(
+        #{<<"version">>=>1,<<"id">>=>12,<<"op">>=><<"cancel">>,
+          <<"args">>=>#{<<"target_id">>=>11}})),
     ?assertException(error,_,efz_control_json:request(#{<<"version">>=>1,<<"id">>=>12,<<"op">>=><<"eval">>})),
     ?assertEqual(#{seed=>{1,2,3},pattern=>[once,burst]},efz_control_json:mutation_request(
         #{<<"seed">>=>[1,2,3],<<"pattern">>=>[<<"once">>,<<"burst">>]})).

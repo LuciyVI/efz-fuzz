@@ -69,6 +69,9 @@ def _mutation_args(data, provider, seed, request, maximum):
 def _mutation_result(value, original, maximum, *, raise_error):
     if not isinstance(value, dict):
         raise ProtocolError("Invalid mutation result")
+    runtime = value.get("runtime")
+    if runtime is not None and not isinstance(runtime, dict):
+        raise ProtocolError("Invalid mutation runtime metrics")
     status = value.get("status")
     if status == "changed":
         data = decode_bytes(value.get("input"), maximum)
@@ -78,15 +81,51 @@ def _mutation_result(value, original, maximum, *, raise_error):
         if value.get("input_sha256") != original_hash or value.get("output_sha256") != output_hash:
             raise ProtocolError("Mutation checksum mismatch")
         return MutationResult(status, data=data, recipe=value.get("recipe"),
-                              input_sha256=original_hash, output_sha256=output_hash)
+                              input_sha256=original_hash, output_sha256=output_hash,
+                              runtime=runtime)
     if status == "skipped":
-        return MutationResult(status, reason=value.get("reason"))
+        return MutationResult(status, reason=value.get("reason"), runtime=runtime)
     if status == "error":
         error = remote_error(value.get("error"))
         if raise_error:
             raise error
-        return MutationResult(status, error=error)
+        return MutationResult(status, error=error, runtime=runtime)
     raise ProtocolError("Unknown mutation result status")
+
+
+class MutationCall:
+    """One submitted mutation that can be awaited or cancelled by request ID."""
+
+    def __init__(self, client, request_id, future, deadline, decode):
+        self._client = client
+        self.request_id = request_id
+        self._future = future
+        self._deadline = deadline
+        self._decode = decode
+
+    def result(self, timeout=None):
+        if timeout is not None and (not isinstance(timeout, (int, float)) or
+                                    isinstance(timeout, bool) or not math.isfinite(timeout) or
+                                    timeout < 0):
+            raise BadConfig("timeout must be nonnegative seconds or None")
+        remaining = None if timeout is None else float(timeout)
+        if self._deadline is not None:
+            left = max(0.0, self._deadline - time.monotonic())
+            remaining = left if remaining is None else min(remaining, left)
+        try:
+            value = self._future.result(timeout=remaining)
+        except concurrent.futures.TimeoutError as exc:
+            self._client._forget(self.request_id)
+            raise RequestTimeout("Mutation exceeded its client deadline") from exc
+        finally:
+            if self._future.done():
+                self._client._forget(self.request_id)
+        return self._decode(value)
+
+    def cancel(self, *, timeout="default"):
+        if self._future.done():
+            return {"status": "not_running"}
+        return self._client._call("cancel", {"target_id": self.request_id}, timeout=timeout)
 
 
 class Client:
@@ -206,6 +245,19 @@ class Client:
             self._fail_pending(exc if isinstance(exc, EFZError) else ProtocolError(str(exc)))
 
     def _call(self, operation, args=None, *, timeout="default"):
+        request_id, future, deadline = self._begin_call(operation, args, timeout=timeout)
+        try:
+            remaining = None if deadline is None else max(0, deadline - time.monotonic())
+            return future.result(timeout=remaining)
+        except EFZError:
+            # Remote provider deadlines must keep their own error type.
+            raise
+        except concurrent.futures.TimeoutError as exc:
+            raise RequestTimeout("{} exceeded its client deadline".format(operation)) from exc
+        finally:
+            self._forget(request_id)
+
+    def _begin_call(self, operation, args=None, *, timeout="default"):
         if timeout == "default":
             timeout = self.request_timeout
         if timeout is not None and (not isinstance(timeout, (int, float)) or isinstance(timeout, bool) or
@@ -226,21 +278,30 @@ class Client:
         try:
             message = frame({"version": 1, "id": request_id, "op": operation, "args": args or {}})
             self._write_message(message, deadline)
-            try:
-                remaining = None if deadline is None else max(0, deadline - time.monotonic())
-                return future.result(timeout=remaining)
-            except EFZError:
-                # Remote provider deadlines must keep their own error type.
-                raise
-            except concurrent.futures.TimeoutError as exc:
-                raise RequestTimeout("{} exceeded its client deadline".format(operation)) from exc
+            return request_id, future, deadline
         except (BrokenPipeError, OSError, ValueError) as exc:
+            self._forget(request_id)
             if isinstance(exc, EFZError):
                 raise
             raise Cancelled("Runtime control channel is closed") from exc
-        finally:
-            with self._lock:
-                self._pending.pop(request_id, None)
+        except BaseException:
+            self._forget(request_id)
+            raise
+
+    def _forget(self, request_id):
+        with self._lock:
+            self._pending.pop(request_id, None)
+
+    def _mutation_call(self, operation, args, originals, maximum, timeout):
+        request_id, future, deadline = self._begin_call(operation, args, timeout=timeout)
+        def decode(value):
+            if operation == "mutate":
+                return _mutation_result(value, originals[0], maximum, raise_error=True)
+            if not isinstance(value, dict) or set(value) != {"items"} or len(value["items"]) != len(originals):
+                raise ProtocolError("Invalid batch response")
+            return [_mutation_result(result, bytes(original), maximum, raise_error=False)
+                    for result, original in zip(value["items"], originals)]
+        return MutationCall(self, request_id, future, deadline, decode)
 
     def _write_message(self, message, deadline):
         remaining = None if deadline is None else max(0, deadline - time.monotonic())
@@ -303,14 +364,23 @@ class Client:
 
     def mutate(self, data, *, provider="native", seed=None, request=None,
                max_input_bytes=4096, timeout="default"):
+        return self.mutate_async(data, provider=provider, seed=seed, request=request,
+                                 max_input_bytes=max_input_bytes, timeout=timeout).result()
+
+    def mutate_async(self, data, *, provider="native", seed=None, request=None,
+                     max_input_bytes=4096, timeout="default"):
         encode_bytes(data)
         data = bytes(data)
         args = _mutation_args(data, provider, seed, request, max_input_bytes)
-        value = self._call("mutate", args, timeout=timeout)
-        return _mutation_result(value, bytes(data), max_input_bytes, raise_error=True)
+        return self._mutation_call("mutate", args, [data], max_input_bytes, timeout)
 
     def mutate_batch(self, inputs, *, provider="native", seeds=None, requests=None,
                      max_input_bytes=4096, timeout="default"):
+        return self.mutate_batch_async(inputs, provider=provider, seeds=seeds,
+            requests=requests, max_input_bytes=max_input_bytes, timeout=timeout).result()
+
+    def mutate_batch_async(self, inputs, *, provider="native", seeds=None, requests=None,
+                           max_input_bytes=4096, timeout="default"):
         inputs = list(itertools.islice(inputs, MAX_BATCH + 1))
         if not 0 < len(inputs) <= MAX_BATCH:
             raise BadConfig("A batch must contain 1..64 inputs")
@@ -328,11 +398,8 @@ class Client:
                  for data, seed, request in zip(inputs, seeds, requests)]
         if sum(len(data) for data in inputs) > MAX_BATCH_BYTES:
             raise BadConfig("Batch inputs exceed 2 MiB")
-        value = self._call("mutate_batch", {"items": items}, timeout=timeout)
-        if not isinstance(value, dict) or set(value) != {"items"} or len(value["items"]) != len(inputs):
-            raise ProtocolError("Invalid batch response")
-        return [_mutation_result(result, bytes(original), max_input_bytes, raise_error=False)
-                for result, original in zip(value["items"], inputs)]
+        return self._mutation_call("mutate_batch", {"items": items}, inputs,
+                                   max_input_bytes, timeout)
 
     def results(self, out=None, *, offset=0, limit=32):
         args = {"offset": offset, "limit": limit}

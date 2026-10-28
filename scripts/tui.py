@@ -39,7 +39,7 @@ def provider_lines(snapshot):
     """Bounded presentation of observed provider configuration and counters."""
     provider = snapshot.get('provider')
     if not isinstance(provider, dict):
-        return []
+        return ['Mode       native', 'Transport  none', 'Worker     none']
     stats = snapshot.get('provider_stats', {})
     if not isinstance(stats, dict):
         stats = {}
@@ -67,6 +67,7 @@ def provider_lines(snapshot):
         weight_text = 'unavailable'
     rows = [
         f'Mode       {label(provider.get("mode", "unavailable"))}',
+        f'Transport  {label(provider.get("transport", "disposable"))}',
         f'Profile    {label(options.get("profile", "unavailable"))}',
         f'Strategy   {label(options.get("strategy", "unavailable"))}',
         f'Weights    {weight_text}',
@@ -75,6 +76,21 @@ def provider_lines(snapshot):
         f'Errors {count(stats, "errors")} · timeout {count(stats, "timeouts")}',
         f'Cancelled  {count(stats, "cancelled")}',
     ]
+    session = stats.get('session', {})
+    if not isinstance(session, dict):
+        session = {}
+    rows.append('Worker {} · VM starts {} · recycles {} · requests {}'.format(
+        label(session.get('state', 'disabled')),
+        count(session, 'vm_starts'), count(session, 'restarts'),
+        count(session, 'completed_requests')))
+    phase = stats.get('phase_us', {})
+    request_samples = phase.get('request_total_us', []) if isinstance(phase, dict) else []
+    request_samples = sorted(v for v in request_samples[:1024]
+                             if type(v) is int and v >= 0) if isinstance(request_samples, list) else []
+    if request_samples:
+        p50 = request_samples[(len(request_samples) - 1) * 50 // 100] / 1000
+        p95 = request_samples[(len(request_samples) - 1) * 95 // 100] / 1000
+        rows.append(f'Request p50/p95 {p50:.2f}/{p95:.2f} ms · n={len(request_samples)}')
     samples = stats.get('latency_us', [])
     samples = sorted(value for value in samples[:1024]
                      if type(value) is int and value >= 0) if isinstance(samples, list) else []
@@ -220,7 +236,9 @@ def screen(stdscr, directory, process=None):
                                         (19, 'timeout', 'Timeouts')]:
                     put(row, 1, f'{label:<17} {counts.get(key, 0):,}')
                 if provider:
-                    put(21, 1, ('Provider · ' + str(snap['provider'].get('mode', '?')))[:left_width], accent)
+                    current_provider = snap.get('provider', {})
+                    mode_name = current_provider.get('mode', 'native') if isinstance(current_provider, dict) else 'native'
+                    put(21, 1, ('Provider · ' + str(mode_name))[:left_width], accent)
                     put(22, 1, provider[4][:left_width])
             last = pinned if pinned is not None else snap.get('last')
             preview_size = len((last or {}).get("preview_hex", "")) // 2

@@ -12,7 +12,8 @@ main() ->
     ok=redirect_logger(),
     Owner=self(),
     Reader=spawn_link(fun()->reader(Owner) end),
-    try loop(#{output=>Output,reader=>Reader,campaign=>undefined,jobs=>#{},closing=>false})
+    try loop(#{output=>Output,reader=>Reader,campaign=>undefined,jobs=>#{},closing=>false,
+               provider_session=>undefined,provider_busy=>false})
     after _=file:close(Output) end,
     halt(0).
 
@@ -70,7 +71,12 @@ loop(S) ->
             {Job,Jobs}=maps:take(Id,maps:get(jobs,S)),
             {_Pid,Ref,Op}=Job, demonitor(Ref,[flush]),
             send(S,Id,Result),
-            case Op of close->ok;_->loop(S#{jobs=>Jobs}) end;
+            case Op of
+                close->ok;
+                mutate->loop(S#{jobs=>Jobs,provider_busy=>false});
+                mutate_batch->loop(S#{jobs=>Jobs,provider_busy=>false});
+                _->loop(S#{jobs=>Jobs})
+            end;
         {campaign_done,Result}->
             C=maps:get(campaign,S),loop(S#{campaign=>C#{result=>Result}});
         {'DOWN',Ref,process,_,Reason}->
@@ -142,16 +148,34 @@ dispatch(Id,close,A,S) ->
     efz_control_json:keys(A,[<<"timeout_ms">>]),
     Timeout=efz_control_json:integer(maps:get(<<"timeout_ms">>,A,5000),0,30000),
     job(Id,close,fun()->cleanup(S,Timeout) end,S#{closing=>true});
+dispatch(_Id,mutate,_A,#{provider_busy:=true})->fail(provider_busy,mutation_request_in_flight);
 dispatch(Id,mutate,A,S) ->
-    Prepared=prepare_mutation(A),
-    job(Id,mutate,fun()->mutate_one(Prepared) end,S);
+    Parsed=prepare_mutation(A),
+    {Prepared,Runtime,S0}=prepare_mutation_runtime(Parsed,S),
+    job(Id,mutate,fun()->mutate_one(Prepared,Runtime) end,
+        S0#{provider_busy=>true});
+dispatch(_Id,mutate_batch,_A,#{provider_busy:=true})->fail(provider_busy,mutation_request_in_flight);
 dispatch(Id,mutate_batch,A,S) ->
     efz_control_json:keys(A,[<<"items">>]),Items=maps:get(<<"items">>,A),
     true=is_list(Items) andalso length(Items)>0 andalso length(Items)=<64,
     Prepared=[prepare_mutation(I)||I<-Items],
     true=lists:sum([byte_size(B)||{B,_,_,_}<-Prepared])=<2097152,
     true=lists:sum([Max||{_,_,_,Max}<-Prepared])=<2097152,
-    job(Id,mutate_batch,fun()->#{items=>mutate_items(Prepared)} end,S);
+    [{_,Provider,_,Max}|_]=Prepared,
+    true=lists:all(fun({_,P,_,M})->P=:=Provider andalso M=:=Max end,Prepared),
+    {First,Runtime,S0}=prepare_mutation_runtime(hd(Prepared),S),
+    [First|Rest]=Prepared,
+    job(Id,mutate_batch,fun()->#{items=>mutate_items([First|Rest],Runtime)} end,
+        S0#{provider_busy=>true});
+dispatch(Id,cancel,A,S) ->
+    efz_control_json:keys(A,[<<"target_id">>]),
+    Target=efz_control_json:integer(maps:get(<<"target_id">>,A),1,9007199254740991),
+    Result=case maps:find(Target,maps:get(jobs,S)) of
+        {ok,{Pid,_Monitor,Op}} when Op=:=mutate;Op=:=mutate_batch ->
+            Pid!{efz_mutation_cancel_run,make_ref()},#{status=><<"cancelling">>};
+        _->#{status=><<"not_running">>}
+    end,
+    send(S,Id,{ok,Result}),S;
 dispatch(Id,results,A,S) ->
     Out=results_out(A,S),
     Offset=efz_control_json:integer(maps:get(<<"offset">>,A,0),0,10000000),
@@ -213,34 +237,109 @@ prepare_mutation(A) ->
     Provider=efz_control_json:provider(maps:get(<<"provider">>,A,<<"native">>)),
     Request=efz_control_json:mutation_request(maps:get(<<"request">>,A,#{})),
     true=maps:is_key(seed,Request),{Input,Provider,Request,Max}.
-mutate_one({Input,Provider,Request,Max}) ->
+prepare_mutation_runtime({_Input,Provider,_Request,Max}=Item,S) ->
+    Identity=crypto:hash(sha256,term_to_binary({Provider,Max},[deterministic])),
+    case maps:get(transport,Provider,disposable) of
+        persistent -> case maps:get(provider_session,S,undefined) of
+            #{identity:=Identity,prepared:=P,pid:=Pid,ref:=SessionRef} ->
+                case reusable_control_session(Pid,SessionRef) of
+                    true->{Item,#{prepared=>P,session=>#{pid=>Pid,ref=>SessionRef}},S};
+                    false->open_control_provider_session(Item,Provider,Max,
+                        close_control_provider_session(S))
+                end;
+            _ ->
+                open_control_provider_session(Item,Provider,Max,
+                    close_control_provider_session(S))
+        end;
+        _ ->
+            S0=close_control_provider_session(S),
+            {Item,undefined,S0}
+    end.
+
+reusable_control_session(Pid,Ref)->
+    case catch efz_mutation_session:stats(Pid,Ref) of
+        #{phase:=ready}->true;
+        #{phase:=recycling}->true;
+        _->false
+    end.
+
+open_control_provider_session({_,Provider,_,Max}=Item,Provider,Max,S0)->
     P=need(efz_mutation_provider:prepare(Provider,Max),bad_config),
-    case efz_mutation_provider:mutate(Input,Request,P) of
+    case efz_mutation_session:open(self(),P) of
+        {ok,Pid,SessionRef,_Runtime}->
+            Monitor=erlang:monitor(process,Pid),
+            Session=#{identity=>crypto:hash(sha256,
+                term_to_binary({Provider,Max},[deterministic])),prepared=>P,
+                pid=>Pid,ref=>SessionRef,monitor=>Monitor},
+            {Item,#{prepared=>P,session=>#{pid=>Pid,ref=>SessionRef}},
+             S0#{provider_session=>Session}};
+        {error,Reason}->
+            io:format(standard_error,"EFZ persistent provider startup failed: ~0p~n",[Reason]),
+            fail(bad_config,Reason)
+    end.
+
+close_control_provider_session(#{provider_session:=#{pid:=Pid,ref:=Ref,
+        monitor:=Monitor}}=S) ->
+    Session=maps:get(provider_session,S),
+    Timeout=maps:get(cleanup_timeout,maps:get(prepared,Session),3000),
+    Result=catch efz_mutation_session:close(Pid,Ref,Timeout),
+    erlang:demonitor(Monitor,[flush]),
+    case Result of
+        {ok,#{last_cleanup_confirmed:=true}}->maps:remove(provider_session,S);
+        {ok,#{state:=down}}->maps:remove(provider_session,S);
+        {error,Reason}->fail(provider_failure,{provider_session_cleanup,Reason});
+        Other->fail(provider_failure,{provider_session_cleanup,Other})
+    end;
+close_control_provider_session(S)->S.
+
+mutate_one({Input,Provider,Request,Max},Runtime) ->
+    P=case Runtime of
+        #{prepared:=Prepared}->Prepared;
+        _->need(efz_mutation_provider:prepare(Provider,Max),bad_config)
+    end,
+    Mutated=case maps:get(transport,P,disposable) of
+        persistent ->
+            #{session:=#{pid:=Pid,ref:=SessionRef}}=Runtime,
+            efz_mutation_provider:mutate_session(Input,Request,P,Pid,SessionRef,
+                maps:get(timeout,P,1000));
+        _ -> efz_mutation_provider:mutate(Input,Request,P)
+    end,
+    case Mutated of
         {ok,B,Recipe} when is_binary(B),B=/=Input,byte_size(B)=<Max ->
             #{status=><<"changed">>,input=>#{base64=>base64:encode(B)},
                 input_sha256=>hex(crypto:hash(sha256,Input)),output_sha256=>hex(crypto:hash(sha256,B)),
-                recipe=>provenance(Recipe)};
-        {ok,Input,_}->#{status=><<"skipped">>,reason=><<"unchanged">>};
-        {skip,R}->#{status=><<"skipped">>,reason=>efz_control_json:text(R)};
+                recipe=>provenance(Recipe),runtime=>mutation_runtime(Provider,Runtime)};
+        {ok,Input,_}->#{status=><<"skipped">>,reason=><<"unchanged">>,
+            runtime=>mutation_runtime(Provider,Runtime)};
+        {skip,R}->#{status=><<"skipped">>,reason=>efz_control_json:text(R),
+            runtime=>mutation_runtime(Provider,Runtime)};
         {timeout,R}->fail(provider_timeout,R);
         cancelled->fail(cancelled,provider_cancelled);
         {error,R}->fail(provider_failure,R);
         Other->fail(provider_failure,{invalid_provider_result,Other})
     end.
+mutation_runtime(#{mode:=native},_) -> #{transport=>none};
+mutation_runtime(Provider,#{session:=#{pid:=Pid,ref:=Ref}}) ->
+    Stats=efz_mutation_session:stats(Pid,Ref),
+    (maps:with([state,vm_starts,restarts,completed_requests,requests_this_vm],Stats))#{
+        transport=>maps:get(transport,Provider,disposable)};
+mutation_runtime(Provider,_) -> #{transport=>maps:get(transport,Provider,disposable)}.
 provenance(R) ->
     P=efz_control_json:portable(R),
     case byte_size(efz_control_json:encode(P))=<65536 of
         true->P;false->#{available=>false,reason=><<"metadata_limit">>}
     end.
-safely_item(P) -> case safely(fun()->mutate_one(P) end) of
-    {ok,R}->R;{error,C,R}->#{status=><<"error">>,error=>#{code=>C,message=>efz_control_json:text(R)}} end.
+safely_item({_,Provider,_,_}=P,Runtime) -> case safely(fun()->mutate_one(P,Runtime) end) of
+    {ok,R}->R;{error,C,R}->#{status=><<"error">>,
+        error=>#{code=>C,message=>efz_control_json:text(R)},
+        runtime=>mutation_runtime(Provider,Runtime)} end.
 
-mutate_items([])->[];
-mutate_items([P|Rest])->
-    Item=safely_item(P),
+mutate_items([],_) -> [];
+mutate_items([P|Rest],Runtime)->
+    Item=safely_item(P,Runtime),
     case Item of
         #{error:=#{code:=cancelled}}->[Item|[cancelled_item()||_<-Rest]];
-        _->[Item|mutate_items(Rest)]
+        _->[Item|mutate_items(Rest,Runtime)]
     end.
 cancelled_item()->#{status=><<"error">>,error=>#{code=>cancelled,message=><<"Session closed">>}}.
 
@@ -257,6 +356,7 @@ cleanup(S,Timeout) ->
     end,
     %% Mutation replies follow OS cleanup; acknowledge close after their jobs.
     cancel_jobs(maps:values(maps:get(jobs,S)),Deadline),
+    _=close_control_provider_session(S),
     ok=case whereis(efz_fuzzer) of undefined->ok;_->need(efz:stop(),internal_error) end,
     #{status=><<"closed">>,report=>R}.
 
