@@ -119,8 +119,10 @@ def main():
         artifact = Path(args.target_artifact).resolve()
         if not artifact.is_file():
             parser.error("--target-artifact must name an existing artifact term")
+        target_beam = artifact.parent/"target"/"cow_qs.beam"
     else:
         artifact = out/"shared-artifact.term"
+        target_beam = out/"target"/"cow_qs.beam"
         prepare = ["erl", "+S", "2:2", "-noshell", "-pa", str(engine/"lib/efz/ebin"),
                    "-eval", '[Source,TargetDir,Artifact]=init:get_plain_arguments(),'
                    '{ok,A}=efz_cov_native_public:compile(Source,TargetDir),'
@@ -151,7 +153,8 @@ def main():
         "semantic_adapter": "efz_qs_adapter", "structured_fraction":10,
         "feedback":"guided", "oracle":"disabled", "performance_profile":args.profile,
         "coverage_domain":["cow_qs"], "coverage_backend":"otp_native_public",
-        "target_artifact_sha256":sha(out/"target/cow_qs.beam"),
+        "target_artifact_path":str(artifact),
+        "target_artifact_sha256":sha(target_beam),
         "order_seed":20261027, "jobs":jobs, "off_overhead_tolerance_percent":5.0,
         "sampling_ms":{"coverage_vm_memory":1000,"os_process_tree_rss":100},
         "rss_sampler":"proc_stat_ppid_v2",
