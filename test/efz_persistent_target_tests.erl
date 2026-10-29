@@ -3,6 +3,7 @@
 
 state_and_window_test_() -> {timeout,30,fun state_and_window/0}.
 sequence_audit_test_() -> {timeout,60,fun sequence_audit/0}.
+history_vs_stability_test_() -> {timeout,60,fun history_vs_stability/0}.
 journal_identity_test_() -> {timeout,30,fun journal_identity/0}.
 journal_cap_test_() -> {timeout,30,fun journal_cap/0}.
 timeout_retires_epoch_test_() -> {timeout,30,fun timeout_retires_epoch/0}.
@@ -247,6 +248,28 @@ sequence_audit() ->
         Summary=efz_control:report_summary(R,"_build/persistent-target-summary"),
         ?assertEqual(100.0,maps:get(<<"percent">>,
             maps:get(<<"feature_stability">>,Summary)))
+    after efz:stop(),unload() end.
+
+history_vs_stability() ->
+    {_Dir,_C,C0}=prepared(),
+    Runtime=#{enabled=>true,resources=>#{enabled=>false},
+        hangs=>#{enabled=>false},stability=>#{sequence=>#{policy=>deferred,
+            repeats=>2,max_calls=>6,max_elapsed_ms=>30000}}},
+    Inputs=[<<"fire">>,<<"arm">>,<<"fire">>],
+    try
+        {ok,_}=efz:start(C0#{benchmark_replay_inputs=>Inputs,
+            runtime_oracles=>Runtime}),
+        R=efz:await(30000),
+        ?assertEqual(completed,maps:get(status,R)),
+        ?assertEqual(Inputs,begin
+            {ok,B}=efz_sequence_journal:steps(
+                maps:get(path,maps:get(sequence_journal,R)),prepared_config(
+                    C0#{benchmark_replay_inputs=>Inputs,runtime_oracles=>Runtime})),B
+        end),
+        ?assertEqual(1,maps:get(changed,maps:get(history_sensitivity,R))),
+        F=maps:get(feature_stability,R),
+        ?assertEqual(3,maps:get(groups_measured,F)),
+        ?assertEqual(100.0,maps:get(percent,F))
     after efz:stop(),unload() end.
 
 controlled_variation() ->

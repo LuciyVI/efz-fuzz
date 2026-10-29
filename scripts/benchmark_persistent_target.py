@@ -99,8 +99,11 @@ def one(mode, seed, number, directory, artifacts, count):
             "total_per_s": (primary + diagnostic) / elapsed,
             "coverage_count": report.get("coverage_count"),
             "status": report.get("status"), "peak_tree_rss_kib_sampled": peak,
+            "target_session": report.get("target_session", {}),
             "vm_starts": report.get("target_session", {}).get("vm_starts", 0),
             "audit_vm_starts": report.get("target_audit", {}).get("vm_starts", 0),
+            "target_audit": report.get("target_audit", {}),
+            "sequence_journal": report.get("sequence_journal", {}),
             "target_timing": report.get("target_timing", {}),
             "feature_stability": report.get("feature_stability", {})}
 
