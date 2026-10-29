@@ -9,8 +9,10 @@ journal_cap_test_() -> {timeout,30,fun journal_cap/0}.
 timeout_retires_epoch_test_() -> {timeout,30,fun timeout_retires_epoch/0}.
 controlled_variation_test_() -> {timeout,60,fun controlled_variation/0}.
 audit_live_progress_test_() -> {timeout,60,fun audit_live_progress/0}.
+primary_stop_test_() -> {timeout,30,fun primary_stop/0}.
 thousand_steps_one_vm_test_() -> {timeout,60,fun thousand_steps_one_vm/0}.
 owner_death_cleanup_test_() -> {timeout,30,fun owner_death_cleanup/0}.
+unexpected_vm_exit_test_() -> {timeout,30,fun unexpected_vm_exit/0}.
 preflight_sequential_test_() -> {timeout,60,fun preflight_sequential/0}.
 result_bound_test_() -> {timeout,30,fun result_bound/0}.
 session_budget_test_() -> {timeout,30,fun session_budget/0}.
@@ -172,6 +174,22 @@ owner_death_cleanup() ->
     wait_process_dead(Pid,2000),
     unload().
 
+unexpected_vm_exit() ->
+    {_Dir,C,_}=prepared(),
+    {ok,Session}=efz_target_session:open(C),
+    try
+        Pid=maps:get(os_pid,efz_target_session:info(Session)),
+        Kill=os:find_executable("kill"),
+        Port=open_port({spawn_executable,Kill},[exit_status,
+            {args,["-KILL",integer_to_list(Pid)]}]),
+        receive {Port,{exit_status,0}}->ok
+        after 2000->error(kill_command_timeout) end,
+        wait_process_dead(Pid,2000),
+        Result=efz_target_session:run(Session,<<"fire">>,100),
+        ?assertMatch({error,_},Result),
+        ?assertEqual(down,maps:get(status,efz_target_session:info(Session)))
+    after efz_target_session:close(Session),unload() end.
+
 result_bound() ->
     {_Dir,C0,_}=prepared(),
     C=C0#{execution=>(maps:get(execution,C0))#{max_result_bytes=>1024}},
@@ -330,6 +348,31 @@ audit_live_progress() ->
         _=file:write_file(Release++".4",<<>>),
         efz:stop(),unload()
     end.
+
+primary_stop() ->
+    {Dir,_C,C0}=prepared(),
+    Variation=filename:join(Dir,"primary-stop-counter"),
+    Ready=filename:join(Dir,"primary-stop-ready"),
+    Release=filename:join(Dir,"primary-stop-release"),
+    ok=file:write_file(Variation,<<"0">>),
+    Exec=(maps:get(execution,C0))#{target_init=>#{variation_file=>Variation,
+        pause_after=>0,pause_ready=>Ready,pause_release=>Release}},
+    Runtime=#{enabled=>true,resources=>#{enabled=>false},hangs=>#{enabled=>false},
+        stability=>#{sequence=>#{policy=>deferred,repeats=>2,max_calls=>8}}},
+    try
+        {ok,_}=efz:start(C0#{seeds=>[<<"variable">>,<<"fire">>],
+            max_iterations=>infinity,execution=>Exec,runtime_oracles=>Runtime,
+            timeout=>7000,monitoring=>true}),
+        wait_file(Ready,10000),
+        ok=efz:request_stop(),
+        ok=file:write_file(Release,<<>>),
+        Report=efz:await(15000),
+        ?assertEqual(stopped_by_user,maps:get(status,Report)),
+        ?assertEqual(1,maps:get(step,maps:get(sequence_journal,Report))),
+        ?assertEqual(true,maps:get(complete,maps:get(sequence_journal,Report))),
+        ?assertEqual(not_measured,maps:get(status,maps:get(target_audit,Report))),
+        ?assertEqual(down,maps:get(status,maps:get(target_session,Report)))
+    after _=file:write_file(Release,<<>>),efz:stop(),unload() end.
 
 wait_file(_,Remaining) when Remaining=<0 -> error(pause_not_reached);
 wait_file(Path,Remaining) ->
