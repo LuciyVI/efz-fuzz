@@ -42,7 +42,12 @@ configuration("--demo",Root,Out)->
               suspicious_runs=>3,failure_runs=>3,max_extra_executions=>1000}},
       mutation=>#{seed=>{17,23,41},stages=>[havoc]},selection_seed=>{17,23,41}};
 configuration(Path,_,_)->
-    {ok,[C]}=file:consult(Path),true=is_map(C),C.
+    {ok,[C]}=file:consult(Path),true=is_map(C),
+    case maps:take(artifacts_dir,C) of
+        {Dir,Rest}->{ok,Artifacts}=efz_instrument:discover(Dir),
+            Rest#{artifacts=>Artifacts};
+        error->C
+    end.
 
 portable(M) when is_map(M)->maps:from_list([{key(K),portable(V)}||{K,V}<-maps:to_list(M)]);
 portable(L) when is_list(L)->[portable(X)||X<-L];

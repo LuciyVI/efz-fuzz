@@ -7,6 +7,7 @@ defaults() -> #{max_input_bytes => efz_input:default_limit(), timeout => 100, wo
                 coverage_validation => prepared, coverage_policy => diagnostic, max_iterations => infinity,
                 performance_profile => false, gleam_layer => false, monitoring => false,
                 runtime_oracles => efz_runtime_config:defaults(),
+                execution => #{mode=>isolated},
                 crash_dir => "_build/efz-crashes",crash_policy=>efz_crash:defaults()}.
 prepare(C0) when is_map(C0) ->
     Allowed = maps:keys(defaults()) ++ [target, seeds, artifacts, mutation, random_seed, selection_seed,
@@ -102,6 +103,7 @@ valid_field(coverage_policy, V) -> lists:member(V, [diagnostic, strict]);
 valid_field(monitoring, V) -> is_boolean(V);
 valid_field(performance_profile, V) -> is_boolean(V);
 valid_field(runtime_oracles,V) -> is_map(V);
+valid_field(execution,V) -> is_map(V);
 valid_field(gleam_layer,V) -> V=:=false orelse is_map(V);
 valid_field(crash_policy,V) -> is_map(V);
 valid_field(artifacts, V) -> is_list(V) andalso lists:all(fun is_map/1, V);
@@ -148,12 +150,81 @@ prepare_coverage(#{coverage := automatic} = C) ->
     end;
 prepare_coverage(_) -> {error, unsupported_coverage_mode}.
 check_target(#{target := M, mutator := Mu} = C) ->
-    case callback(target, M, run, 1) of
+    case execution(C) of
+      ok -> case target_callback(M,maps:get(mode,maps:get(execution,C))) of
         ok -> case callback(mutator, Mu, mutate, 2) of
             ok -> pin_target(C);
             Error -> Error
         end;
         Error -> Error
+      end;
+      Error -> Error
+    end.
+
+execution(#{execution:=#{mode:=isolated}=E}) when map_size(E)=:=1 -> ok;
+execution(#{execution:=#{mode:=persistent_vm,state_policy:=accumulate}=E,
+            coverage:=automatic,coverage_backend:=Backend}=C)
+  when Backend=:=ets;Backend=:=ets_member ->
+    Allowed=[mode,state_policy,target_init,max_journal_bytes,max_result_bytes,durability,
+        max_iterations_per_epoch,max_epoch_ms,max_vm_memory_bytes,max_processes,
+        max_ets_tables,max_ports,max_driver_mailbox],
+    Unknown=maps:keys(E)--Allowed,
+    MaxBytes=maps:get(max_journal_bytes,E,16777216),
+    MaxSteps=maps:get(max_iterations_per_epoch,E,100000),
+    MaxResult=maps:get(max_result_bytes,E,1048576),
+    Durability=maps:get(durability,E,buffered),
+    case {Unknown,is_integer(MaxBytes) andalso MaxBytes>=4096 andalso MaxBytes=<67108864,
+          (MaxSteps=:=infinity orelse
+              is_integer(MaxSteps) andalso MaxSteps>0 andalso MaxSteps=<1000000),
+          is_integer(MaxResult) andalso MaxResult>=1024 andalso MaxResult=<8388608,
+          lists:member(Durability,[buffered,fsynced]),
+          valid_init(maps:get(target_init,E,#{}),0),
+          valid_session_limits(E),
+          maps:get(coverage_feedback,C)} of
+        {[],true,true,true,true,true,true,Feedback} when Feedback=:=presence;Feedback=:=hit_count ->
+            case {os:type(),os:find_executable("setsid"),os:find_executable("erl")} of
+                {{unix,linux},Setsid,Erl} when is_list(Setsid),is_list(Erl)->ok;
+                _->{error,persistent_target_runtime_unavailable}
+            end;
+        _ -> {error,invalid_persistent_execution}
+    end;
+execution(#{execution:=#{mode:=persistent_vm}}) ->
+    {error,unsupported_persistent_execution_context};
+execution(_) -> {error,invalid_execution_configuration}.
+
+valid_session_limits(E) ->
+    lists:all(fun({Key,Min,Max})->
+        case maps:get(Key,E,infinity) of
+            infinity->true;
+            V->is_integer(V) andalso V>=Min andalso V=<Max
+        end
+    end,[{max_epoch_ms,1,3600000},{max_vm_memory_bytes,1048576,1099511627776},
+         {max_processes,1,1000000},{max_ets_tables,1,1000000},
+         {max_ports,0,1000000},{max_driver_mailbox,0,1000000}]).
+
+valid_init(_,D) when D>4 -> false;
+valid_init(V,_) when is_integer(V) -> V>=-9223372036854775808 andalso
+    V=<9223372036854775807;
+valid_init(V,_) when is_binary(V) -> byte_size(V)=<4096;
+valid_init(V,_) when is_atom(V) -> true;
+valid_init(V,D) when is_list(V) ->
+    try length(V)=<256 andalso lists:all(fun(X)->valid_init(X,D+1) end,V)
+    catch _:_ -> false end;
+valid_init(V,D) when is_map(V) ->
+    map_size(V)=<32 andalso lists:all(fun({K,X})->
+        (is_atom(K) orelse is_binary(K) andalso byte_size(K)=<64) andalso
+        valid_init(X,D+1) end,maps:to_list(V));
+valid_init(_,_) -> false.
+
+target_callback(M,isolated) -> callback(target,M,run,1);
+target_callback(M,persistent_vm) ->
+    case callback(target,M,run,1) of
+        ok -> ok;
+        _ -> case {callback(target,M,init_session,1),callback(target,M,handle_input,2),
+                   callback(target,M,finish_session,1)} of
+            {ok,ok,ok}->ok;
+            _->{error,{missing_persistent_target_callbacks,M}}
+        end
     end.
 
 pin_target(#{target:=M,manifests:=Ms}=C) ->

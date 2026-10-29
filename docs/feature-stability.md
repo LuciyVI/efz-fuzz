@@ -84,11 +84,33 @@ never executes a target. The viewer computes age from its local read time and
 the snapshot's elapsed values, without mixing Erlang and Python monotonic
 timestamps.
 
-The current executor isolates each target execution. If a future target mode
-retains state across requests, these repetitions need a proven identical
-initial history; without it that mode must report `unsupported_context`.
-Extra diagnostic calls consume target time. They are counted separately from
-mutation executions and do not appear in the TUI executions/second numerator.
+The isolated executor retains the `audited_inputs` behavior above. The opt-in
+stateful target VM uses `scope=audited_sequence_steps`. It never inserts the
+same-input verification loop into a live primary epoch. Instead, deferred
+audit (and optional preflight) start fresh sessions sequentially and replay
+the exact same ordered bytes from init through the measured step. The group
+key adds the init identity, step index, prefix hash and input hash, and never
+contains epoch/PID, outcome or observed coverage. The same formula and
+weighted aggregate in `efz_stability` remain authoritative. Audit progress
+updates the existing nested snapshot object between steps; during a long
+primary epoch the latest audit value retains its age and scope. A current
+primary step with no comparable replay is pending, not newly measured.
+
+An audited step after `k` prefix inputs costs up to `repeats * (k + 1)` extra
+target calls with this implementation because primary results are excluded.
+For `repeats=20`, that is 20 full prefix replays, not 19 single-input calls.
+One pass observes all reached step positions. Preflight and deferred phases
+each have an explicit `max_calls`/`max_elapsed_ms` budget. Missing suffix
+steps after a crash are not inserted as empty traces. At `budget_exhausted` or
+stop, a measured partial aggregate is retained. The journal and same-sequence
+contract are described in [persistent-target.md](persistent-target.md).
+
+`history_sensitivity` is separate: it compares the same bytes seen after
+different primary prefixes. A difference can be the expected consequence of
+accumulated state. It is not merged into the feature stability percentage.
+Both metrics describe observations, not a probability or proof of total
+determinism. Extra diagnostic calls are counted separately and do not enter
+the TUI primary executions/second numerator.
 
 ## Local validation
 

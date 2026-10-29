@@ -46,9 +46,24 @@ init(C) ->
         random->undefined; staged->efz_mutation_plan:new(maps:get(mutation,C))
     end,
     Replay=maps:get(benchmark_replay_inputs,C,undefined),
-    Initial=C1#{monitor_index=>efz_monitor:prepare(C1),
-            feature_stability=>efz_stability:new(maps:get(runtime_oracles,C1),
+    Feature0=efz_stability:new(maps:get(runtime_oracles,C1),
                 {maps:get(coverage,C1),maps:get(coverage_backend,C1)}),
+    Feature=case maps:get(mode,maps:get(execution,C1)) of
+        persistent_vm->
+            Seq=maps:get(sequence,maps:get(stability,maps:get(runtime_oracles,C1))),
+            case maps:get(policy,Seq) of
+                off->Feature0#{scope=>audited_sequence_steps,status=>disabled,
+                    collection_status=>disabled};
+                _->Feature0#{scope=>audited_sequence_steps,collection_status=>pending}
+            end;
+        isolated->Feature0
+    end,
+    Initial=C1#{monitor_index=>efz_monitor:prepare(C1),
+            feature_stability=>Feature,
+            history_seen=>#{},history_sensitivity=>#{comparisons=>0,changed=>0,
+                samples=>[],tracked_inputs=>0},
+            target_timing=>#{count=>0,roundtrip_total_us=>0,child_total_us=>0,
+                roundtrip_samples=>[],child_samples=>[]},
             pending_seeds => case Replay of undefined -> efz_corpus:all(); _ -> [] end,
             replay_remaining=>Replay,
             feedback => ProfileFeedback,
@@ -63,14 +78,80 @@ init(C) ->
             calibration_started_at => erlang:monotonic_time(microsecond)},
     case provider_init(Initial) of
         {ok,Ready} ->
-            ok=efz_external_worker:ready(),
-            self() ! iterate,
-            {ok,Ready};
+            case preflight_enabled(Ready) of
+                true ->
+                    ok=efz_external_worker:ready(),
+                    self() ! iterate,
+                    {ok,Ready#{preflight_pending=>true}};
+                false ->
+                    case target_session_init(Ready) of
+                        {ok,WithTarget}->
+                            ok=efz_external_worker:ready(),
+                            self() ! iterate,
+                            {ok,WithTarget};
+                        {error,Why}->{stop,{target_session_startup,Why}}
+                    end
+            end;
         {error,Reason} -> {stop,{mutation_provider_startup,Reason}}
+    end.
+
+preflight_enabled(#{execution:=#{mode:=persistent_vm},runtime_oracles:=P}) ->
+    St=maps:get(stability,P),Seq=maps:get(sequence,St),
+    maps:get(enabled,P) andalso maps:get(enabled,St) andalso
+        maps:get(policy,Seq)=:=preflight_and_deferred;
+preflight_enabled(_) -> false.
+
+preflight_inputs(#{replay_remaining:=Inputs}) when is_list(Inputs) -> Inputs;
+preflight_inputs(S) -> [maps:get(input,E)||E<-maps:get(pending_seeds,S,[])].
+
+run_preflight(S) ->
+    Coordinator=maps:get(coordinator,S),Worker=self(),
+    Progress=fun(FS,Stats)->
+        Coordinator!{feature_stability_progress,Worker,efz_stability:public(FS)},
+        Coordinator!{target_audit_progress,Worker,Stats#{phase=>preflight}}
+    end,
+    case efz_sequence_audit:run_inputs(preflight_inputs(S),S,
+            maps:get(feature_stability,S),maps:get(calibration_started_at,S),Progress) of
+        {ok,FS,Stats}->S#{feature_stability=>FS,
+            preflight_audit=>Stats#{phase=>preflight},target_audit=>Stats#{phase=>preflight},
+            verification_used=>maps:get(calls,Stats)};
+        {error,Why,FS,Stats}->S#{feature_stability=>FS,
+            preflight_audit=>Stats#{phase=>preflight,error=>Why},
+            target_audit=>Stats#{phase=>preflight,error=>Why}}
+    end.
+
+target_session_init(S=#{execution:=#{mode:=isolated}}) -> {ok,S};
+target_session_init(S=#{execution:=#{mode:=persistent_vm}=E}) ->
+    Normal=E#{max_iterations_per_epoch=>maps:get(max_iterations_per_epoch,E,100000)},
+    case efz_sequence_journal:open(S#{execution=>Normal}) of
+        {ok,Journal} ->
+            case efz_target_session:open(S#{execution=>Normal}) of
+                {ok,Session} ->
+                    Info=efz_target_session:info(Session),
+                    {ok,S#{execution=>Normal,target_session=>Session,
+                        target_session_info=>Info,target_journal=>Journal}};
+                {error,Why} ->
+                    _=efz_sequence_journal:close(Journal,startup_failed),
+                    {error,Why}
+            end;
+        {error,Why}->{error,Why}
     end.
 
 handle_info(iterate, #{campaign_finished:=true}=S) -> {noreply,S};
 handle_info(iterate, #{pending_mutation:=_}=S) -> {noreply,S};
+handle_info(iterate,#{preflight_pending:=true}=S) ->
+    Audited=run_preflight(S),
+    case maps:get(status,maps:get(preflight_audit,Audited)) of
+        stopped->finish(stopped_by_user,Audited#{preflight_pending=>false});
+        partial->finish({infrastructure_failure,preflight_audit_failed},
+            Audited#{preflight_pending=>false});
+        _->case target_session_init(Audited#{preflight_pending=>false}) of
+            {ok,WithTarget}->self()!iterate,{noreply,WithTarget};
+            {error,Why}->infrastructure({target_session_startup,Why},Audited)
+        end
+    end;
+handle_info(iterate,#{execution:=#{mode:=persistent_vm,max_iterations_per_epoch:=Max},
+    target_journal:=#{step:=Step}}=S) when is_integer(Max),Step>=Max -> finish(epoch_limit,S);
 handle_info(iterate, #{phase:=replay,replay_remaining:=[Input|Rest],iteration:=N}=S) ->
     execute(Input,#{id=>1},mutation,begin_iteration(S#{replay_remaining=>Rest,
                                                        iteration=>N+1}));
@@ -382,7 +463,26 @@ execute_allowed(Input, Parent, Phase, S) ->
 executor_reference_options(S)->maps:with([runtime_oracles,coverage,coverage_backend,coverage_feedback,
     performance_profile,
     coverage_schema,max_input_bytes,execution_identities,manifests],S).
-execute_checked(Input, Parent, Phase, S0 = #{target := M, timeout := T, feedback := F}) ->
+execute_checked(Input,Parent,Phase,S0) ->
+    case target_dispatch(Input,Parent,Phase,S0) of
+        {ok,Ready}->execute_checked_run(Input,Parent,Phase,Ready);
+        {error,journal_limit}->finish(journal_limit,S0);
+        {error,Why}->infrastructure({sequence_journal,Why},S0)
+    end.
+target_dispatch(_,_,_,S=#{execution:=#{mode:=isolated}}) -> {ok,S};
+target_dispatch(Input,Parent,Phase,S=#{target_journal:=J}) ->
+    case efz_sequence_journal:dispatch(J,Input,
+            #{phase=>Phase,parent=>maps:get(id,Parent),
+              recipe=>maps:get(current_recipe,S,undefined)}) of
+        {ok,Next}->
+            Sequence=#{epoch=>maps:get(epoch,J),step=>maps:get(step,Next),
+                prefix_sha256=>maps:get(prefix,J),journal=>maps:get(path,J)},
+            Context=maps:get(failure_context,S,#{}),
+            {ok,S#{target_journal=>Next,sequence_context=>Sequence,
+                failure_context=>Context#{sequence=>Sequence}}};
+        Error->Error
+    end.
+execute_checked_run(Input, Parent, Phase, S0 = #{target := M, timeout := T, feedback := F}) ->
     Options0 = case maps:get(executor_options, S0) of reference -> executor_reference_options(S0); Prepared -> Prepared end,
     Options=case maps:get(bitmap_reuse_map,S0) of
         undefined -> Options0;
@@ -391,9 +491,15 @@ execute_checked(Input, Parent, Phase, S0 = #{target := M, timeout := T, feedback
     end,
     Profile=maps:get(performance_profile,S0),
     {Result,ExecutorUs}=efz_perf_profile:measure(Profile,fun() ->
-        efz_executor:run(M, Input, T, Options#{execution_origin=>Phase,
-            execution_recipe=>maps:get(current_recipe,S0,undefined)}) end),
-    SExec=efz_perf_profile:add_state(S0,executor,ExecutorUs),
+        run_target(M,Input,T,Options#{execution_origin=>Phase,
+            execution_recipe=>maps:get(current_recipe,S0,undefined)},S0) end),
+    SJournal=target_completed(Input,Result,S0),
+    case maps:find(journal_error,SJournal) of
+        {ok,Why}->infrastructure({sequence_journal,Why},SJournal);
+        error->execute_observed(Input,Parent,Phase,Result,F,Profile,ExecutorUs,SJournal)
+    end.
+execute_observed(Input,Parent,Phase,Result,F,Profile,ExecutorUs,SJournal) ->
+    SExec=efz_perf_profile:add_state(SJournal,executor,ExecutorUs),
     SProfile=case maps:find(performance_profile,Result) of
         {ok,Times} when Profile ->
             WithTimes=maps:fold(fun(K,V,Acc)->
@@ -411,9 +517,98 @@ execute_checked(Input, Parent, Phase, S0 = #{target := M, timeout := T, feedback
     runtime_stats(Result),
     Arms=maps:get(bitmap_map_arms,SInput)+case maps:get(bitmap_map_armed,Result,false) of true->1;false->0 end,
     S = observed(Result,SInput#{bitmap_map_arms=>Arms,
-        failure_context=>(maps:get(failure_context,S0))#{result=>public_result(Result)}}),
+        failure_context=>(maps:get(failure_context,SJournal))#{result=>public_result(Result)}}),
     notify_context(maps:get(failure_context,S),S),
-    finish_iteration(execute_result(Input, Parent, Phase, Result, F, S)).
+    Outcome=finish_iteration(execute_result(Input, Parent, Phase, Result, F, S)),
+    case {maps:get(mode,maps:get(execution,S)),
+          maps:get(runner_reusable,Result,true),Outcome} of
+        {persistent_vm,false,{noreply,Next}} ->
+            finish(target_epoch_terminated,Next#{epoch_end_outcome=>maps:get(outcome,Result),
+                epoch_end_reason=>maps:get(epoch_limit_reason,Result,none)});
+        _ -> Outcome
+    end.
+run_target(M,Input,T,Options,#{execution:=#{mode:=isolated}}) ->
+    efz_executor:run(M,Input,T,Options);
+run_target(_M,Input,T,Options,#{target_session:=Session}=S) ->
+    efz_external_worker:execution(Input,T,Options,fun()->
+        case efz_target_session:run(Session,Input,T) of
+            {ok,R}->R;
+            {error,Why}->#{execution_ref=>make_ref(),outcome=>{infrastructure,Why},
+                coverage=>[],coverage_status=>{error,Why},
+                coverage_observation=>efz_cov_integrity:observation([],{error,Why},[]),
+                builds=>maps:get(builds,maps:get(feedback,S)),elapsed_us=>0,
+                runner_reusable=>false,cleanup=>#{status=>epoch_retired}}
+        end
+    end).
+target_completed(_,_,S=#{execution:=#{mode:=isolated}}) -> S;
+target_completed(Input,R,S=#{target_journal:=J,sequence_context:=#{step:=Step}}) ->
+    case efz_sequence_journal:completed(J,Step,R) of
+        {ok,Next}->history_record(Input,R,target_timing_record(R,S#{target_journal=>Next,
+            target_session_info=>maps:merge(maps:get(target_session_info,S,#{}),
+                #{step=>Step,os_pid=>maps:get(os_pid,R,undefined),
+                  driver=>maps:get(driver,R,undefined),
+                  cleanup=>maps:get(cleanup,R,#{})})}));
+        {error,Why}->S#{journal_error=>Why}
+    end.
+
+target_timing_record(R,S) ->
+    T=maps:get(target_timing,S),N=maps:get(count,T),
+    Roundtrip=maps:get(target_vm_elapsed_us,R,maps:get(elapsed_us,R,0)),
+    Child=maps:get(elapsed_us,R,0),
+    WithSample=case N<1024 of
+        true->T#{roundtrip_samples=>[Roundtrip|maps:get(roundtrip_samples,T)],
+            child_samples=>[Child|maps:get(child_samples,T)]};
+        false->T end,
+    S#{target_timing=>WithSample#{count=>N+1,
+        roundtrip_total_us=>maps:get(roundtrip_total_us,T)+Roundtrip,
+        child_total_us=>maps:get(child_total_us,T)+Child}}.
+
+target_timing_public(T) ->
+    RS=lists:sort(maps:get(roundtrip_samples,T)),
+    CS=lists:sort(maps:get(child_samples,T)),
+    (maps:without([roundtrip_samples,child_samples],T))#{
+        sample_count=>length(RS),roundtrip_p50_us=>quantile(RS,50),
+        roundtrip_p95_us=>quantile(RS,95),child_p50_us=>quantile(CS,50),
+        child_p95_us=>quantile(CS,95)}.
+quantile([],_) -> null;
+quantile(Sorted,P) -> lists:nth(1+(length(Sorted)-1)*P div 100,Sorted).
+
+history_record(Input,R,S) ->
+    case efz_stability:usable(R) of
+        false->S;
+        true ->
+            Hash=crypto:hash(sha256,Input),
+            #{step:=Step,prefix_sha256:=Prefix}=maps:get(sequence_context,S),
+            Outcome=efz_stability:outcome(maps:get(outcome,R)),
+            Return=case maps:get(outcome,R) of
+                {ok,V}->efz_stability:bounded_return(V);
+                _->not_compared end,
+            Current=#{step=>Step,prefix=>Prefix,
+                coverage=>lists:usort(maps:get(coverage,R)),
+                outcome=>Outcome,return=>Return},
+            Seen=maps:get(history_seen,S),Summary=maps:get(history_sensitivity,S),
+            case maps:find(Hash,Seen) of
+                {ok,First=#{prefix:=Previous}} when Previous=/=Prefix ->
+                    CoverChange=maps:get(coverage,First)=/=maps:get(coverage,Current),
+                    OutcomeChange=maps:get(outcome,First)=/=Outcome,
+                    ReturnChange=maps:get(return,First)=/=Return,
+                    Changed=CoverChange orelse OutcomeChange orelse ReturnChange,
+                    Examples=maps:get(samples,Summary),
+                    Sample=#{input_sha256=>Hash,first_step=>maps:get(step,First),
+                        current_step=>Step,first_prefix=>Previous,current_prefix=>Prefix,
+                        coverage_changed=>CoverChange,outcome_changed=>OutcomeChange,
+                        return_changed=>ReturnChange},
+                    WithExamples=case Changed andalso length(Examples)<16 of
+                        true->[Sample|Examples];false->Examples end,
+                    S#{history_sensitivity=>Summary#{comparisons=>maps:get(comparisons,Summary)+1,
+                        changed=>maps:get(changed,Summary)+case Changed of true->1;false->0 end,
+                        samples=>WithExamples}};
+                error when map_size(Seen)<128 ->
+                    S#{history_seen=>Seen#{Hash=>Current},
+                        history_sensitivity=>Summary#{tracked_inputs=>map_size(Seen)+1}};
+                _->S
+            end
+    end.
 execute_result(Input, Parent, Phase, Result, F, S) ->
     efz_stats:inc(case Phase of calibration -> calibrations; mutation -> executions end),
     Profile=maps:get(performance_profile,S),
@@ -434,8 +629,13 @@ execute_result(Input, Parent, Phase, Result, F, S) ->
                              phase => Phase, origin => Phase, outcome => maps:get(outcome, Result),
                              execution_identities=>maps:get(execution_identities,SFeedback),
                              coverage_observation=>maps:get(coverage_observation,Result,#{})},
+            MetaWithSequence=case maps:find(sequence_context,SFeedback) of
+                {ok,Sequence}->Meta#{sequence=>Sequence};
+                error->Meta
+            end,
             WithMutation=case {Phase,maps:find(current_recipe,SFeedback)} of
-                {mutation,{ok,Recipe}}->Meta#{mutation=>Recipe};_->Meta
+                {mutation,{ok,Recipe}}->MetaWithSequence#{mutation=>Recipe};
+                _->MetaWithSequence
             end,
             semantic_result(Input,Result,WithMutation,F1,SFeedback,Profile)
     end.
@@ -577,6 +777,8 @@ accepted(Input, Result, Meta1, F1, S0) ->
         {ok,S1} -> runtime_check(Input,Result,Meta1,S1)
         end
     end.
+runtime_check(_,_,Meta,S=#{execution:=#{mode:=persistent_vm}}) ->
+    accepted_success(Meta,S);
 runtime_check(Input,Result,Meta,S=#{runtime_oracles:=#{enabled:=true}=P}) ->
     St=maps:get(stability,P),Cats=efz_runtime:categories(Result),
     Reason=maps:get(retention_reason,Meta),
@@ -909,14 +1111,58 @@ close_provider_session(#{provider_session:=#{pid:=Pid,ref:=Ref,monitor:=Monitor}
     {maps:remove(provider_session,S#{provider_stats=>Stats0#{session=>Session}}),Error};
 close_provider_session(S)->{S,none}.
 
+close_target_session(S,Reason) ->
+    case maps:find(target_session,S) of
+        {ok,Session} ->
+            Info=try efz_target_session:info(Session) catch _:_ -> #{} end,
+            _=efz_target_session:close(Session),
+            J=efz_sequence_journal:close(maps:get(target_journal,S),Reason),
+            FinalInfo=(maps:merge(maps:get(target_session_info,S,#{}),Info))#{status=>down},
+            S#{target_journal=>J,target_session_info=>FinalInfo};
+        error->S
+    end.
+maybe_sequence_audit(S,stopped_by_user) -> S;
+maybe_sequence_audit(S=#{execution:=#{mode:=persistent_vm},target_journal:=J},_) ->
+    P=maps:get(runtime_oracles,S),St=maps:get(stability,P),
+    Seq=maps:get(sequence,St),
+    case maps:get(enabled,P) andalso maps:get(enabled,St) andalso
+         maps:get(policy,Seq)=/=off andalso maps:get(complete,J,false) of
+        true ->
+            Started=erlang:monotonic_time(microsecond),
+            Coordinator=maps:get(coordinator,S),Worker=self(),
+            Progress=fun(FS,AuditStats) ->
+                Coordinator!{feature_stability_progress,Worker,efz_stability:public(FS)},
+                Coordinator!{target_audit_progress,Worker,AuditStats#{phase=>audit}}
+            end,
+            case efz_sequence_audit:run(maps:get(path,J),S,
+                    maps:get(feature_stability,S),maps:get(calibration_started_at,S),Progress) of
+                {ok,FS,Stats}->
+                    efz_stats:add(runtime_diagnostic_us,
+                        erlang:monotonic_time(microsecond)-Started),
+                    S#{feature_stability=>FS,target_audit=>Stats,
+                        verification_used=>maps:get(verification_used,S,0)+maps:get(calls,Stats)};
+                {error,Why,FS,Stats}->S#{feature_stability=>FS,
+                    target_audit=>Stats#{error=>Why}};
+                {error,Why,FS}->S#{feature_stability=>FS,
+                    target_audit=>#{status=>partial,error=>Why}}
+            end;
+        false->S
+    end;
+maybe_sequence_audit(S,_) -> S.
 finish(Status0, SIn) ->
-    {S,ProviderCloseError}=close_provider_session(SIn),
+    SClosed=close_target_session(SIn,Status0),
+    SAudited=maybe_sequence_audit(SClosed,Status0),
+    {S,ProviderCloseError}=close_provider_session(SAudited),
     StatusBeforeDiagnostic=case ProviderCloseError of
         none->Status0;
         Why->{infrastructure_failure,efz_stats:failure(
             {mutation_provider,{session_cleanup,Why}})}
     end,
-    Diagnostic=diagnostic(S),Status=diagnostic_status(StatusBeforeDiagnostic,Diagnostic),
+    RequestedStatus=case maps:get(status,maps:get(target_audit,S,#{}),none) of
+        stopped->stopped_by_user;
+        _->StatusBeforeDiagnostic
+    end,
+    Diagnostic=diagnostic(S),Status=diagnostic_status(RequestedStatus,Diagnostic),
     End = erlang:monotonic_time(microsecond),
     MutationStart = maps:get(mutation_started_at, S, End),
     CalibrationStart = maps:get(calibration_started_at, S),
@@ -936,9 +1182,29 @@ finish(Status0, SIn) ->
                crash_policy=>maps:get(crash_policy,S),
                crashes => [maps:get(Id,maps:get(crash_groups,S))||Id<-lists:reverse(maps:get(crash_order,S))],
                coverage => efz_coverage:global_snapshot(maps:get(global, maps:get(feedback, S)))},
+    BaseWithTarget=case maps:find(target_journal,S) of
+        {ok,J}->Base0#{target_report_schema_version=>1,
+            target_execution=>maps:get(execution,S),
+            target_session=>maps:get(target_session_info,S,#{}),
+            sequence_journal=>efz_sequence_journal:public(J),
+            epoch_end_outcome=>maps:get(epoch_end_outcome,S,undefined),
+            epoch_end_reason=>maps:get(epoch_end_reason,S,undefined),
+            history_sensitivity=>maps:get(history_sensitivity,S),
+            target_timing=>target_timing_public(maps:get(target_timing,S)),
+            preflight_audit=>maps:get(preflight_audit,S,#{status=>not_requested}),
+            target_audit=>maps:get(target_audit,S,#{status=>not_measured})};
+        error->case maps:get(mode,maps:get(execution,S)) of
+            persistent_vm->Base0#{target_report_schema_version=>1,
+                target_execution=>maps:get(execution,S),
+                sequence_journal=>#{complete=>false,reason=>primary_epoch_not_started},
+                preflight_audit=>maps:get(preflight_audit,S,#{status=>not_requested}),
+                target_audit=>maps:get(target_audit,S,#{status=>not_measured})};
+            isolated->Base0
+        end
+    end,
     Base1=case maps:get(max_iterations,S) of
-        infinity->Base0#{decisions_dropped=>maps:get(decisions_dropped,S,0)};
-        _->Base0 end,
+        infinity->BaseWithTarget#{decisions_dropped=>maps:get(decisions_dropped,S,0)};
+        _->BaseWithTarget end,
     ProfileReport=case maps:get(performance_profile,S) of
         true -> #{performance_profile=>efz_perf_profile:summary(maps:get(profile,S)),
                   input_size_buckets=>maps:get(input_size_buckets,S)};

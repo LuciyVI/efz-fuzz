@@ -43,12 +43,21 @@ init(C) ->
     {ok, Workers} = efz_worker_sup:start_link(WorkerC#{coordinator => self()}),
     [{efz_worker, Worker, worker, _}] = supervisor:which_children(Workers),
     WorkerRef = monitor(process, Worker),
+    Feature0=efz_stability:public(efz_stability:new(
+        maps:get(runtime_oracles,C),{maps:get(coverage,C),maps:get(coverage_backend,C)})),
+    Persistent=maps:get(mode,maps:get(execution,C))=:=persistent_vm,
+    Feature=case {Persistent,maps:get(status,Feature0)} of
+        {true,disabled}->Feature0#{scope=>audited_sequence_steps};
+        {true,_}->Feature0#{scope=>audited_sequence_steps,collection_status=>pending};
+        _->Feature0 end,
+    TargetFields=case Persistent of
+        true->#{target_execution=>maps:get(execution,C),target_phase=>preflight};
+        false->#{} end,
     {ok, #{children => [Workers, Stats, Corpus], waiters => #{}, report => pending,
            worker => Worker, worker_monitor => WorkerRef,execution_context=>undefined,
-           stop_requested=>false,monitor_pending=>false,monitor_snapshot=>#{schema_version=>1,target=>maps:get(target,C),
+           stop_requested=>false,monitor_pending=>false,monitor_snapshot=>maps:merge(TargetFields,#{schema_version=>1,target=>maps:get(target,C),
              status=>running,max_iterations=>maps:get(max_iterations,C),elapsed_ms=>0,stats=>#{},last=>null,
-             feature_stability=>efz_stability:public(efz_stability:new(
-                 maps:get(runtime_oracles,C),{maps:get(coverage,C),maps:get(coverage_backend,C)}))},
+             feature_stability=>Feature}),
            execution_identities=>maps:get(execution_identities,C),max_input_bytes=>maps:get(max_input_bytes,C)}}.
 handle_call(request_stop,_,#{stop_requested:=true}=S)->{reply,ok,S};
 handle_call(request_stop,_,#{report:=pending,worker:=W}=S)->
@@ -68,7 +77,18 @@ handle_call(monitor_snapshot, _, #{worker:=Worker,report:=Report}=S) ->
     Cached=maps:get(monitor_snapshot,S),
     Reply=case Report of pending->Cached;_->Cached#{status=>maps:get(status,Report),
         stats=>maps:remove(primary_infrastructure_failure,maps:get(stats,Report)),
-        feature_stability=>maps:get(feature_stability,Report,maps:get(feature_stability,Cached))} end,
+        feature_stability=>maps:get(feature_stability,Report,maps:get(feature_stability,Cached)),
+        target_phase=>case maps:is_key(target_execution,Report) of true->stopped;
+            false->maps:get(target_phase,Cached,none) end,
+        target_audit=>maps:get(target_audit,Report,maps:get(target_audit,Cached,#{})),
+        sequence_journal=>maps:get(sequence_journal,Report,
+            maps:get(sequence_journal,Cached,#{})),
+        target_execution=>maps:get(target_execution,Report,
+            maps:get(target_execution,Cached,#{})),
+        target_session=>maps:get(target_session,Report,
+            maps:get(target_session,Cached,#{})),
+        history_sensitivity=>maps:get(history_sensitivity,Report,
+            maps:get(history_sensitivity,Cached,#{}))} end,
     {reply,Reply,S#{monitor_pending=>Pending orelse Request}};
 handle_call(benchmark_snapshot, _, #{worker := Worker, report := Report} = S) ->
     Reply = case Report of
@@ -101,6 +121,14 @@ handle_info({feature_stability_progress,Worker,FS},#{worker:=Worker,report:=pend
     Old=maps:get(monitor_snapshot,S),
     Fresh=newest_stability(Old,Old#{feature_stability=>FS}),
     {noreply,S#{monitor_snapshot=>Fresh}};
+handle_info({target_audit_progress,Worker,Meta},#{worker:=Worker,report:=pending}=S)->
+    Old=maps:get(monitor_snapshot,S),
+    Previous=maps:get(target_audit,Old,#{}),
+    case audit_newer(Meta,Previous) of
+        true->{noreply,S#{monitor_snapshot=>Old#{target_audit=>Meta,
+            target_phase=>maps:get(phase,Meta,audit)}}};
+        false->{noreply,S}
+    end;
 handle_info({execution_context,Worker,Context},#{worker:=Worker}=S)->
     {noreply,S#{execution_context=>Context}};
 handle_info({campaign_done, Worker, Report}, #{worker := Worker, waiters := Ws} = S) ->
@@ -121,8 +149,26 @@ handle_info({'EXIT', Pid, Reason}, S) -> {stop, {campaign_child_exit, Pid, Reaso
 handle_info(_, S) -> {noreply, S}.
 newest_stability(Old,New) ->
     A=maps:get(feature_stability,Old,#{}),B=maps:get(feature_stability,New,#{}),
-    case maps:get(revision,A,0)>maps:get(revision,B,0) of
-        true->New#{feature_stability=>A};false->New end.
+    Stable=case maps:get(revision,A,0)>maps:get(revision,B,0) of
+        true->New#{feature_stability=>A};false->New end,
+    %% Audit progress can arrive while the worker is busy and its older
+    %% primary snapshot is still in flight. Keep the newer phase/counters.
+    OldAudit=maps:get(target_audit,Old,#{}),
+    NewAudit=maps:get(target_audit,Stable,#{}),
+    case audit_newer(OldAudit,NewAudit) andalso
+         not audit_newer(NewAudit,OldAudit) of
+        true->Stable#{target_audit=>OldAudit,
+            target_phase=>maps:get(phase,OldAudit,maps:get(target_phase,Old,primary))};
+        false->Stable
+    end.
+audit_newer(New,Old) ->
+    NewRank=audit_rank(maps:get(phase,New,none)),
+    OldRank=audit_rank(maps:get(phase,Old,none)),
+    NewRank>OldRank orelse NewRank=:=OldRank andalso
+        maps:get(calls,New,0)>=maps:get(calls,Old,0).
+audit_rank(preflight)->0;
+audit_rank(audit)->1;
+audit_rank(_)->-1.
 terminate(_, #{children := Children}) ->
     lists:foreach(fun(P) ->
         Ref = monitor(process, P), unlink(P), exit(P, shutdown),

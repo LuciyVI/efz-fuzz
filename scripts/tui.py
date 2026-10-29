@@ -42,7 +42,9 @@ def stability_lines(snapshot, age_seconds=None):
                  'stopped': 'stopped', 'capped': 'group cap reached',
                  'partial': 'partial'}.get(collection, 'measured')
         groups = data.get('groups_measured', 0)
-        headline = f'Stability: {value} — {state} · {groups} audited inputs'
+        scope = data.get('scope')
+        unit = 'audited step groups' if scope == 'audited_sequence_steps' else 'audited inputs'
+        headline = f'Stability: {value} — {state} · {groups} {unit}'
         if age_seconds is not None and age_seconds >= 0:
             headline += f' · updated {age_seconds:.1f}s ago'
     elif status == 'disabled':
@@ -82,6 +84,32 @@ def stability_lines(snapshot, age_seconds=None):
                 if ranked:
                     count, reason = max(ranked)
                     detail += f' ({clean(reason)[:20]} {count})'
+    return headline, detail
+
+
+def target_lines(snapshot):
+    execution = snapshot.get('target_execution')
+    if not isinstance(execution, dict) or execution.get('mode') != 'persistent_vm':
+        return '', ''
+    session = snapshot.get('target_session')
+    journal = snapshot.get('sequence_journal')
+    audit = snapshot.get('target_audit')
+    session = session if isinstance(session, dict) else {}
+    journal = journal if isinstance(journal, dict) else {}
+    audit = audit if isinstance(audit, dict) else {}
+    phase = snapshot.get('target_phase', 'primary')
+    step = journal.get('step', session.get('step', 0))
+    headline = f'Target persistent/accumulate · #{step} · {clean(phase)}'
+    if phase == 'audit':
+        headline += f" · replay {audit.get('repetition', '?')}/{audit.get('requested_repetitions', '?')}"
+    complete = journal.get('complete')
+    state = 'complete' if complete is True else 'in progress' if complete is False else 'unavailable'
+    detail = f"Journal {state} · audit calls {audit.get('calls', 0)}"
+    history = snapshot.get('history_sensitivity')
+    if isinstance(history, dict):
+        changed, compared = history.get('changed'), history.get('comparisons')
+        if type(changed) is int and type(compared) is int and 0 <= changed <= compared:
+            detail += f' · history drift {changed}/{compared}'
     return headline, detail
 
 
@@ -298,6 +326,7 @@ def screen(stdscr, directory, process=None):
             since = feature_base_age + time.monotonic() - feature_seen_at
         stability, stability_detail = stability_lines(snap, since)
         put(1, 1, stability, accent)
+        target_headline, target_detail = target_lines(snap)
         if w < 90 or h < 26:
             put(3, 1, 'Resize to at least 90 columns × 26 rows. Campaign continues.')
         else:
@@ -305,6 +334,8 @@ def screen(stdscr, directory, process=None):
             for y in range(2, h - 3):
                 put(y, split, '│')
             left_width = split - 3
+            if target_headline:
+                put(3, 1, target_headline[:left_width])
             if provider and show_provider:
                 put(2, 1, 'MUTATION PROVIDER', accent)
                 for row, line in enumerate(provider, 4):
@@ -343,7 +374,7 @@ def screen(stdscr, directory, process=None):
                     mode_name = current_provider.get('mode', 'native') if isinstance(current_provider, dict) else 'native'
                     put(21, 1, ('Provider · ' + str(mode_name))[:left_width], accent)
                     put(22, 1, (provider[4] if len(provider) > 4 else provider[-1])[:left_width])
-            put(h - 3, 1, stability_detail[:w - 2])
+            put(h - 3, 1, (stability_detail + (' · ' + target_detail if target_detail else ''))[:w - 2])
             last = pinned if pinned is not None else snap.get('last')
             last = last if isinstance(last, dict) else None
             preview = (last or {}).get('preview_hex', '')

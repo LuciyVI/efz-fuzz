@@ -17,8 +17,11 @@ main_local(Args) ->
 
 help() ->
     "Usage: escript scripts/fuzz.escript --target MODULE --out DIR --artifacts DIR [--seeds DIR | --corpus-dir DIR] [options]\n"
-    "\nTarget contract: MODULE:run(binary()) -> term(). Coverage is automatic.\n"
+    "\nTarget contract: MODULE:run(binary()) -> term(). Persistent mode also accepts\n"
+    "init_session/1, handle_input/2 and finish_session/1. Coverage is automatic.\n"
     "  --config FILE            Trusted campaign map (efz:start schema); requires --out\n"
+    "                           Set execution => #{mode=>persistent_vm,state_policy=>accumulate}\n"
+    "                           and runtime_oracles.stability.sequence in this map for stateful audit.\n"
     "  --target MODULE          Harness or instrumented target exporting run/1 (required)\n"
     "  --seeds DIR              Read raw seed files (required unless --corpus-dir is supplied)\n"
     "  --corpus-dir DIR         Load/store reusable successful corpus, not a campaign checkpoint\n"
@@ -65,7 +68,9 @@ help() ->
     "Exit: 0 completed/exhausted/idle stop (including target crashes); 2 invalid invocation/config;\n"
     "1 runtime infrastructure or report-storage failure. Existing report.term is replaced.\n"
     "\nFinite: fuzz.escript --target MODULE --artifacts DIR --seeds DIR --out OUT --mutation-provider hybrid --max-iterations 1000\n"
-    "Continuous: use the same command with --max-iterations infinity; touch OUT/stop.request to stop and save.\n".
+    "Continuous: use the same command with --max-iterations infinity; touch OUT/stop.request to stop and save.\n"
+    "Stateful: fuzz.escript --config examples/stateful/persistent.config --artifacts DIR --out OUT\n"
+    "Replay: escript scripts/sequence_replay.escript CONFIG DIR OUT/crashes/sequences/EPOCH.jsonl STEP\n".
 
 parse([], Options) -> Options;
 parse(["--help"], _) -> help;
@@ -196,8 +201,12 @@ launch(#{config_file:=Path}=O) ->
     case efz_fs:read_bounded(Path,1048576) of {ok,_}->ok;{error,E}->fail("Cannot read config: ~tp",[E]) end,
     C0=case file:consult(Path) of {ok,[C]} when is_map(C)->C;
         Other->fail("Config must contain one campaign map: ~tp",[Other]) end,
+    CPrepared=case maps:take(artifacts_dir,C0) of
+        {PreparedDir,Rest}->Rest#{artifacts=>require(efz_instrument:discover(PreparedDir),"Invalid artifacts_dir")};
+        error->C0
+    end,
     case maps:find(out,O) of error->fail("--config requires --out",[]);{ok,_}->ok end,
-    C1=maps:merge(C0,maps:with([corpus_dir,corpus_build_policy,coverage_policy,coverage_feedback,
+    C1=maps:merge(CPrepared,maps:with([corpus_dir,corpus_build_policy,coverage_policy,coverage_feedback,
         mutation_mode,timeout,max_iterations,max_input_bytes],O)),
     C2=case maps:find(artifacts,O) of error->C1;{ok,Dir}->
         C1#{artifacts=>require(efz_instrument:discover(Dir),"Invalid artifacts")} end,
@@ -388,6 +397,9 @@ finish(Report, Out) ->
     case Status of
         completed -> 0;
         stopped_by_user -> 0;
+        target_epoch_terminated -> 0;
+        epoch_limit -> 0;
+        journal_limit -> 0;
         {mutation_exhausted, _} -> 0;
         {mutation_stopped, idle_budget_exhausted} -> 0;
         _ -> io:format(standard_error, "EFZ infrastructure failure: ~tp~n", [Status]), 1
