@@ -21,10 +21,12 @@ On Linux the session owner records bounded `/proc/.../task/*/children` snapshots
 after completed steps and before retirement. A PID is signalled only if its
 kernel start time still matches the recorded value. Former child identities
 that no longer exist are removed from the session state. This covers the
-tested `setsid` process-group escape. It is not a cgroup/subreaper guarantee:
-a double-forked child reparented before observation, or a tree larger than
-1024 live descendants, is outside the verified boundary. Use an OS-level
-supervisor for such targets.
+tested `setsid` process-group escape. A snapshot that reaches its 1024-child
+bound returns an explicit infrastructure error and retires the epoch, rather
+than reporting an ordinary target result. It is not a cgroup/subreaper
+guarantee: a double-forked child reparented before observation, or descendants
+omitted after the cap, are outside the verified cleanup boundary. Use an
+OS-level supervisor for such targets.
 
 ## Checks on this review branch
 

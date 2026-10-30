@@ -25,9 +25,12 @@ recorded PID's kernel start time before signalling it, so a target child that
 entered a new process group with `setsid` is still terminated. The synthetic
 tests cover orderly close and an external timeout while a native NIF blocks the
 target VM. This is not an OS container: a child that double-forks and is
-reparented before any snapshot, or more than 1024 live descendants, exceeds
-the proven cleanup boundary. Run such targets under a dedicated OS supervisor
-or cgroup and keep the epoch resource budgets conservative.
+reparented before any snapshot exceeds the proven cleanup boundary. If the
+snapshot reaches 1024 descendants, the request returns an explicit
+`target_os_descendant_limit` infrastructure error and retires the epoch; this
+limit cannot guarantee cleanup of children omitted from that snapshot. Run
+targets that can exceed this boundary under a dedicated OS supervisor or
+cgroup and keep the epoch resource budgets conservative.
 
 Target callbacks can use the existing `run(Binary)` contract; it is invoked
 repeatedly in the same driver process. For explicit state, export all three:
