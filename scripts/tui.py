@@ -4,6 +4,7 @@ import argparse
 from collections import deque
 import curses
 import json
+import math
 from pathlib import Path
 import subprocess
 import sys
@@ -23,10 +24,74 @@ def chart(values, width):
     return ''.join(blocks[min(7, max(0, int(v / high * 7)))] for v in values)
 
 
+def stability_lines(snapshot, age_seconds=None):
+    data = snapshot.get('feature_stability')
+    if not isinstance(data, dict):
+        return 'Stability: unavailable', ''
+    status = data.get('status')
+    collection = data.get('collection_status')
+    observed = data.get('observed_feature_pairs')
+    stable = data.get('stable_feature_pairs')
+    percent = data.get('percent')
+    valid_number = (type(percent) in (int, float) and math.isfinite(percent)
+                    and 0 <= percent <= 100 and type(observed) is int and observed > 0
+                    and type(stable) is int and 0 <= stable <= observed)
+    if status == 'measured' and valid_number:
+        value = '<100%' if stable < observed and percent >= 99.995 else f'{percent:.2f}%'
+        state = {'budget_exhausted': 'budget exhausted', 'collecting': 'measuring',
+                 'stopped': 'stopped', 'capped': 'group cap reached',
+                 'partial': 'partial'}.get(collection, 'measured')
+        groups = data.get('groups_measured', 0)
+        headline = f'Stability: {value} — {state} · {groups} audited inputs'
+        if age_seconds is not None and age_seconds >= 0:
+            headline += f' · updated {age_seconds:.1f}s ago'
+    elif status == 'disabled':
+        headline = 'Stability: disabled'
+    elif status == 'no_observed_features':
+        headline = 'Stability: N/A — no features observed'
+        if collection in ('budget_exhausted', 'stopped', 'capped'):
+            headline += ' · ' + collection.replace('_', ' ')
+    elif status in ('unsupported_backend', 'unsupported_context'):
+        headline = 'Stability: N/A — unsupported backend/context'
+    elif status in ('insufficient_samples', 'pending'):
+        current = data.get('current')
+        current = current if isinstance(current, dict) else {}
+        qualifier = {'capped': 'group cap reached', 'budget_exhausted': 'budget exhausted',
+                     'stopped': 'stopped', 'partial': 'partial'}.get(collection, 'collecting')
+        headline = 'Stability: N/A — {} {}/{}'.format(
+            qualifier, current.get('valid_runs', 0), current.get('requested_runs', '?'))
+    else:
+        headline = 'Stability: unavailable'
+    detail = ''
+    if type(stable) is int and type(observed) is int:
+        detail = f'Stable {stable}/{observed} · variable {observed - stable}'
+        unstable = data.get('groups_unstable')
+        if type(unstable) is int and unstable >= 0:
+            detail += f' · unstable {unstable}'
+        current = data.get('current')
+        if isinstance(current, dict):
+            detail += ' · current {}/{}'.format(current.get('valid_runs', '?'),
+                                                 current.get('requested_runs', '?'))
+        invalid = data.get('invalid_attempts')
+        if type(invalid) is int and invalid > 0:
+            detail += f' · invalid {invalid}'
+            reasons = data.get('invalid_reasons')
+            if isinstance(reasons, dict):
+                ranked = [(value, key) for key, value in reasons.items()
+                          if type(value) is int and value > 0 and isinstance(key, str)]
+                if ranked:
+                    count, reason = max(ranked)
+                    detail += f' ({clean(reason)[:20]} {count})'
+    return headline, detail
+
+
 def input_lines(last, offset=0, limit=8):
     if not last:
         return ['Waiting for a completed execution…']
-    raw = bytes.fromhex(last.get('preview_hex', ''))
+    try:
+        raw = bytes.fromhex(last.get('preview_hex', ''))
+    except (TypeError, ValueError):
+        return ['Input preview unavailable']
     rows = []
     for i in range(offset, min(len(raw), offset + limit * 16), 16):
         chunk = raw[i:i + 16]
@@ -131,13 +196,19 @@ class Samples:
     def update(self, snap):
         elapsed = snap.get('elapsed_ms', 0)
         stats = snap.get('stats', {})
-        count = stats.get('executions', 0) + stats.get('calibrations', 0)
+        if type(elapsed) not in (int, float) or not math.isfinite(elapsed) or not isinstance(stats, dict):
+            return
+        executions, calibrations = stats.get('executions', 0), stats.get('calibrations', 0)
+        if any(type(value) is not int or value < 0 for value in (executions, calibrations)):
+            return
+        count = executions + calibrations
         if self.previous:
             old_ms, old_count = self.previous
             if elapsed <= old_ms:
                 return
             self.rate.append(max(0, count - old_count) * 1000 / (elapsed - old_ms))
-        self.coverage.append(snap.get('coverage_count', 0))
+        coverage = snap.get('coverage_count', 0)
+        self.coverage.append(coverage if type(coverage) is int and coverage >= 0 else 0)
         self.previous = elapsed, count
 
 
@@ -146,6 +217,8 @@ def read_snapshot(directory):
     if path.stat().st_size > 1024 * 1024:
         raise ValueError('Snapshot exceeds 1 MiB')
     snap = json.loads(path.read_text())
+    if not isinstance(snap, dict):
+        raise ValueError('Snapshot must be an object')
     if snap.get('schema_version') != 1:
         raise ValueError('Unsupported snapshot schema')
     return snap
@@ -168,6 +241,9 @@ def screen(stdscr, directory, process=None):
     last_read = 0
     sample_changed = time.monotonic()
     sample_stamp = None
+    feature_seen_revision = None
+    feature_seen_at = None
+    feature_base_age = 0.0
     show_provider = False
 
     def put(y, x, text, attr=0):
@@ -183,7 +259,17 @@ def screen(stdscr, directory, process=None):
             try:
                 snap = read_snapshot(directory)
                 samples.update(snap)
-                stamp = (snap.get("elapsed_ms"), snap.get("status"))
+                stability = snap.get('feature_stability')
+                revision = stability.get('revision') if isinstance(stability, dict) else None
+                if type(revision) is int and revision != feature_seen_revision:
+                    feature_seen_revision = revision
+                    feature_seen_at = time.monotonic()
+                    last_ms = stability.get('last_measurement_elapsed_ms')
+                    elapsed_ms = snap.get('elapsed_ms')
+                    feature_base_age = max(0, (elapsed_ms - last_ms) / 1000) if (
+                        type(last_ms) is int and type(elapsed_ms) in (int, float)
+                        and math.isfinite(elapsed_ms)) else 0.0
+                stamp = (snap.get("elapsed_ms"), snap.get("status"), revision)
                 if stamp != sample_stamp:
                     sample_changed = time.monotonic()
                     sample_stamp = stamp
@@ -193,14 +279,25 @@ def screen(stdscr, directory, process=None):
             last_read = time.monotonic()
         h, w = stdscr.getmaxyx()
         stdscr.erase()
-        stats = snap.get('stats', {})
+        raw_stats = snap.get('stats', {})
+        stats = {key: value for key, value in raw_stats.items()
+                 if type(value) is int and value >= 0} if isinstance(raw_stats, dict) else {}
         provider = provider_lines(snap)
         bridge_status = process.poll() if process is not None else None
         status = snap.get('status', 'waiting')
         if bridge_status is not None and (bridge_status != 0 or status in ('running', 'waiting')):
             status = f'BRIDGE EXIT {bridge_status}; see campaign.log'
+        elapsed = snap.get('elapsed_ms', 0)
+        elapsed = elapsed if type(elapsed) in (int, float) and math.isfinite(elapsed) else 0
         put(0, 1, f"EFZ / {snap.get('target', 'campaign')}     {status}     "
-            f"{snap.get('elapsed_ms', 0) / 1000:.1f}s", accent)
+            f"{elapsed / 1000:.1f}s", accent)
+        feature = snap.get('feature_stability')
+        since = None
+        if isinstance(feature, dict) and type(feature.get('last_measurement_elapsed_ms')) is int \
+                and feature_seen_at is not None:
+            since = feature_base_age + time.monotonic() - feature_seen_at
+        stability, stability_detail = stability_lines(snap, since)
+        put(1, 1, stability, accent)
         if w < 90 or h < 26:
             put(3, 1, 'Resize to at least 90 columns × 26 rows. Campaign continues.')
         else:
@@ -218,6 +315,8 @@ def screen(stdscr, directory, process=None):
                 put(2, 1, f'EXECUTIONS / SECOND    {rate:.1f}', accent)
                 put(4, 1, chart(samples.rate, left_width))
                 covered, total = snap.get('coverage_count', 0), snap.get('coverage_total', 0)
+                covered = covered if type(covered) is int and covered >= 0 else 0
+                total = total if type(total) is int and total >= 0 else 0
                 coverage = f'{covered} {snap.get("coverage_unit", "units")}'
                 if total:
                     coverage += f' / {total} ({covered / total:.0%})'
@@ -230,25 +329,32 @@ def screen(stdscr, directory, process=None):
                 put(11, 1, f"Calibration {stats.get('calibrations', 0):,}")
                 put(12, 1, f"Corpus      {snap.get('corpus_size', 0):,}")
                 put(13, 1, f"Findings    {stats.get('unique_crashes', 0)} unique / {stats.get('crashes', 0)} events")
+                put(14, 1, f"Diagnostic  {stats.get('verification_executions', 0):,} calls")
                 counts = snap.get('outcomes', {})
+                counts = counts if isinstance(counts, dict) else {}
                 for row, key, label in [(15, 'returned', 'Returned value'), (16, 'codec_rejected', 'Codec rejected'),
                                         (17, 'target_rejected', 'Target rejected'), (18, 'exception', 'Exceptions'),
                                         (19, 'timeout', 'Timeouts')]:
-                    put(row, 1, f'{label:<17} {counts.get(key, 0):,}')
+                    value = counts.get(key, 0)
+                    put(row, 1, f'{label:<17} {value if type(value) is int and value >= 0 else 0:,}')
+                put(20, 1, stability_detail[:left_width])
                 if provider:
                     current_provider = snap.get('provider', {})
                     mode_name = current_provider.get('mode', 'native') if isinstance(current_provider, dict) else 'native'
                     put(21, 1, ('Provider · ' + str(mode_name))[:left_width], accent)
-                    put(22, 1, provider[4][:left_width])
+                    put(22, 1, (provider[4] if len(provider) > 4 else provider[-1])[:left_width])
+            put(h - 3, 1, stability_detail[:w - 2])
             last = pinned if pinned is not None else snap.get('last')
-            preview_size = len((last or {}).get("preview_hex", "")) // 2
+            last = last if isinstance(last, dict) else None
+            preview = (last or {}).get('preview_hex', '')
+            preview_size = len(preview) // 2 if isinstance(preview, str) else 0
             offset = min(offset, max(0, (preview_size - 1) // 16 * 16))
             x = split + 2
             source = (last or {}).get('mutation_source')
             source_text = f' · {source}' if source else ''
             put(2, x, 'INPUT · ' + ('PINNED' if pinned is not None else 'LAST COMPLETED') + source_text, accent)
             if last:
-                put(3, x, f"{last['bytes']} bytes · {last['phase']} · parent #{last['parent']}")
+                put(3, x, f"{last.get('bytes', '?')} bytes · {last.get('phase', '?')} · parent #{last.get('parent', '?')}")
                 put(4, x, 'Preview: first 512 bytes' if last.get('truncated') else 'HEX / ASCII')
             for row, line in enumerate(input_lines(last, offset, max(1, min(8, h - 18))), 6):
                 put(row, x, line)
@@ -257,6 +363,7 @@ def screen(stdscr, directory, process=None):
                 put(h - 10, x, last.get('outcome_class', 'unknown'))
                 put(h - 9, x, last.get('outcome', ''))
             functions = (last or {}).get('functions', [])
+            functions = functions if isinstance(functions, list) else []
             scope = 'LAST EXECUTION'
             if not functions and pinned is None:
                 functions = snap.get('covered_functions', [])

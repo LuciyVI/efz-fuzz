@@ -46,7 +46,10 @@ init(C) ->
         random->undefined; staged->efz_mutation_plan:new(maps:get(mutation,C))
     end,
     Replay=maps:get(benchmark_replay_inputs,C,undefined),
-    Initial=C1#{monitor_index=>efz_monitor:prepare(C1),pending_seeds => case Replay of undefined -> efz_corpus:all(); _ -> [] end,
+    Initial=C1#{monitor_index=>efz_monitor:prepare(C1),
+            feature_stability=>efz_stability:new(maps:get(runtime_oracles,C1),
+                {maps:get(coverage,C1),maps:get(coverage_backend,C1)}),
+            pending_seeds => case Replay of undefined -> efz_corpus:all(); _ -> [] end,
             replay_remaining=>Replay,
             feedback => ProfileFeedback,
             bitmap_reuse_map=>ReuseMap,bitmap_map_arms=>0,
@@ -455,7 +458,7 @@ semantic_result(Input,Result,Meta,F1,S,Profile) ->
                     FailureState=diagnostic_failure_context(Result,S2),
                     infrastructure(Why,FailureState#{failure_context=>
                         (maps:get(failure_context,FailureState))#{metadata=>WithSemantic}});
-                Meta1 -> accepted(Input, public_result(Result), Meta1, F1, provider_admission(Meta1,S2))
+                Meta1 -> accepted(Input, Result, Meta1, F1, provider_admission(Meta1,S2))
             end
     end.
 
@@ -569,7 +572,7 @@ accepted(Input, Result, Meta1, F1, S0) ->
     S=efz_monitor:record(Input,Result,Meta1,S0),
     case maps:get(target_failure_recorded,S,false) of
         true->runtime_check(Input,Result,Meta1,S#{feedback=>F1});
-        false->case record_failure(Input, Result, Meta1, S#{feedback => F1}) of
+        false->case record_failure(Input, public_result(Result), Meta1, S#{feedback => F1}) of
         {error,Why,S1} -> infrastructure(Why,S1);
         {ok,S1} -> runtime_check(Input,Result,Meta1,S1)
         end
@@ -592,8 +595,12 @@ runtime_check(Input,Result,Meta,S=#{runtime_oracles:=#{enabled:=true}=P}) ->
     efz_stats:add(verification_requested,Requested-1),
     Left=max(0,maps:get(max_extra_executions,St)-maps:get(verification_used,S)),
     Begin=erlang:monotonic_time(microsecond),
-    Rows=[efz_stability:snapshot(Result,P)],
-    case verify(Input,Meta,min(Requested-1,Left),Rows,S) of
+    Track=maps:get(enabled,St) andalso Key=/=none,
+    SStart=case Track of true->feature_observe(Input,Result,Requested,S);
+        false->S end,
+    Rows=[efz_stability:snapshot(public_result(Result),P)],
+    case verify(Input,Meta,min(Requested-1,Left),Rows,SStart#{feature_tracking=>Track,
+            feature_requested=>Requested}) of
         {Status,All,S1}->
             Summary=efz_stability:summarize(All,Requested),
             efz_stats:add(verification_skipped,maps:get(skipped,Summary)),
@@ -603,7 +610,13 @@ runtime_check(Input,Result,Meta,S=#{runtime_oracles:=#{enabled:=true}=P}) ->
             Reproductions=maps:from_list([{C,length([ok||R<-Admissible,lists:member(C,maps:get(categories,maps:get(runtime,R),[]))])}||C<-RuntimeCats]),
             Check=Summary#{input_hash=>crypto:hash(sha256,Input),origin=>maps:get(phase,Meta),reproductions=>Reproductions,
                 diagnostic_us=>erlang:monotonic_time(microsecond)-Begin},
-            S2=remember_check(Check,S1),
+            Collection=case {Status,maps:get(valid,Summary),maps:get(attempted,Summary),Requested,Left} of
+                {_,_,A,R,L} when A<R,L<R-1->budget_exhausted;
+                {ok,V,_,R,_} when V>=R->complete;
+                _->partial
+            end,
+            SDone=case Track of true->feature_complete(S1,Requested,Collection);false->S1 end,
+            S2=remember_check(Check,maps:without([feature_tracking,feature_requested],SDone)),
             Stored=save_runtime(Categories,Input,Result,Meta,Check,S2),
             efz_stats:add(runtime_diagnostic_us,erlang:monotonic_time(microsecond)-Begin),
             case Stored of
@@ -614,19 +627,116 @@ runtime_check(Input,Result,Meta,S=#{runtime_oracles:=#{enabled:=true}=P}) ->
             end
     end;
 runtime_check(_,_,Meta,S)->accepted_success(Meta,S).
+feature_observe(Input,R,Requested,S) ->
+    Backend=maps:get(coverage_backend,S),
+    Schema=maps:get(coverage_schema,S,undefined),
+    SchemaId=case Schema of #{fingerprint:=F}->F;
+        _->crypto:hash(sha256,term_to_binary({Backend,maps:get(builds,R,#{})},[deterministic])) end,
+    InputId=crypto:hash(sha256,Input),
+    Context=maps:with([target,timeout,coverage,coverage_backend,coverage_feedback,
+        coverage_validation,execution_identities],S),
+    ResultBuilds=maps:get(builds,R,undefined),
+    GroupId=crypto:hash(sha256,term_to_binary({InputId,Context,SchemaId,ResultBuilds},[deterministic])),
+    ExpectedBuilds=maps:from_list([{maps:get(module,M),maps:get(build_id,M)}||
+        M<-maps:get(manifests,S,[])]),
+    Features=case {ResultBuilds=:=ExpectedBuilds,efz_stability:usable(R)} of
+        {false,_}->{invalid,build_mismatch};
+        {_,false}->{invalid,feature_invalid_reason(R)};
+        {true,true}->feature_points(R,Backend,Schema,SchemaId,
+            maps:get(max_features_per_group,maps:get(feature_stability,S)))
+    end,
+    Elapsed=max(0,(erlang:monotonic_time(microsecond)-maps:get(calibration_started_at,S)) div 1000),
+    FS=efz_stability:observe(maps:get(feature_stability,S),GroupId,InputId,
+        maps:get(execution_ref,R,make_ref()),Requested,Features,Elapsed),
+    feature_publish(S#{feature_stability=>FS}).
+
+feature_invalid_reason(R) ->
+    case efz_stability:failure(R) of
+        {error,{runner_not_reusable,_}}->runner_not_reusable;
+        {error,{coverage_failure,_}}->coverage_failure;
+        {error,_}->execution_failure;
+        ok->invalid_coverage_window
+    end.
+
+feature_points(R,bitmap,Schema,Id,Max) ->
+    try bitmap_points(R,Schema,Id,Max) catch _:_->{invalid,damaged_full_coverage} end;
+feature_points(R,otp_native_public,Schema,Id,Max) ->
+    try case maps:find(coverage_native,R) of
+        {ok,Bits}->case efz_coverage:native_count(Bits)=<Max of
+            true->contextual_points({ok,efz_coverage:native_decode(Schema,Bits)},otp_native_public,Id);
+            false->{limit,feature_limit} end;
+        error->{invalid,missing_full_coverage} end
+    catch _:_->{invalid,damaged_full_coverage} end;
+feature_points(_,none,_,_,_) -> {unsupported,unsupported_backend};
+feature_points(R,Backend,_,Id,Max) ->
+    case maps:find(coverage,R) of
+        {ok,Points} when is_list(Points),length(Points)=<Max->contextual_points({ok,Points},Backend,Id);
+        {ok,Points} when is_list(Points)->{limit,feature_limit};
+        _->{invalid,missing_full_coverage} end.
+bitmap_points(R,Schema,Id,Max) ->
+    Decoded=case maps:find(coverage_sealed,R) of
+        {ok,Sealed}->case efz_coverage:sealed_count(Sealed) of
+            {ok,N} when N=<Max->case efz_coverage:diagnostic_snapshot(Sealed) of
+                {ok,Bits}->efz_coverage:decode_new(Schema,Bits);
+                Error->Error end;
+            {ok,_}->{limit,feature_limit};
+            Error->Error end;
+        error->case maps:find(coverage,R) of
+            {ok,Points} when is_list(Points),length(Points)=<Max->{ok,Points};
+            {ok,Points} when is_list(Points)->{limit,feature_limit};
+            _->case maps:find(coverage_bits,R) of
+                {ok,{efz_bitmap_snapshot,1,_,Bytes}=Bits}->case bit_count(Bytes,Max,0) of
+                    limit->{limit,feature_limit};
+                    _->efz_coverage:decode_new(Schema,Bits) end;
+                error->{error,missing_full_coverage} end end
+    end,
+    case Decoded of {limit,feature_limit}->Decoded;_->contextual_points(Decoded,bitmap,Id) end.
+bit_count(<<>>,_,N)->N;
+bit_count(_,Max,N) when N>Max->limit;
+bit_count(<<Byte,Rest/binary>>,Max,N)->bit_count(Rest,Max,N+ones(Byte,0)).
+ones(0,N)->N;
+ones(Byte,N)->ones(Byte band (Byte-1),N+1).
+contextual_points({ok,Points},Backend,Id) when is_list(Points) ->
+    {ok,[{Backend,Id,Point}||Point<-Points]};
+contextual_points(_,_,_) -> {invalid,damaged_full_coverage}.
+
+feature_complete(S,Requested,Collection) ->
+    FS=efz_stability:complete(maps:get(feature_stability,S),Requested,Collection),
+    feature_publish(S#{feature_stability=>FS}).
+feature_publish(#{monitoring:=true,coordinator:=Coordinator,feature_stability:=FS}=S) ->
+    %% Bound this optional progress stream if the coordinator is overloaded.
+    %% Its next regular snapshot or final report still carries the latest value.
+    ok=case process_info(Coordinator,message_queue_len) of
+        {message_queue_len,N} when N<64 ->
+            Coordinator!{feature_stability_progress,self(),efz_stability:public(FS)},ok;
+        _->ok
+    end,S;
+feature_publish(S)->S.
 verify(_,_,0,Rows,S)->{ok,lists:reverse(Rows),S};
 verify(Input,Meta,N,Rows,S=#{runtime_oracles:=P,target:=M,timeout:=T})->
+    case verification_stop_requested() of
+        true->{ok,lists:reverse(Rows),S};
+        false->verify_next(Input,Meta,N,Rows,S,P,M,T)
+    end.
+verification_stop_requested() ->
+    receive {'$gen_cast',request_stop}=Message->self()!Message,true
+    after 0->false end.
+verify_next(Input,Meta,N,Rows,S,P,M,T)->
     O=case maps:get(executor_options,S) of reference->executor_reference_options(S);Prepared->Prepared end,
     VContext=(maps:get(failure_context,S))#{phase=>verification,origin=>verification},
     notify_context(maps:remove(result,VContext),S),
-    R=public_result(efz_executor:run(M,Input,T,O#{execution_origin=>verification,
-        execution_recipe=>maps:get(mutation,Meta,undefined)})),
+    R=efz_executor:run(M,Input,T,O#{execution_origin=>verification,
+        execution_recipe=>maps:get(mutation,Meta,undefined)}),
     efz_stats:inc(verification_executions),
     efz_stats:add(verification_elapsed_us,maps:get(elapsed_us,R,0)),
     runtime_stats(R),
-    S1=S#{verification_used=>maps:get(verification_used,S)+1,failure_context=>VContext#{result=>R}},
+    S1a=S#{verification_used=>maps:get(verification_used,S)+1,
+        failure_context=>VContext#{result=>public_result(R)}},
+    S1=case maps:get(feature_tracking,S,false) of
+        true->feature_observe(Input,R,maps:get(feature_requested,S),S1a);
+        false->S1a end,
     notify_context(maps:get(failure_context,S1),S1),
-    Next=[efz_stability:snapshot(R,P)|Rows],
+    Next=[efz_stability:snapshot(public_result(R),P)|Rows],
     case efz_stability:failure(R) of
         {error,Why}->efz_stats:inc(verification_failed),{ {error,Why},lists:reverse(Next),
             S1#{failure_context=>(maps:get(failure_context,S1))#{origin=>verification,result=>R}}};
@@ -636,7 +746,7 @@ verify(Input,Meta,N,Rows,S=#{runtime_oracles:=P,target:=M,timeout:=T})->
             VMeta=Meta#{origin=>verification,phase=>verification,outcome=>maps:get(outcome,R),
                 execution_ref=>maps:get(execution_ref,R),new_probes=>[],retention_reason=>target_failure},
             SavedDecision=maps:get(crash_decision,S1,false),
-            case record_failure(Input,R,VMeta,S1) of
+            case record_failure(Input,public_result(R),VMeta,S1) of
                 {ok,S2}->verify(Input,Meta,N-1,Next,S2#{crash_decision=>SavedDecision});
                 {error,Why,S2}->{{error,Why},lists:reverse(Next),S2}
             end
@@ -813,7 +923,14 @@ finish(Status0, SIn) ->
     Timing = #{calibration_started_at => CalibrationStart,
                calibration_us => MutationStart - CalibrationStart,
                mutation_us => End - MutationStart},
+    FeatureReport=efz_stability:public(maps:get(feature_stability,S)),
+    FinalFeature=case Status of
+        stopped_by_user->FeatureReport#{collection_status=>stopped,
+            revision=>maps:get(revision,FeatureReport)+1};
+        _->FeatureReport
+    end,
     Base0 = #{max_input_bytes=>maps:get(max_input_bytes,S), status => Status, timing => Timing, stats => efz_stats:get(), corpus => efz_corpus:all(),
+               feature_stability=>FinalFeature,
                execution_identities=>maps:get(execution_identities,S),coverage_diagnostics=>Diagnostic,
                decisions => lists:reverse(maps:get(decisions, S)),
                crash_policy=>maps:get(crash_policy,S),
