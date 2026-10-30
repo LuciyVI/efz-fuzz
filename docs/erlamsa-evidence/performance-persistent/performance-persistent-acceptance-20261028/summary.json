@@ -1,0 +1,444 @@
+{
+  "accepted": true,
+  "completed": true,
+  "groups": {
+    "baseline": {
+      "accepted_fraction": {
+        "max": 0.7316147605338916,
+        "median": 0.6914033186025181,
+        "min": 0.4570106670093818
+      },
+      "coverage": {
+        "max": 48,
+        "median": 48,
+        "min": 48
+      },
+      "direct_core_p50_us": null,
+      "executions_per_second": {
+        "max": 399.2114433911982,
+        "median": 280.9015402168851,
+        "min": 254.33104943474075
+      },
+      "identity_check_p50_us": null,
+      "input_bytes": {
+        "max": 94.60557768924303,
+        "median": 67.09902866619285,
+        "min": 46.93195498560586
+      },
+      "legacy_core_wrapper_p50_us": null,
+      "legacy_core_wrapper_p95_us": null,
+      "process_tree_rss_bytes": {
+        "median": 105897984
+      },
+      "provider_p50_us": null,
+      "provider_p95_us": null,
+      "recycle_cleanup_p50_us": null,
+      "samples": 5,
+      "steady_state_executions_per_second": {
+        "max": 399.7393644680735,
+        "median": 281.3874876363831,
+        "min": 254.71378829531147
+      },
+      "warm_request_p50_us": null,
+      "warm_request_p95_us": null,
+      "worker_startup_p50_us": null
+    },
+    "erlamsa": {
+      "accepted_fraction": {
+        "max": 0.7384615384615385,
+        "median": 0.6890756302521008,
+        "min": 0.5203252032520326
+      },
+      "coverage": {
+        "max": 47,
+        "median": 45,
+        "min": 44
+      },
+      "direct_core_p50_us": 19,
+      "executions_per_second": {
+        "max": 4.323118812307573,
+        "median": 3.986579313626653,
+        "min": 3.7242371324198733
+      },
+      "identity_check_p50_us": 90,
+      "input_bytes": {
+        "max": 36.19512195121951,
+        "median": 29.291666666666668,
+        "min": 21.554621848739497
+      },
+      "legacy_core_wrapper_p50_us": {
+        "max": 116,
+        "median": 112,
+        "min": 100
+      },
+      "legacy_core_wrapper_p95_us": {
+        "max": 290,
+        "median": 209,
+        "min": 148
+      },
+      "process_tree_rss_bytes": {
+        "median": 195911680
+      },
+      "provider_p50_us": {
+        "max": 272254,
+        "median": 255130,
+        "min": 233732
+      },
+      "provider_p95_us": {
+        "max": 303500,
+        "median": 278456,
+        "min": 257780
+      },
+      "recycle_cleanup_p50_us": null,
+      "samples": 5,
+      "steady_state_executions_per_second": {
+        "max": 4.3333292888926636,
+        "median": 3.999902402381382,
+        "min": 3.733268623343862
+      },
+      "warm_request_p50_us": null,
+      "warm_request_p95_us": null,
+      "worker_startup_p50_us": null
+    },
+    "erlamsa_persistent": {
+      "accepted_fraction": {
+        "max": 0.6487350974120384,
+        "median": 0.6340621403912543,
+        "min": 0.5313891682229565
+      },
+      "coverage": {
+        "max": 49,
+        "median": 48,
+        "min": 48
+      },
+      "direct_core_p50_us": 22,
+      "executions_per_second": {
+        "max": 286.52513819562427,
+        "median": 245.49322094129388,
+        "min": 226.79852416746343
+      },
+      "identity_check_p50_us": 27,
+      "input_bytes": {
+        "max": 225.14451875545217,
+        "median": 47.93982538616521,
+        "min": 28.849367088607593
+      },
+      "legacy_core_wrapper_p50_us": {
+        "max": 57,
+        "median": 49,
+        "min": 47
+      },
+      "legacy_core_wrapper_p95_us": {
+        "max": 114,
+        "median": 104,
+        "min": 76
+      },
+      "process_tree_rss_bytes": {
+        "median": 197857280
+      },
+      "provider_p50_us": {
+        "max": 490,
+        "median": 410,
+        "min": 394
+      },
+      "provider_p95_us": {
+        "max": 1666,
+        "median": 1521,
+        "min": 811
+      },
+      "recycle_cleanup_p50_us": null,
+      "samples": 5,
+      "steady_state_executions_per_second": {
+        "max": 289.6450398370255,
+        "median": 248.1608845180574,
+        "min": 229.22231214926578
+      },
+      "warm_request_p50_us": 351,
+      "warm_request_p95_us": 1334,
+      "worker_startup_p50_us": 252807.0
+    },
+    "hybrid": {
+      "accepted_fraction": {
+        "max": 0.6739130434782609,
+        "median": 0.6423529411764706,
+        "min": 0.6287262872628726
+      },
+      "coverage": {
+        "max": 48,
+        "median": 48,
+        "min": 46
+      },
+      "direct_core_p50_us": 18,
+      "executions_per_second": {
+        "max": 14.735640775014874,
+        "median": 13.797578747685872,
+        "min": 10.706392125069545
+      },
+      "identity_check_p50_us": 84,
+      "input_bytes": {
+        "max": 69.52289156626506,
+        "median": 50.85094850948509,
+        "min": 42.95764705882353
+      },
+      "legacy_core_wrapper_p50_us": {
+        "max": 119,
+        "median": 104,
+        "min": 92
+      },
+      "legacy_core_wrapper_p95_us": {
+        "max": 305,
+        "median": 182,
+        "min": 131
+      },
+      "process_tree_rss_bytes": {
+        "median": 199184384
+      },
+      "provider_p50_us": {
+        "max": 268035,
+        "median": 243762,
+        "min": 225332
+      },
+      "provider_p95_us": {
+        "max": 296922,
+        "median": 285033,
+        "min": 251588
+      },
+      "recycle_cleanup_p50_us": null,
+      "samples": 5,
+      "steady_state_executions_per_second": {
+        "max": 14.765801882869727,
+        "median": 13.832947855186436,
+        "min": 10.733026726536512
+      },
+      "warm_request_p50_us": null,
+      "warm_request_p95_us": null,
+      "worker_startup_p50_us": null
+    },
+    "hybrid_persistent": {
+      "accepted_fraction": {
+        "max": 0.6588801926550271,
+        "median": 0.6426799007444168,
+        "min": 0.5962975738760492
+      },
+      "coverage": {
+        "max": 48,
+        "median": 48,
+        "min": 48
+      },
+      "direct_core_p50_us": 25,
+      "executions_per_second": {
+        "max": 386.0608098463708,
+        "median": 286.92227283216897,
+        "min": 273.7884588719625
+      },
+      "identity_check_p50_us": 28,
+      "input_bytes": {
+        "max": 75.59666142282818,
+        "median": 52.124839565329,
+        "min": 44.26600117439812
+      },
+      "legacy_core_wrapper_p50_us": {
+        "max": 56,
+        "median": 53,
+        "min": 52
+      },
+      "legacy_core_wrapper_p95_us": {
+        "max": 159,
+        "median": 122,
+        "min": 67
+      },
+      "process_tree_rss_bytes": {
+        "median": 199831552
+      },
+      "provider_p50_us": {
+        "max": 475,
+        "median": 450,
+        "min": 397
+      },
+      "provider_p95_us": {
+        "max": 1536,
+        "median": 1403,
+        "min": 840
+      },
+      "recycle_cleanup_p50_us": null,
+      "samples": 5,
+      "steady_state_executions_per_second": {
+        "max": 389.5357245456136,
+        "median": 289.846078967776,
+        "min": 276.8309618147604
+      },
+      "warm_request_p50_us": 384,
+      "warm_request_p95_us": 1127,
+      "worker_startup_p50_us": 223390
+    },
+    "native": {
+      "accepted_fraction": {
+        "max": 0.7304039059032401,
+        "median": 0.6915472071181413,
+        "min": 0.4574008637612878
+      },
+      "coverage": {
+        "max": 48,
+        "median": 48,
+        "min": 48
+      },
+      "direct_core_p50_us": null,
+      "executions_per_second": {
+        "max": 404.0373779512029,
+        "median": 328.81664410551656,
+        "min": 254.21254744028326
+      },
+      "identity_check_p50_us": null,
+      "input_bytes": {
+        "max": 94.53500850673996,
+        "median": 67.32618156057079,
+        "min": 47.03213493120284
+      },
+      "legacy_core_wrapper_p50_us": null,
+      "legacy_core_wrapper_p95_us": null,
+      "process_tree_rss_bytes": {
+        "median": 108093440
+      },
+      "provider_p50_us": null,
+      "provider_p95_us": null,
+      "recycle_cleanup_p50_us": null,
+      "samples": 5,
+      "steady_state_executions_per_second": {
+        "max": 404.5803913370332,
+        "median": 329.3173349298942,
+        "min": 254.67911631246238
+      },
+      "warm_request_p50_us": null,
+      "warm_request_p95_us": null,
+      "worker_startup_p50_us": null
+    },
+    "native_semantic": {
+      "accepted_fraction": {
+        "max": 0.7474541751527495,
+        "median": 0.6551558291650635,
+        "min": 0.5461771058315334
+      },
+      "coverage": {
+        "max": 48,
+        "median": 48,
+        "min": 48
+      },
+      "direct_core_p50_us": null,
+      "executions_per_second": {
+        "max": 385.2711328539018,
+        "median": 307.43207812935117,
+        "min": 275.01997279740755
+      },
+      "identity_check_p50_us": null,
+      "input_bytes": {
+        "max": 78.64880372415287,
+        "median": 65.96924406047516,
+        "min": 50.43670642554829
+      },
+      "legacy_core_wrapper_p50_us": null,
+      "legacy_core_wrapper_p95_us": null,
+      "process_tree_rss_bytes": {
+        "median": 106274816
+      },
+      "provider_p50_us": null,
+      "provider_p95_us": null,
+      "recycle_cleanup_p50_us": null,
+      "samples": 5,
+      "steady_state_executions_per_second": {
+        "max": 385.79078061023205,
+        "median": 307.89130720209334,
+        "min": 275.5218668111232
+      },
+      "warm_request_p50_us": null,
+      "warm_request_p95_us": null,
+      "worker_startup_p50_us": null
+    },
+    "semantic_persistent": {
+      "accepted_fraction": {
+        "max": 0.747364594692839,
+        "median": 0.6808206593855262,
+        "min": 0.6221176470588236
+      },
+      "coverage": {
+        "max": 48,
+        "median": 48,
+        "min": 48
+      },
+      "direct_core_p50_us": 26,
+      "executions_per_second": {
+        "max": 363.1831198400331,
+        "median": 350.390485049918,
+        "min": 202.52022605636043
+      },
+      "identity_check_p50_us": 29,
+      "input_bytes": {
+        "max": 58.42705958971019,
+        "median": 55.31821176470588,
+        "min": 39.8113413304253
+      },
+      "legacy_core_wrapper_p50_us": {
+        "max": 64,
+        "median": 55,
+        "min": 52
+      },
+      "legacy_core_wrapper_p95_us": {
+        "max": 188,
+        "median": 93,
+        "min": 68
+      },
+      "process_tree_rss_bytes": {
+        "median": 202977280
+      },
+      "provider_p50_us": {
+        "max": 531,
+        "median": 425,
+        "min": 394
+      },
+      "provider_p95_us": {
+        "max": 1684,
+        "median": 1096,
+        "min": 700
+      },
+      "recycle_cleanup_p50_us": null,
+      "samples": 5,
+      "steady_state_executions_per_second": {
+        "max": 366.7867345464339,
+        "median": 354.1550503810142,
+        "min": 204.724291343799
+      },
+      "warm_request_p50_us": 364,
+      "warm_request_p95_us": 829,
+      "worker_startup_p50_us": 232222
+    }
+  },
+  "kind": "accepted_wall_time",
+  "limitations": [
+    "Single local query-string workload and one pinned OTP/ERTS build; no discovery advantage claim.",
+    "Diagnostic message, performance profiling, corpus persistence, and sampling enabled equally in every mode.",
+    "Full campaign throughput includes startup, count-based recycle, and orderly shutdown; request percentiles distinguish warm requests from startup/recycle.",
+    "Memory is sampled; aggregate RSS double-counts shared pages and may miss short peaks."
+  ],
+  "native_off_median_change_percent": 1.2088667897417027,
+  "native_off_paired_changes": [
+    {
+      "seed": 17,
+      "throughput_change_percent": 1.2088667897417027
+    },
+    {
+      "seed": 29,
+      "throughput_change_percent": -1.8358917813519393
+    },
+    {
+      "seed": 43,
+      "throughput_change_percent": 47.386712345792525
+    },
+    {
+      "seed": 61,
+      "throughput_change_percent": -8.626635616601774
+    },
+    {
+      "seed": 89,
+      "throughput_change_percent": 17.057615224051826
+    }
+  ]
+}

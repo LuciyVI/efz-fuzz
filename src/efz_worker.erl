@@ -45,10 +45,11 @@ init(C) ->
     MutationState = case maps:get(mutation_mode,C) of
         random->undefined; staged->efz_mutation_plan:new(maps:get(mutation,C))
     end,
-    ok=efz_external_worker:ready(),
-    self() ! iterate,
     Replay=maps:get(benchmark_replay_inputs,C,undefined),
-    {ok, C1#{monitor_index=>efz_monitor:prepare(C1),pending_seeds => case Replay of undefined -> efz_corpus:all(); _ -> [] end,
+    Initial=C1#{monitor_index=>efz_monitor:prepare(C1),
+            feature_stability=>efz_stability:new(maps:get(runtime_oracles,C1),
+                {maps:get(coverage,C1),maps:get(coverage_backend,C1)}),
+            pending_seeds => case Replay of undefined -> efz_corpus:all(); _ -> [] end,
             replay_remaining=>Replay,
             feedback => ProfileFeedback,
             bitmap_reuse_map=>ReuseMap,bitmap_map_arms=>0,
@@ -59,9 +60,17 @@ init(C) ->
             mutation_state=>MutationState,
             mutation_trace=>[],trace_count=>0,coverage_seen=>efz_coverage:new_global(),coverage_empty=>0,coverage_broken=>0,coverage_unstarted=>0,
             profile=>#{},input_size_buckets=>#{},input_bytes_total=>0,input_count=>0,
-            calibration_started_at => erlang:monotonic_time(microsecond)}}.
+            calibration_started_at => erlang:monotonic_time(microsecond)},
+    case provider_init(Initial) of
+        {ok,Ready} ->
+            ok=efz_external_worker:ready(),
+            self() ! iterate,
+            {ok,Ready};
+        {error,Reason} -> {stop,{mutation_provider_startup,Reason}}
+    end.
 
 handle_info(iterate, #{campaign_finished:=true}=S) -> {noreply,S};
+handle_info(iterate, #{pending_mutation:=_}=S) -> {noreply,S};
 handle_info(iterate, #{phase:=replay,replay_remaining:=[Input|Rest],iteration:=N}=S) ->
     execute(Input,#{id=>1},mutation,begin_iteration(S#{replay_remaining=>Rest,
                                                        iteration=>N+1}));
@@ -91,9 +100,27 @@ handle_info(iterate, #{mutator := Mu, iteration := N} = S) ->
         {ok,Input} when is_binary(Input)->execute(Input, E, mutation, S2#{iteration => N + 1});
         Bad->infrastructure(Bad,S2)
     end;
+handle_info({efz_mutation_reply,Ref,Result,RuntimeMeta},
+        #{pending_mutation:=#{ref:=Ref}=Pending}=S)->
+    provider_reply(Result,RuntimeMeta,Pending,S);
+handle_info({efz_mutation_reply,_,_,_},S)->{noreply,S};
+handle_info({efz_mutation_session_event,SessionRef,Runtime},
+        #{provider_session:=#{ref:=SessionRef}}=S)->
+    {noreply,provider_session_event(Runtime,S)};
+handle_info({'DOWN',Monitor,process,Session,Why},
+        #{provider_session:=#{monitor:=Monitor,pid:=Session}}=S)->
+    case maps:is_key(pending_mutation,S) of
+        true->{noreply,S};
+        false->infrastructure({mutation_provider,{session_down,Why}},provider_worker_error(S))
+    end;
+handle_info({'DOWN',Monitor,process,Guardian,Why},
+        #{pending_mutation:=#{monitor:=Monitor,guardian:=Guardian}=Pending}=S)->
+    Cleared=provider_latency(mutation_elapsed(Pending),clear_pending_mutation(S)),
+    Failed=provider_worker_error(Cleared),
+    infrastructure({mutation_provider,{request_down,Why}},Failed);
 handle_info(_, S) -> {noreply, S}.
 
-staged_iteration(S=#{mutation_state:=Plan,iteration:=N}) ->
+staged_iteration(S=#{mutation_state:=Plan}) ->
     Profile=maps:get(performance_profile,S),
     {Choice,MutationUs}=efz_perf_profile:measure(Profile,fun() ->
         try case maps:get(max_iterations,S) of
@@ -102,16 +129,232 @@ staged_iteration(S=#{mutation_state:=Plan,iteration:=N}) ->
         catch Class:Reason->{error,{mutation_engine,Class,Reason},Plan} end
     end),
     S0=efz_perf_profile:add_state(S,mutation,MutationUs),
+    staged_choice(Choice,S0).
+staged_choice(Choice,S=#{iteration:=N})->
     case Choice of
         {candidate,Input,P,Next}->
+            S0=provider_sync(S#{mutation_state=>Next}),
             Recipe=efz_recipe:make(P,Input,maps:get(mutation,S0),maps:get(builds,maps:get(feedback,S0))),
-            S1=trace(Recipe,S0#{mutation_state=>Next,current_recipe=>Recipe,iteration=>N+1}),
+            S1=trace(Recipe,S0#{current_recipe=>Recipe,iteration=>N+1}),
             execute(Input,#{id=>maps:get(parent,P)},mutation,S1);
-        {skip,_,Next}->self()!iterate,{noreply,S0#{mutation_state=>Next}};
-        {done,idle_budget_exhausted,Next}->finish({mutation_stopped,idle_budget_exhausted},S0#{mutation_state=>Next});
-        {done,Why,Next}->finish({mutation_exhausted,Why},S0#{mutation_state=>Next});
-        {error,Why,Next}->infrastructure(Why,S0#{mutation_state=>Next})
+        {provider_request,Input,Request,P,Continuation,Next}->
+            start_provider(Input,Request,P,Continuation,provider_sync(S#{mutation_state=>Next}));
+        {skip,_,Next}->
+            self()!iterate,
+            S0=provider_sync(S#{mutation_state=>Next}),
+            case maps:is_key(provider_stats,S0) of
+                true->notify_context(undefined,S0),{noreply,maps:remove(failure_context,S0)};
+                false->{noreply,S0}
+            end;
+        {done,idle_budget_exhausted,Next}->finish({mutation_stopped,idle_budget_exhausted},provider_sync(S#{mutation_state=>Next}));
+        {done,Why,Next}->finish({mutation_exhausted,Why},provider_sync(S#{mutation_state=>Next}));
+        {error,Why,Next}->infrastructure(Why,provider_sync(S#{mutation_state=>Next}))
     end.
+
+provider_init(S)->
+    case provider_configuration(S) of
+        native->{ok,S};
+        P when is_map(P)->
+            Stats=#{latency_us=>[],latency_total_us=>0,
+                latency_samples_dropped=>0,core_us=>[],core_total_us=>0,
+                core_samples_dropped=>0,discoveries=>#{native=>0,erlamsa=>0},
+                retained=>#{native=>0,erlamsa=>0},phase_us=>#{},
+                byte_totals=>#{},
+                phase_samples_dropped=>#{},session=>#{state=>disabled,
+                    vm_starts=>0,restarts=>0,completed_requests=>0,
+                    startup_samples=>[],request_samples=>[],recycle_samples=>[],
+                    recycle_startup_samples=>[],recycle_cleanup_samples=>[]}},
+            Prepared=provider_sync(S#{provider_stats=>Stats}),
+            case maps:get(transport,P,disposable) of
+                persistent ->
+                    case efz_mutation_session:open(self(),P) of
+                        {ok,Pid,SessionRef,Runtime} ->
+                            Monitor=erlang:monitor(process,Pid),
+                            Session=#{pid=>Pid,ref=>SessionRef,monitor=>Monitor},
+                            {ok,provider_session_event(Runtime#{type=>startup},
+                                Prepared#{provider_session=>Session})};
+                        {error,Reason} -> {error,Reason}
+                    end;
+                disposable -> {ok,provider_session_event(#{type=>disabled},Prepared)}
+            end
+    end.
+provider_configuration(S)->maps:get(provider,maps:get(mutation,S,#{}),native).
+provider_sync(#{mutation_state:=#{provider_counts:=Counts},provider_stats:=Stats}=S)->
+    S#{provider_stats=>maps:merge(Stats,Counts)};
+provider_sync(S)->S.
+
+provider_session_event(#{type:=Type}=Runtime,#{provider_stats:=Stats}=S)->
+    Session0=maps:get(session,Stats,#{}),
+    Session=case Type of
+        startup->Session0#{state=>ready,
+            vm_starts=>maps:get(vm_starts,Runtime,maps:get(vm_starts,Session0,0)),
+            restarts=>maps:get(restarts,Runtime,maps:get(restarts,Session0,0)),
+            startup_samples=>bounded_metric(maps:get(worker_startup_us,Runtime,0),
+                                            maps:get(startup_samples,Session0,[]),128)};
+        recycle->Session0#{state=>ready,
+            vm_starts=>maps:get(vm_starts,Runtime,maps:get(vm_starts,Session0,0)),
+            restarts=>maps:get(restarts,Runtime,maps:get(restarts,Session0,0)),
+            startup_samples=>bounded_metric(maps:get(worker_startup_us,Runtime,0),
+                                            maps:get(startup_samples,Session0,[]),128),
+            recycle_startup_samples=>bounded_metric(maps:get(worker_startup_us,Runtime,0),
+                                            maps:get(recycle_startup_samples,Session0,[]),128),
+            recycle_cleanup_samples=>bounded_metric(maps:get(recycle_cleanup_us,Runtime,0),
+                                            maps:get(recycle_cleanup_samples,Session0,[]),128)};
+        down->Session0#{state=>down,
+            cleanup_confirmed=>maps:get(cleanup_confirmed,Runtime,false)};
+        _->Session0
+    end,
+    S#{provider_stats=>Stats#{session=>Session}};
+provider_session_event(_,S)->S.
+
+bounded_metric(Value,Values,Maximum) when is_integer(Value),Value>=0,length(Values)<Maximum->
+    [Value|Values];
+bounded_metric(_,Values,_)->Values.
+start_provider(Input,Request,P,Continuation,S)->
+    Context=#{phase=>mutation_provider,input=>Input,input_hash=>crypto:hash(sha256,Input),
+        parent=>maps:get(parent,P),provider=>maps:get(provider,P),request=>Request},
+    Prepared=S#{failure_context=>Context},notify_context(Context,Prepared),
+    Started=erlang:monotonic_time(microsecond),
+    Provider=provider_configuration(S),
+    case maps:get(transport,Provider,disposable) of
+        persistent -> start_persistent_provider(Input,Request,Continuation,Provider,Prepared,Started);
+        _ -> start_disposable_provider(Input,Request,Continuation,Provider,Prepared,Started)
+    end.
+
+start_disposable_provider(Input,Request,Continuation,Provider,Prepared,Started)->
+    StartedRequest=try efz_mutation_request:start(self(),Input,Request,Provider)
+        catch Class:Why->{error,{Class,Why}} end,
+    case StartedRequest of
+        {ok,Guardian,Ref} when is_pid(Guardian),is_reference(Ref)->
+            Monitor=monitor(process,Guardian),
+            {noreply,Prepared#{pending_mutation=>#{guardian=>Guardian,ref=>Ref,
+                monitor=>Monitor,continuation=>Continuation,started_at=>Started,
+                transport=>disposable}}};
+        Bad->infrastructure({mutation_provider,{request_start,Bad}},provider_worker_error(
+            provider_latency(max(0,erlang:monotonic_time(microsecond)-Started),Prepared)))
+    end.
+
+start_persistent_provider(Input,Request,Continuation,_Provider,Prepared,Started)->
+    case maps:get(provider_session,Prepared,undefined) of
+        #{pid:=SessionPid,ref:=SessionRef} ->
+            Timeout=maps:get(timeout,provider_configuration(Prepared),1000),
+            StartedRequest=try efz_mutation_session:submit(SessionPid,SessionRef,
+                self(),Input,Request,Timeout)
+                catch Class:Why->{error,{Class,Why}} end,
+            case StartedRequest of
+                {ok,Ref} when is_reference(Ref)->
+                    Monitor=monitor(process,SessionPid),
+                    {noreply,Prepared#{pending_mutation=>#{guardian=>SessionPid,
+                        session_ref=>SessionRef,ref=>Ref,monitor=>Monitor,
+                        continuation=>Continuation,started_at=>Started,
+                        transport=>persistent}}};
+                Bad->infrastructure({mutation_provider,{request_start,Bad}},
+                    provider_worker_error(provider_latency(max(0,
+                        erlang:monotonic_time(microsecond)-Started),Prepared)))
+            end;
+        _ -> infrastructure({mutation_provider,missing_persistent_session},
+                provider_worker_error(Prepared))
+    end.
+clear_pending_mutation(#{pending_mutation:=#{monitor:=Monitor}}=S)->
+    demonitor(Monitor,[flush]),maps:remove(pending_mutation,S).
+provider_reply(Result,RuntimeMeta,Pending,S)->
+    Cleared=clear_pending_mutation(S),
+    Elapsed=mutation_elapsed(Pending),
+    Context=(maps:get(failure_context,Cleared))#{provider_result=>Result,provider_runtime=>RuntimeMeta},
+    WithContext=Cleared#{failure_context=>Context},notify_context(Context,WithContext),
+    S0=provider_timing_latency(RuntimeMeta,provider_core_latency(RuntimeMeta,
+        provider_latency(Elapsed,efz_perf_profile:add_state(WithContext,mutation,Elapsed)))),
+    S00=provider_request_session_stats(RuntimeMeta,S0),
+    Plan=maps:get(mutation_state,S00),
+    Choice=try efz_mutation_plan:complete_provider(Result,RuntimeMeta,
+            maps:get(continuation,Pending),Plan)
+        catch Class:Why->{error,{mutation_provider,{completion,Class,Why}},provider_failed_plan(Plan)} end,
+    case maps:get(provider_stopping,S00,false) of
+        true->provider_stopped(Choice,S00);
+        false->case Result of
+            cancelled->infrastructure({mutation_provider,unexpected_cancellation},provider_worker_error(S00));
+            _->staged_choice(Choice,S00)
+        end
+    end.
+mutation_elapsed(Pending)->max(0,erlang:monotonic_time(microsecond)-maps:get(started_at,Pending)).
+provider_stopped(Choice,S)->
+    Next=element(tuple_size(Choice),Choice),
+    S0=provider_sync(S#{mutation_state=>Next}),
+    case Choice of
+        {error,Why,_}->infrastructure(Why,S0);
+        _->case maps:find(provider_stop_error,S0) of
+            {ok,Why}->infrastructure({mutation_provider,{cancel,Why}},provider_worker_error(S0));
+            error->finish(stopped_by_user,S0)
+        end
+    end.
+provider_latency(Elapsed,#{provider_stats:=Stats}=S)->
+    Samples=maps:get(latency_us,Stats),
+    New=Stats#{latency_total_us=>maps:get(latency_total_us,Stats)+Elapsed},
+    case length(Samples)<1024 of
+        true->S#{provider_stats=>New#{latency_us=>[Elapsed|Samples]}};
+        false->S#{provider_stats=>New#{latency_samples_dropped=>maps:get(latency_samples_dropped,Stats)+1}}
+    end.
+%% Child-reported generation time excludes VM startup, transport and cleanup.
+%% Keep independently bounded samples for generation and full request latency.
+provider_core_latency(#{core_us:=CoreUs},#{provider_stats:=Stats}=S)
+  when is_integer(CoreUs),CoreUs>=0,CoreUs<(1 bsl 63)->
+    Samples=maps:get(core_us,Stats),
+    Next=Stats#{core_total_us=>maps:get(core_total_us,Stats)+CoreUs},
+    case length(Samples)<1024 of
+        true->S#{provider_stats=>Next#{core_us=>[CoreUs|Samples]}};
+        false->S#{provider_stats=>Next#{core_samples_dropped=>maps:get(core_samples_dropped,Stats)+1}}
+    end;
+provider_core_latency(_,S)->S.
+
+provider_timing_latency(Runtime,#{provider_stats:=Stats}=S)->
+    Keys=[request_total_us,worker_startup_us,handshake_prepare_us,
+        handshake_identity_check_us,handshake_core_prepare_us,handshake_decode_us,
+        identity_check_us,direct_core_mutation_us,
+        request_validation_us,result_validation_us,request_decode_us,
+        provider_encode_us,parent_encode_us,parent_send_us,parent_decode_us,
+        cleanup_us],
+    {Samples,Dropped}=lists:foldl(fun(Key,{Acc,Drop}) ->
+        case maps:get(Key,Runtime,undefined) of
+            Value when is_integer(Value),Value>=0 ->
+                Values=maps:get(Key,Acc,[]),
+                case length(Values)<1024 of
+                    true->{Acc#{Key=>[Value|Values]},Drop};
+                    false->{Acc,Drop#{Key=>maps:get(Key,Drop,0)+1}}
+                end;
+            _->{Acc,Drop}
+        end
+    end,{maps:get(phase_us,Stats,#{}),maps:get(phase_samples_dropped,Stats,#{})},Keys),
+    ByteKeys=[input_bytes,output_bytes,request_frame_bytes,response_frame_bytes],
+    ByteTotals=lists:foldl(fun(Key,Acc)->
+        case maps:get(Key,Runtime,undefined) of
+            Value when is_integer(Value),Value>=0->
+                Acc#{Key=>maps:get(Key,Acc,0)+Value};
+            _->Acc
+        end
+    end,maps:get(byte_totals,Stats,#{}),ByteKeys),
+    Session0=maps:get(session,Stats,#{}),
+    Session=maps:merge(Session0,maps:with([vm_starts,restarts,cleanup_confirmed],Runtime)),
+    S#{provider_stats=>Stats#{phase_us=>Samples,byte_totals=>ByteTotals,
+                              phase_samples_dropped=>Dropped,
+                              session=>Session}}.
+
+provider_request_session_stats(#{vm_start_number:=Starts,requests_per_vm:=PerVm}=Runtime,
+        #{provider_stats:=Stats}=S)->
+    Session0=maps:get(session,Stats,#{}),
+    Samples=maps:get(request_samples,Session0,[]),
+    Session=Session0#{state=>ready,vm_starts=>Starts,
+        restarts=>max(0,Starts-1),completed_requests=>maps:get(completed_requests,Session0,0)+1,
+        requests_this_vm=>PerVm,request_samples=>bounded_runtime(Runtime,Samples,1024)},
+    S#{provider_stats=>Stats#{session=>Session}};
+provider_request_session_stats(_,S)->S.
+
+bounded_runtime(Value,Values,Maximum) when length(Values)<Maximum->[Value|Values];
+bounded_runtime(_,Values,_)->Values.
+
+provider_worker_error(#{mutation_state:=#{provider_counts:=Counts}=Plan}=S)->
+    provider_sync(S#{mutation_state=>Plan#{provider_counts=>Counts#{errors=>maps:get(errors,Counts)+1}}}).
+provider_failed_plan(#{provider_counts:=Counts}=Plan)->
+    Plan#{provider_counts=>Counts#{errors=>maps:get(errors,Counts)+1}}.
 infrastructure(Why,S)->notify_context(maps:get(failure_context,S,undefined),S),
     Primary=efz_stats:failure(Why),finish({infrastructure_failure,Primary},S).
 trace(R,S=#{trace_count:=N,mutation:=C,mutation_trace:=Ts})->
@@ -215,7 +458,7 @@ semantic_result(Input,Result,Meta,F1,S,Profile) ->
                     FailureState=diagnostic_failure_context(Result,S2),
                     infrastructure(Why,FailureState#{failure_context=>
                         (maps:get(failure_context,FailureState))#{metadata=>WithSemantic}});
-                Meta1 -> accepted(Input, public_result(Result), Meta1, F1, S2)
+                Meta1 -> accepted(Input, Result, Meta1, F1, provider_admission(Meta1,S2))
             end
     end.
 
@@ -329,7 +572,7 @@ accepted(Input, Result, Meta1, F1, S0) ->
     S=efz_monitor:record(Input,Result,Meta1,S0),
     case maps:get(target_failure_recorded,S,false) of
         true->runtime_check(Input,Result,Meta1,S#{feedback=>F1});
-        false->case record_failure(Input, Result, Meta1, S#{feedback => F1}) of
+        false->case record_failure(Input, public_result(Result), Meta1, S#{feedback => F1}) of
         {error,Why,S1} -> infrastructure(Why,S1);
         {ok,S1} -> runtime_check(Input,Result,Meta1,S1)
         end
@@ -352,8 +595,12 @@ runtime_check(Input,Result,Meta,S=#{runtime_oracles:=#{enabled:=true}=P}) ->
     efz_stats:add(verification_requested,Requested-1),
     Left=max(0,maps:get(max_extra_executions,St)-maps:get(verification_used,S)),
     Begin=erlang:monotonic_time(microsecond),
-    Rows=[efz_stability:snapshot(Result,P)],
-    case verify(Input,Meta,min(Requested-1,Left),Rows,S) of
+    Track=maps:get(enabled,St) andalso Key=/=none,
+    SStart=case Track of true->feature_observe(Input,Result,Requested,S);
+        false->S end,
+    Rows=[efz_stability:snapshot(public_result(Result),P)],
+    case verify(Input,Meta,min(Requested-1,Left),Rows,SStart#{feature_tracking=>Track,
+            feature_requested=>Requested}) of
         {Status,All,S1}->
             Summary=efz_stability:summarize(All,Requested),
             efz_stats:add(verification_skipped,maps:get(skipped,Summary)),
@@ -363,7 +610,13 @@ runtime_check(Input,Result,Meta,S=#{runtime_oracles:=#{enabled:=true}=P}) ->
             Reproductions=maps:from_list([{C,length([ok||R<-Admissible,lists:member(C,maps:get(categories,maps:get(runtime,R),[]))])}||C<-RuntimeCats]),
             Check=Summary#{input_hash=>crypto:hash(sha256,Input),origin=>maps:get(phase,Meta),reproductions=>Reproductions,
                 diagnostic_us=>erlang:monotonic_time(microsecond)-Begin},
-            S2=remember_check(Check,S1),
+            Collection=case {Status,maps:get(valid,Summary),maps:get(attempted,Summary),Requested,Left} of
+                {_,_,A,R,L} when A<R,L<R-1->budget_exhausted;
+                {ok,V,_,R,_} when V>=R->complete;
+                _->partial
+            end,
+            SDone=case Track of true->feature_complete(S1,Requested,Collection);false->S1 end,
+            S2=remember_check(Check,maps:without([feature_tracking,feature_requested],SDone)),
             Stored=save_runtime(Categories,Input,Result,Meta,Check,S2),
             efz_stats:add(runtime_diagnostic_us,erlang:monotonic_time(microsecond)-Begin),
             case Stored of
@@ -374,19 +627,116 @@ runtime_check(Input,Result,Meta,S=#{runtime_oracles:=#{enabled:=true}=P}) ->
             end
     end;
 runtime_check(_,_,Meta,S)->accepted_success(Meta,S).
+feature_observe(Input,R,Requested,S) ->
+    Backend=maps:get(coverage_backend,S),
+    Schema=maps:get(coverage_schema,S,undefined),
+    SchemaId=case Schema of #{fingerprint:=F}->F;
+        _->crypto:hash(sha256,term_to_binary({Backend,maps:get(builds,R,#{})},[deterministic])) end,
+    InputId=crypto:hash(sha256,Input),
+    Context=maps:with([target,timeout,coverage,coverage_backend,coverage_feedback,
+        coverage_validation,execution_identities],S),
+    ResultBuilds=maps:get(builds,R,undefined),
+    GroupId=crypto:hash(sha256,term_to_binary({InputId,Context,SchemaId,ResultBuilds},[deterministic])),
+    ExpectedBuilds=maps:from_list([{maps:get(module,M),maps:get(build_id,M)}||
+        M<-maps:get(manifests,S,[])]),
+    Features=case {ResultBuilds=:=ExpectedBuilds,efz_stability:usable(R)} of
+        {false,_}->{invalid,build_mismatch};
+        {_,false}->{invalid,feature_invalid_reason(R)};
+        {true,true}->feature_points(R,Backend,Schema,SchemaId,
+            maps:get(max_features_per_group,maps:get(feature_stability,S)))
+    end,
+    Elapsed=max(0,(erlang:monotonic_time(microsecond)-maps:get(calibration_started_at,S)) div 1000),
+    FS=efz_stability:observe(maps:get(feature_stability,S),GroupId,InputId,
+        maps:get(execution_ref,R,make_ref()),Requested,Features,Elapsed),
+    feature_publish(S#{feature_stability=>FS}).
+
+feature_invalid_reason(R) ->
+    case efz_stability:failure(R) of
+        {error,{runner_not_reusable,_}}->runner_not_reusable;
+        {error,{coverage_failure,_}}->coverage_failure;
+        {error,_}->execution_failure;
+        ok->invalid_coverage_window
+    end.
+
+feature_points(R,bitmap,Schema,Id,Max) ->
+    try bitmap_points(R,Schema,Id,Max) catch _:_->{invalid,damaged_full_coverage} end;
+feature_points(R,otp_native_public,Schema,Id,Max) ->
+    try case maps:find(coverage_native,R) of
+        {ok,Bits}->case efz_coverage:native_count(Bits)=<Max of
+            true->contextual_points({ok,efz_coverage:native_decode(Schema,Bits)},otp_native_public,Id);
+            false->{limit,feature_limit} end;
+        error->{invalid,missing_full_coverage} end
+    catch _:_->{invalid,damaged_full_coverage} end;
+feature_points(_,none,_,_,_) -> {unsupported,unsupported_backend};
+feature_points(R,Backend,_,Id,Max) ->
+    case maps:find(coverage,R) of
+        {ok,Points} when is_list(Points),length(Points)=<Max->contextual_points({ok,Points},Backend,Id);
+        {ok,Points} when is_list(Points)->{limit,feature_limit};
+        _->{invalid,missing_full_coverage} end.
+bitmap_points(R,Schema,Id,Max) ->
+    Decoded=case maps:find(coverage_sealed,R) of
+        {ok,Sealed}->case efz_coverage:sealed_count(Sealed) of
+            {ok,N} when N=<Max->case efz_coverage:diagnostic_snapshot(Sealed) of
+                {ok,Bits}->efz_coverage:decode_new(Schema,Bits);
+                Error->Error end;
+            {ok,_}->{limit,feature_limit};
+            Error->Error end;
+        error->case maps:find(coverage,R) of
+            {ok,Points} when is_list(Points),length(Points)=<Max->{ok,Points};
+            {ok,Points} when is_list(Points)->{limit,feature_limit};
+            _->case maps:find(coverage_bits,R) of
+                {ok,{efz_bitmap_snapshot,1,_,Bytes}=Bits}->case bit_count(Bytes,Max,0) of
+                    limit->{limit,feature_limit};
+                    _->efz_coverage:decode_new(Schema,Bits) end;
+                error->{error,missing_full_coverage} end end
+    end,
+    case Decoded of {limit,feature_limit}->Decoded;_->contextual_points(Decoded,bitmap,Id) end.
+bit_count(<<>>,_,N)->N;
+bit_count(_,Max,N) when N>Max->limit;
+bit_count(<<Byte,Rest/binary>>,Max,N)->bit_count(Rest,Max,N+ones(Byte,0)).
+ones(0,N)->N;
+ones(Byte,N)->ones(Byte band (Byte-1),N+1).
+contextual_points({ok,Points},Backend,Id) when is_list(Points) ->
+    {ok,[{Backend,Id,Point}||Point<-Points]};
+contextual_points(_,_,_) -> {invalid,damaged_full_coverage}.
+
+feature_complete(S,Requested,Collection) ->
+    FS=efz_stability:complete(maps:get(feature_stability,S),Requested,Collection),
+    feature_publish(S#{feature_stability=>FS}).
+feature_publish(#{monitoring:=true,coordinator:=Coordinator,feature_stability:=FS}=S) ->
+    %% Bound this optional progress stream if the coordinator is overloaded.
+    %% Its next regular snapshot or final report still carries the latest value.
+    ok=case process_info(Coordinator,message_queue_len) of
+        {message_queue_len,N} when N<64 ->
+            Coordinator!{feature_stability_progress,self(),efz_stability:public(FS)},ok;
+        _->ok
+    end,S;
+feature_publish(S)->S.
 verify(_,_,0,Rows,S)->{ok,lists:reverse(Rows),S};
 verify(Input,Meta,N,Rows,S=#{runtime_oracles:=P,target:=M,timeout:=T})->
+    case verification_stop_requested() of
+        true->{ok,lists:reverse(Rows),S};
+        false->verify_next(Input,Meta,N,Rows,S,P,M,T)
+    end.
+verification_stop_requested() ->
+    receive {'$gen_cast',request_stop}=Message->self()!Message,true
+    after 0->false end.
+verify_next(Input,Meta,N,Rows,S,P,M,T)->
     O=case maps:get(executor_options,S) of reference->executor_reference_options(S);Prepared->Prepared end,
     VContext=(maps:get(failure_context,S))#{phase=>verification,origin=>verification},
     notify_context(maps:remove(result,VContext),S),
-    R=public_result(efz_executor:run(M,Input,T,O#{execution_origin=>verification,
-        execution_recipe=>maps:get(mutation,Meta,undefined)})),
+    R=efz_executor:run(M,Input,T,O#{execution_origin=>verification,
+        execution_recipe=>maps:get(mutation,Meta,undefined)}),
     efz_stats:inc(verification_executions),
     efz_stats:add(verification_elapsed_us,maps:get(elapsed_us,R,0)),
     runtime_stats(R),
-    S1=S#{verification_used=>maps:get(verification_used,S)+1,failure_context=>VContext#{result=>R}},
+    S1a=S#{verification_used=>maps:get(verification_used,S)+1,
+        failure_context=>VContext#{result=>public_result(R)}},
+    S1=case maps:get(feature_tracking,S,false) of
+        true->feature_observe(Input,R,maps:get(feature_requested,S),S1a);
+        false->S1a end,
     notify_context(maps:get(failure_context,S1),S1),
-    Next=[efz_stability:snapshot(R,P)|Rows],
+    Next=[efz_stability:snapshot(public_result(R),P)|Rows],
     case efz_stability:failure(R) of
         {error,Why}->efz_stats:inc(verification_failed),{ {error,Why},lists:reverse(Next),
             S1#{failure_context=>(maps:get(failure_context,S1))#{origin=>verification,result=>R}}};
@@ -396,7 +746,7 @@ verify(Input,Meta,N,Rows,S=#{runtime_oracles:=P,target:=M,timeout:=T})->
             VMeta=Meta#{origin=>verification,phase=>verification,outcome=>maps:get(outcome,R),
                 execution_ref=>maps:get(execution_ref,R),new_probes=>[],retention_reason=>target_failure},
             SavedDecision=maps:get(crash_decision,S1,false),
-            case record_failure(Input,R,VMeta,S1) of
+            case record_failure(Input,public_result(R),VMeta,S1) of
                 {ok,S2}->verify(Input,Meta,N-1,Next,S2#{crash_decision=>SavedDecision});
                 {error,Why,S2}->{{error,Why},lists:reverse(Next),S2}
             end
@@ -455,6 +805,17 @@ accepted_success(Meta1,S1) ->
     notify_context(undefined,S3),
     self() ! iterate,
     {noreply, maps:without([current_recipe,failure_context,crash_decision,target_failure_recorded],S3)}.
+provider_admission(#{phase:=mutation,retention_reason:=Reason,corpus_id:=_,
+        mutation:=#{provider:=#{source:=Source}}},#{provider_stats:=Stats}=S)
+  when Reason=:=new_coverage;Reason=:=new_probe;Reason=:=new_hit_count;Reason=:=new_semantic ->
+    Discoveries=maps:get(discoveries,Stats),Retained=maps:get(retained,Stats),
+    CoverageDiscoveries=case Reason of
+        new_semantic->Discoveries;
+        _->Discoveries#{Source=>maps:get(Source,Discoveries,0)+1}
+    end,
+    S#{provider_stats=>Stats#{discoveries=>CoverageDiscoveries,
+        retained=>Retained#{Source=>maps:get(Source,Retained,0)+1}}};
+provider_admission(_,S)->S.
 notify_context(Context,S)->maps:get(coordinator,S)!{execution_context,self(),Context},ok.
 decision_metadata(#{mutation:=Recipe}=Meta)->
     Meta#{mutation=>maps:with([stage,primary_id,config_id,output_hash],Recipe)};
@@ -529,15 +890,47 @@ diagnostic_status(Status,#{policy:=strict,status:=no_probes_observed}=D) ->
     Why=#{kind=>coverage_not_observed,diagnostic=>D,stop_reason=>Status},
     {infrastructure_failure,efz_stats:failure(Why)};
 diagnostic_status(Status,_) -> Status.
-finish(Status0, S) ->
-    Diagnostic=diagnostic(S),Status=diagnostic_status(Status0,Diagnostic),
+close_provider_session(#{provider_session:=#{pid:=Pid,ref:=Ref,monitor:=Monitor}}=S)->
+    Timeout=maps:get(cleanup_timeout,provider_configuration(S),3000),
+    Result=try efz_mutation_session:close(Pid,Ref,Timeout)
+        catch Class:Reason->{error,{Class,Reason}} end,
+    erlang:demonitor(Monitor,[flush]),
+    Stats0=maps:get(provider_stats,S),
+    Session0=maps:get(session,Stats0,#{}),
+    {Session,Error}=case Result of
+        {ok,Final}->
+            Merged=maps:merge(Session0,Final),
+            Confirmed=maps:get(last_cleanup_confirmed,Merged,
+                maps:get(cleanup_confirmed,Merged,false)),
+            {Merged#{cleanup_confirmed=>Confirmed,state=>down},
+             case Confirmed of true->none;false->{cleanup_unconfirmed,Final} end};
+        {error,Why}->{Session0#{state=>down,cleanup_error=>efz_control_json:text(Why)},Why}
+    end,
+    {maps:remove(provider_session,S#{provider_stats=>Stats0#{session=>Session}}),Error};
+close_provider_session(S)->{S,none}.
+
+finish(Status0, SIn) ->
+    {S,ProviderCloseError}=close_provider_session(SIn),
+    StatusBeforeDiagnostic=case ProviderCloseError of
+        none->Status0;
+        Why->{infrastructure_failure,efz_stats:failure(
+            {mutation_provider,{session_cleanup,Why}})}
+    end,
+    Diagnostic=diagnostic(S),Status=diagnostic_status(StatusBeforeDiagnostic,Diagnostic),
     End = erlang:monotonic_time(microsecond),
     MutationStart = maps:get(mutation_started_at, S, End),
     CalibrationStart = maps:get(calibration_started_at, S),
     Timing = #{calibration_started_at => CalibrationStart,
                calibration_us => MutationStart - CalibrationStart,
                mutation_us => End - MutationStart},
+    FeatureReport=efz_stability:public(maps:get(feature_stability,S)),
+    FinalFeature=case Status of
+        stopped_by_user->FeatureReport#{collection_status=>stopped,
+            revision=>maps:get(revision,FeatureReport)+1};
+        _->FeatureReport
+    end,
     Base0 = #{max_input_bytes=>maps:get(max_input_bytes,S), status => Status, timing => Timing, stats => efz_stats:get(), corpus => efz_corpus:all(),
+               feature_stability=>FinalFeature,
                execution_identities=>maps:get(execution_identities,S),coverage_diagnostics=>Diagnostic,
                decisions => lists:reverse(maps:get(decisions, S)),
                crash_policy=>maps:get(crash_policy,S),
@@ -573,11 +966,15 @@ finish(Status0, S) ->
         error->Base;
         {ok,Store}->Base#{corpus_restore=>maps:with([dir,build_policy,restored_inputs,diagnostics],Store)}
     end,
-    Report0=case maps:get(mutation_state,S) of
+    MutationReport=case maps:get(mutation_state,S) of
         undefined->WithCorpus;
-        #{counts:=Counts}->WithCorpus#{mutation=>maps:get(mutation,S),mutation_stats=>Counts,
+        #{counts:=Counts}->WithCorpus#{mutation=>public_mutation(maps:get(mutation,S)),mutation_stats=>Counts,
             mutation_initial_corpus=>[efz_mutation:hash(B)||B<-maps:get(seeds,S)],
             mutation_trace=>lists:reverse(maps:get(mutation_trace,S))}
+    end,
+    Report0=case provider_configuration(S) of
+        native->MutationReport;
+        Provider->MutationReport#{provider=>public_provider(Provider),provider_stats=>maps:get(provider_stats,S)}
     end,
     Report=case maps:get(gleam_layer,S) of
         false->Report0;
@@ -592,6 +989,9 @@ finish(Status0, S) ->
         false->ok end,
     maps:get(coordinator, S) ! {campaign_done, self(), Report},
     {noreply, S#{campaign_finished=>true}}.
+public_provider(P)->maps:without([core_context,core_path,runtime_modules],P).
+public_mutation(C)->case maps:find(provider,C) of
+    {ok,P}->C#{provider=>public_provider(P)};error->C end.
 handle_call(benchmark_snapshot, _, S) ->
     Global = maps:get(global, maps:get(feedback, S)),
     {reply, #{stats => efz_stats:get(),
@@ -612,15 +1012,45 @@ handle_call(benchmark_coverage, _, S) ->
     {reply, efz_coverage:global_snapshot(Global), S};
 handle_call(_, _, S) -> {reply, ok, S}.
 handle_cast(request_stop,#{campaign_finished:=true}=S)->{noreply,S};
+handle_cast(request_stop,#{provider_stopping:=true}=S)->{noreply,S};
+handle_cast(request_stop,#{pending_mutation:=#{guardian:=Guardian,ref:=Ref}}=S)->
+    %% The guardian's reply confirms that the external request has been reaped.
+    %% Keep servicing monitoring and stop calls while cancellation completes.
+    Stopping=S#{provider_stopping=>true},
+    Cancel=case maps:get(transport,maps:get(pending_mutation,S),disposable) of
+        persistent->efz_mutation_session:cancel(Guardian,
+            maps:get(session_ref,maps:get(pending_mutation,S)),Ref);
+        _->efz_mutation_request:cancel(Guardian,Ref)
+    end,
+    case catch Cancel of
+        ok->{noreply,Stopping};
+        Error->{noreply,Stopping#{provider_stop_error=>Error}}
+    end;
 handle_cast(request_stop,S)->finish(stopped_by_user,S);
 handle_cast(monitor_sample,S)->
     maps:get(coordinator,S)!{monitor_sample,self(),efz_monitor:snapshot(S)},
     {noreply,S};
 handle_cast(_, S) -> {noreply, S}.
 terminate(_, S) ->
+    case maps:find(pending_mutation,S) of
+        {ok,#{guardian:=Guardian,ref:=RequestRef}=Pending}->
+            _=case maps:get(transport,Pending,disposable) of
+                persistent->catch efz_mutation_session:cancel(Guardian,
+                    maps:get(session_ref,Pending),RequestRef);
+                _->catch efz_mutation_request:cancel(Guardian,RequestRef)
+            end,ok;
+        error->ok
+    end,
     case maps:find(coverage_schema, S) of
         {ok, Schema} -> _ = catch efz_coverage:release_schema(Schema), ok;
         error -> ok
+    end,
+    case maps:find(provider_session,S) of
+        {ok,#{pid:=Pid,ref:=SessionRef,monitor:=Monitor}}->
+            _=catch efz_mutation_session:close(Pid,SessionRef,
+                maps:get(cleanup_timeout,provider_configuration(S),3000)),
+            erlang:demonitor(Monitor,[flush]),ok;
+        error->ok
     end.
 code_change(_, S, _) -> {ok, S}.
 

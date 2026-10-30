@@ -1,0 +1,52 @@
+{
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.41",
+  "python": "3.12.14",
+  "available_affinity": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "measured_affinity": [
+    0,
+    1
+  ],
+  "cpu_model": "AMD EPYC 9V74 80-Core Processor",
+  "cpu_max": "400000 100000",
+  "memory_max": "34359738368",
+  "unrelated_checks_affinity": [
+    2,
+    3,
+    4
+  ],
+  "runtime_files": {
+    "/workspace/.efz-tools/root/usr/lib/erlang/bin/erl": "c7f48b18583f88ab7d3739db5a889690e4a8f27d68bafaf23f3805b662310d2f",
+    "/workspace/.efz-tools/root/usr/lib/erlang/erts-15.2.7/bin/beam.smp": "dd03d24b343a06e11b1c9b6e32de6a0f90554e1868b961060e48c83e65671991",
+    "/workspace/.efz-tools/root/usr/lib/erlang/erts-15.2.7/bin/erl": "c7f48b18583f88ab7d3739db5a889690e4a8f27d68bafaf23f3805b662310d2f",
+    "/workspace/.efz-tools/root/usr/lib/erlang/lib/erts-15.2.7/ebin/zlib.beam": "a8af382a583c05e39a0e9a0dfabfe39cfa00f99828096c2c96e11b4438ab53bc"
+  },
+  "beam_linked_libraries": [
+    "linux-vdso.so.1 (0x00007fbe052b2000)",
+    "\tlibtinfo.so.6 => /lib/x86_64-linux-gnu/libtinfo.so.6 (0x00007fbe047ca000)",
+    "\tlibz.so.1 => /lib/x86_64-linux-gnu/libz.so.1 (0x00007fbe05267000)",
+    "\tlibstdc++.so.6 => /lib/x86_64-linux-gnu/libstdc++.so.6 (0x00007fbe04564000)",
+    "\tlibm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007fbe04474000)",
+    "\tlibgcc_s.so.1 => /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007fbe04447000)",
+    "\tlibc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007fbe04253000)",
+    "\t/lib64/ld-linux-x86-64.so.2 (0x00007fbe052b4000)"
+  ],
+  "libz": [
+    {
+      "path": "/usr/lib/x86_64-linux-gnu/libz.so.1.3.1",
+      "realpath": "/usr/lib/x86_64-linux-gnu/libz.so.1.3.1",
+      "sha256": "85590dd58edf5445e18bc7193e5ebc01ac5841f1ae187e97705a662e90c6421e",
+      "version": "1.3.1"
+    }
+  ],
+  "compression_guarantee": "Only identical OTP/ERTS installation, mapped libz native build and core BEAM identity; OTP/ERTS version strings alone are insufficient. Regeneration must verify saved candidate hash.",
+  "otp": "27",
+  "erts": "15.2.7",
+  "libz_detection": "Dynamically loaded on demand. Actual Erlang zlib:open/deflate call followed by /proc/self/maps confirms mapped library; initial ldd beam.smp does not list it.",
+  "libz_probe": "Z=zlib:open(),ok=zlib:deflateInit(Z),_=zlib:deflate(Z,<<\"synthetic\">>,finish),zlib:close(Z),file:read_file(\"/proc/self/maps\")."
+}

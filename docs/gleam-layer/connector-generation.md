@@ -1,5 +1,7 @@
 # Generating a connector from an Erlang spec
 
+**English** · [Русский](../i18n/ru/gleam-layer/connector-generation.md) · [Español](../i18n/es/gleam-layer/connector-generation.md) · [简体中文](../i18n/zh-CN/gleam-layer/connector-generation.md) · [All languages](../i18n/README.md)
+
 The existing generic adapter can connect an API without a new Gleam model or
 library-specific adapter. The scaffold now reads a trusted local BEAM's
 `-spec` and local `-type` declarations to generate its argument schema. The

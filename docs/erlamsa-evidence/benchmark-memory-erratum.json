@@ -1,0 +1,11 @@
+{
+  "scope": "primary five-mode25trial matrix",
+  "raw_field": "sampled_process_tree_rss_peak_bytes",
+  "actual_meaning": "Sampled root-process RSS only. This kernel does not expose /proc/PID/task/TID/children; original sampler traversed no children.",
+  "summary_raw_field": "groups.*.process_tree_rss_bytes",
+  "child_inclusive_rss": "NOT_MEASURED in primary matrix",
+  "vm_memory": "one-second erlang:memory(total) series remains valid",
+  "correction": "Separate corrected PPID-stat sampler with real child-memory probe; repeat and memory diagnostic datasets labelled separately. Do not pool RSS scopes.",
+  "sampler_patch": "benchmark-rss-fix.patch",
+  "reproduce_original_driver": "Reverse the saved patch against scripts/benchmark_erlamsa.py; resulting SHA256 must equal the primary manifest source_sha256 entry."
+}

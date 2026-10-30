@@ -1,5 +1,7 @@
 # EFZ: engine performance profile v2 (2026-10-04)
 
+**English** · [Русский](i18n/ru/engine-performance-profile-v2.md) · [Español](i18n/es/engine-performance-profile-v2.md) · [简体中文](i18n/zh-CN/engine-performance-profile-v2.md) · [All languages](i18n/README.md)
+
 ## 1. Executive summary
 
 The saved 900-second Cowboy runs show 269.54 exec/s for `none`, 107.87 for ETS, 64.74 for bitmap-v2, and 103.36 for OTP public. Therefore coverage alone cannot explain the gap to the external `erlang_fuzzer` (~19k exec/s), which has a different in-process execution and fuzzing policy. No new 900-second run was performed here.

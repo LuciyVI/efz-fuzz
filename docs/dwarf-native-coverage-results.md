@@ -1,5 +1,7 @@
 # DWARF/native coverage results
 
+**English** · [Русский](i18n/ru/dwarf-native-coverage-results.md) · [Español](i18n/es/dwarf-native-coverage-results.md) · [简体中文](i18n/zh-CN/dwarf-native-coverage-results.md) · [All languages](i18n/README.md)
+
 Status on 2026-10-03: **direct-read helper deferred**. See
 [`dwarf-native-coverage.md`](dwarf-native-coverage.md) for the observed OTP
 layout, the pointer-lifetime problem, and the reproducible continuation setup.

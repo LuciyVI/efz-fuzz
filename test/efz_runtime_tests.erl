@@ -8,7 +8,7 @@ policy()->{ok,P}=efz_runtime_config:prepare(#{enabled=>true,resources=>#{sample_
 config_test()->
     ?assertMatch({ok,#{enabled:=false}},efz_runtime_config:prepare(#{})),
     [?assertEqual({error,invalid_runtime_oracles},efz_runtime_config:prepare(P))||P<-[#{unknown=>1},
-      #{enabled=>yes},#{stability=>#{seed_runs=>0}},#{stability=>#{seed_runs=>17}},
+      #{enabled=>yes},#{stability=>#{seed_runs=>0}},#{stability=>#{seed_runs=>257}},
       #{stability=>#{unknown=>1}},#{resources=>#{max_samples=>100000}},
       #{resources=>#{sample_interval_ms=>0}},#{resources=>#{max_samples=>256,max_sampled_processes=>256}},
       #{hangs=>#{max_sample_age_ms=>1}},#{storage=>#{max_metadata_bytes=>100}}]].

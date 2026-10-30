@@ -1,0 +1,43 @@
+{
+  "commit": "86dd745aafb8ebe78f578c51f783132800b89238",
+  "clone": "local --no-local, NOT remote fork/submodule acceptance",
+  "compile_exit": 0,
+  "beams": [
+    {
+      "file": "erlamsa_core.beam",
+      "same_sha256": true
+    },
+    {
+      "file": "erlamsa_core_bytes.beam",
+      "same_sha256": true
+    },
+    {
+      "file": "erlamsa_core_fields.beam",
+      "same_sha256": true
+    },
+    {
+      "file": "erlamsa_core_json.beam",
+      "same_sha256": true
+    },
+    {
+      "file": "erlamsa_core_ops.beam",
+      "same_sha256": true
+    },
+    {
+      "file": "erlamsa_core_pack.beam",
+      "same_sha256": true
+    },
+    {
+      "file": "erlamsa_core_rng.beam",
+      "same_sha256": true
+    },
+    {
+      "file": "erlamsa_core_sgml.beam",
+      "same_sha256": true
+    },
+    {
+      "file": "erlamsa_core_tree.beam",
+      "same_sha256": true
+    }
+  ]
+}

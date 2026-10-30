@@ -1,57 +1,59 @@
-# Длительный Cowboy benchmark: ETS, bitmap-v2 и OTP-public
+# Long Cowboy benchmark: ETS, bitmap-v2 and OTP-public
 
-## Назначение и граница target
+**English** · [Русский](i18n/ru/cowboy-long-benchmark.md) · [Español](i18n/es/cowboy-long-benchmark.md) · [简体中文](i18n/zh-CN/cowboy-long-benchmark.md) · [All languages](i18n/README.md)
 
-Benchmark запускает обычную кампанию EFZ на 900 секунд. Вход — байты одного
-HTTP/1.x request. `efz_cowboy_long_target:run/1` подаёт их в настоящий
-`cowboy_http:init/6` через in-memory `efz_cowboy_transport`; `cowboy_http:loop/1`
-и его внутренние `parse_request/3`, `parse_header/4`, `request/*`,
-`parse_body/2` выполняют parsing request line, method, URI, version, headers,
-`Content-Length` и chunked transfer encoding. `efz_cowboy_stream:init/3`
-вызывает `cowboy_router:execute/2` и `cowboy_req:parse_qs/1`; для body он
-принимает `cowboy_stream:data/4` до `fin`. Сетевого listener, Ranch acceptor и
-TCP здесь нет. Это реальный parser/stream path Cowboy, но не полный pipeline
-обработчика HTTP и не сетевой benchmark.
+## Purpose and target boundary
 
-Парсерные ошибки и неполные requests возвращают штатный `{ok,rejected}`.
-Неожиданные исключения stream sink передаёт стандартной crash classification
-EFZ. Каждый запуск одного input происходит в одном target process; закрытие
-in-memory transport и очистка маркера результата выполняются в `after`.
-Harness не обращается к coverage API.
+The benchmark runs an ordinary EFZ campaign for 900 seconds. The input is the
+bytes of one HTTP/1.x request. `efz_cowboy_long_target:run/1` feeds them into real
+`cowboy_http:init/6` through the in-memory `efz_cowboy_transport`;
+`cowboy_http:loop/1` and its internal `parse_request/3`, `parse_header/4`,
+`request/*`, `parse_body/2` parse the request line, method, URI, version, headers,
+`Content-Length` and chunked transfer encoding. `efz_cowboy_stream:init/3`
+calls `cowboy_router:execute/2` and `cowboy_req:parse_qs/1`; for the body, it
+accepts `cowboy_stream:data/4` until `fin`. There is no network listener, Ranch
+acceptor or TCP. This is Cowboy's real parser/stream path, but not the full HTTP
+handler pipeline or a network benchmark.
 
-Зависимость Cowboy зафиксирована в `rebar.config`/`rebar.lock`: Cowboy 2.19.0,
-Cowlib 2.20.0, Ranch 1.8.1. Поддерживаемый проектом OTP: 27+. В каждом
-запуске автоматически компилируется и инструментируется только allowlist:
+Parser errors and incomplete requests return the normal `{ok,rejected}`.
+The stream sink passes unexpected exceptions to EFZ's standard crash
+classification. Each input executes in one target process; the in-memory
+transport is closed and the result marker cleaned up in `after`.
+The harness does not call the coverage API.
 
-| Модуль | Probes |
+The Cowboy dependency is pinned in `rebar.config`/`rebar.lock`: Cowboy 2.19.0,
+Cowlib 2.20.0, Ranch 1.8.1. The project supports OTP 27+. Each run automatically
+compiles and instruments only this allowlist:
+
+| Module | Probes |
 | --- | ---: |
 | `cowboy_http` | 485 |
 | `cowboy_req` | 282 |
 | `cowboy_router` | 101 |
 | `cowboy_stream` | 19 |
-| **Всего** | **887** |
+| **Total** | **887** |
 
-Числа проверены на OTP 27.0 с указанной версией Cowboy; runner печатает и
-сохраняет фактический счётчик. Карта bitmap содержит 65 536 **бит**. Превышение
-ёмкости останавливает запуск до кампании. `strict => false` необходим из-за
-нескольких record defaults/list comprehensions, которые существующий
-`efz_instrument_pt` сохраняет без внутренних probes. Их список выводится при
-сборке и находится в `.efz-manifest` каждого target module. Это ограничение
-instrumentation, общее для обоих backend.
+These counts were verified on OTP 27.0 with the specified Cowboy version; the
+runner prints and saves the actual count. The bitmap has 65,536 **bits**.
+Exceeding capacity stops the run before the campaign. `strict => false` is
+required because of several record defaults/list comprehensions that the
+existing `efz_instrument_pt` preserves without internal probes. Their list is
+printed during compilation and stored in each target module's `.efz-manifest`.
+This instrumentation limitation applies to both backends.
 
-Экспериментальный `otp_native_public` собирает тот же allowlist Cowboy с
-`line_coverage` и читает покрытие через `code:get_coverage(line, Module)`.
-Для Cowboy 2.19.0 в этом окружении получилось 1089 native line slots. Это
-исполняемые строки OTP, поэтому 1089 нельзя сравнивать с 887 структурными
-probes EFZ как равные единицы покрытия. Режим выбирается до загрузки target.
+Experimental `otp_native_public` compiles the same Cowboy allowlist with
+`line_coverage` and reads coverage through `code:get_coverage(line, Module)`.
+For Cowboy 2.19.0, this environment produced 1089 native line slots. These are
+OTP executable lines, so 1089 cannot be compared to EFZ's 887 structural probes
+as equivalent coverage units. The mode is selected before loading the target.
 
-Seeds лежат в `test/targets/cowboy/seeds/`: 12 небольших requests с CRLF,
-включая GET, query, POST с длиной, несколько заголовков, HEAD, OPTIONS,
-absolute URI, HTTP/1.0, chunked body и два повреждённых запроса.
+Seeds are in `test/targets/cowboy/seeds/`: 12 small requests with CRLF,
+including GET, query, POST with a length, multiple headers, HEAD, OPTIONS,
+absolute URI, HTTP/1.0, a chunked body and two malformed requests.
 
-## Запуск
+## Running
 
-Из корня `efz/`:
+From the `efz/` root:
 
 ```sh
 ./scripts/run_cowboy_long_bench.sh --backend ets --duration 900 --seed 424242
@@ -59,47 +61,46 @@ absolute URI, HTTP/1.0, chunked body и два повреждённых запр
 ./scripts/run_cowboy_long_bench.sh --backend otp_native_public --duration 900 --seed 424242
 ```
 
-Для профилирования стоимости engine добавлены экспериментальные режимы
-`--backend none` (Cowboy без instrumentation), `--backend none_instrumented`
-(Cowboy с OTP line instrumentation, но без reset/read/feedback), а также
-`--target noop` и `--profile`. Короткие измерения, интерпретация overhead и
-команды просмотра `profile.term` приведены в
-[профиле engine](engine-performance-profile.md). `none` не является
-coverage-guided режимом и не меняет default ETS.
-Результаты следующего этапа с 15-минутными прогонами, одинаковой
-последовательностью inputs (`--fixed-replay`) и временным профилем:
+Experimental modes for profiling engine cost include `--backend none` (Cowboy
+without instrumentation), `--backend none_instrumented` (Cowboy with OTP line
+instrumentation but no reset/read/feedback), plus `--target noop` and `--profile`.
+Short measurements, overhead interpretation and commands for viewing
+`profile.term` are described in the
+[engine profile](engine-performance-profile.md). `none` is not coverage-guided
+and does not change the ETS default.
+Results of the next stage with 15-minute runs, identical input sequences
+(`--fixed-replay`) and a time profile:
 [engine-performance-profile-v2.md](engine-performance-profile-v2.md).
 
-Каждая команда запускает новую Erlang VM. Для дополнительной пары с обратным
-порядком выполните затем bitmap → ETS с теми же аргументами. Для другого
-начального corpus укажите `--corpus DIR` (плоский каталог regular files), для
-явного нового каталога результата — `--out DIR`. Существующий `--out` не
-перезаписывается. `--duration` задаётся в секундах. `--seed` используется для
-EFZ random mutation и выбора parent из corpus. Сопоставимость seed означает
-одинаковое начальное состояние, а не гарантированно идентичную историю: разная
-скорость backend за фиксированное время даёт разное число mutations и может
-привести к разному corpus. Для строгой проверки семантики coverage используйте
-дифференциальные тесты одинаковой истории событий EFZ.
+Each command starts a fresh Erlang VM. For an additional pair in reverse order,
+then run bitmap → ETS with the same arguments. To use another initial corpus,
+specify `--corpus DIR` (a flat directory of regular files); for an explicit new
+result directory, use `--out DIR`. An existing `--out` is not overwritten.
+`--duration` is in seconds. `--seed` is used for EFZ random mutation and corpus
+parent selection. Matching seeds mean identical initial state, not guaranteed
+identical histories: different backend speeds over a fixed duration produce
+different mutation counts and can lead to different corpora. For strict
+coverage-semantic checks, use differential tests with the same EFZ event history.
 
-На машинах, где Rebar3 не может скачать зависимости, нужны доступ к GitHub или
-предварительно заполненный кэш Rebar3. В локальной ограниченной среде Rebar3
-не смог разрешить настроенный proxy; для проверки pinned repositories были
-клонированы в `_build/default/lib/` вручную. Это не меняет version lock.
+Machines where Rebar3 cannot download dependencies need GitHub access or a
+prepopulated Rebar3 cache. In the restricted local environment, Rebar3 could not
+resolve the configured proxy; the pinned repositories were cloned manually into
+`_build/default/lib/` for validation. This does not change the version lock.
 
-Результаты идут в новый каталог:
+Results are written to a new directory:
 
 ```text
 artifacts/cowboy-long-bench/<UTC timestamp>-ets/
 artifacts/cowboy-long-bench/<UTC timestamp>-bitmap/
 ```
 
-В каждом: `config.term`, `environment.txt`, `samples.csv`, `summary.term`,
-`summary.csv`, `coverage.term`, `cleanup.term`, `corpus/`, `crashes/` и
-`target-beams/`. Каталоги результатов игнорируются Git. `environment.txt`
-содержит git commit/status, OTP/ERTS, Cowboy, OS/CPU/architecture, schedulers,
-backend, bitmap size, EFZ config, duration и seed.
+Each contains `config.term`, `environment.txt`, `samples.csv`, `summary.term`,
+`summary.csv`, `coverage.term`, `cleanup.term`, `corpus/`, `crashes/` and
+`target-beams/`. Result directories are ignored by Git. `environment.txt`
+contains the git commit/status, OTP/ERTS, Cowboy, OS/CPU/architecture, schedulers,
+backend, bitmap size, EFZ config, duration and seed.
 
-Сравнение готовой пары:
+Compare a completed pair:
 
 ```sh
 python3 scripts/compare_cowboy_long_bench.py \
@@ -108,27 +109,27 @@ python3 scripts/compare_cowboy_long_bench.py \
   artifacts/cowboy-long-bench/<OTP_PUBLIC_RUN>
 ```
 
-Скрипт принимает 2–4 каталога, проверяет исходную конфигурацию, печатает
-exec/s и разброс, first/last 60s, coverage/corpus, память и процессы, а для
-длинного запуска — RSS/VM/ETS memory около 0/5/10/15 минут. Абсолютное
-число точек EFZ и строк OTP выводится с предупреждением о разных единицах
-измерения. Различия между независимыми fuzz runs описательные: они сами по
-себе не доказывают изменение семантики backend.
+The script accepts 2–4 directories, checks the initial configuration, and prints
+exec/s and its spread, first/last 60s, coverage/corpus, memory and processes; for a
+long run, it also prints RSS/VM/ETS memory around 0/5/10/15 minutes. Absolute EFZ
+point and OTP line counts are displayed with a warning about different units.
+Differences between independent fuzz runs are descriptive: they do not by
+themselves prove a change in backend semantics.
 
-## Отдельный эксперимент: `erlang-fuzzer(1)`
+## Separate experiment: `erlang-fuzzer(1)`
 
-`./scripts/run_cowboy_long_bench.sh --backend erlang_fuzzer` вызывает отдельный
-`scripts/run_erlang_fuzzer_cowboy_bench.py`. Он запускает предоставленный исходный
-код `erlang-fuzzer(1)` на **том же Cowboy 2.19.0, тех же четырёх target modules,
-том же harness path и тех же seed files**. Он компилирует Cowboy с
-`line_coverage`, а внешний `fuzzer.erl` выбирает OTP `line_counters` и
-регистрирует счётчики в libFuzzer через `core.c` NIF. Источник берётся из
-`~/test/erlang-fuzzer(1)/erlang-fuzzer/fuzzer` (или `--source DIR`), не
-копируется в Git и не меняет EFZ. Копия собирается в отдельном каталоге
-`/tmp`: исходный Makefile использует GDB для получения смещений текущего
-`beam.smp`; wrapper только отключает пользовательский GDB init (`gdb -nx`),
-не подставляя готовые смещения. SHA256 исходника `core.c`, драйвера и
-`beam.smp` сохраняются в `environment.txt`.
+`./scripts/run_cowboy_long_bench.sh --backend erlang_fuzzer` invokes the separate
+`scripts/run_erlang_fuzzer_cowboy_bench.py`. It runs the provided
+`erlang-fuzzer(1)` source against **the same Cowboy 2.19.0, the same four target
+modules, the same harness path and the same seed files**. It compiles Cowboy with
+`line_coverage`, while the external `fuzzer.erl` selects OTP `line_counters` and
+registers counters with libFuzzer through the `core.c` NIF. Source comes from
+`~/test/erlang-fuzzer(1)/erlang-fuzzer/fuzzer` (or `--source DIR`), is not copied
+into Git and does not change EFZ. A copy is built in a separate `/tmp`
+directory: the original Makefile uses GDB to obtain offsets in the current
+`beam.smp`; the wrapper only disables user GDB init (`gdb -nx`), without
+substituting precomputed offsets. SHA256 hashes of `core.c`, the driver and
+`beam.smp` are saved in `environment.txt`.
 
 ```sh
 ./scripts/run_cowboy_long_bench.sh --backend erlang_fuzzer \
@@ -136,12 +137,12 @@ exec/s и разброс, first/last 60s, coverage/corpus, память и пр�
   --duration 900 --seed 424242
 ```
 
-Запуск происходит в отдельной Erlang VM. Runner откажет в результате, если
-хотя бы один Cowboy module не зарегистрирован в native coverage или libFuzzer
-не получил features. Доступны `--corpus DIR` и `--out NEW_DIR`. Результат
-пишется в `artifacts/cowboy-long-bench/<timestamp>-erlang_fuzzer/`:
-`samples.csv`, `summary.csv`, `environment.txt`, `fuzzer.log`, копия corpus,
-crash artifacts и build logs. После прогона сравнение с тремя EFZ режимами:
+The run uses a separate Erlang VM. The runner rejects the result if any Cowboy
+module is not registered in native coverage or libFuzzer receives no features.
+`--corpus DIR` and `--out NEW_DIR` are available. Results are written to
+`artifacts/cowboy-long-bench/<timestamp>-erlang_fuzzer/`:
+`samples.csv`, `summary.csv`, `environment.txt`, `fuzzer.log`, a corpus copy,
+crash artifacts and build logs. After the run, compare it with the three EFZ modes:
 
 ```sh
 python3 scripts/compare_cowboy_long_bench.py \
@@ -151,75 +152,74 @@ python3 scripts/compare_cowboy_long_bench.py \
   artifacts/cowboy-long-bench/<ERLANG_FUZZER_RUN>
 ```
 
-Это **сравнение полных fuzzing engines**, не измерение одной операции сбора
-покрытия: libFuzzer исполняет input в одном процессе без guardian EFZ,
-применяет другую мутацию и собственные правила сохранения corpus. Даже при
-одинаковом seed последовательности inputs расходятся. `ft` и `cov` libFuzzer
-не равны ни структурным probes EFZ, ни числу уникальных строк OTP. В
-предоставленном `core.c` NIF регистрирует байты `line_counters` и создаёт
-синтетическую PC table по индексам, поэтому его feature count нельзя
-сопоставлять с `code:get_coverage/2`. В общей таблице внешние coverage count,
-discoveries и недоступные VM/process метрики показываются как `n/a`; `ft` и
-`NEW/REDUCE` выводятся отдельно. Exec/s не является доказательством скорости
-самого coverage collector. Для этого нужен изолированный replay одинаковых
-inputs с сопоставимым execution lifecycle.
+This is a **comparison of complete fuzzing engines**, not a measurement of a
+single coverage-collection operation: libFuzzer executes input in one process
+without the EFZ guardian, uses different mutation and its own corpus-retention
+rules. Input sequences diverge even with the same seed. libFuzzer's `ft` and
+`cov` equal neither EFZ structural probes nor unique OTP lines. In the provided
+`core.c`, the NIF registers `line_counters` bytes and constructs a synthetic PC
+table from indices, so its feature count cannot be compared to
+`code:get_coverage/2`. In the shared table, external coverage counts, discoveries
+and unavailable VM/process metrics appear as `n/a`; `ft` and `NEW/REDUCE` are
+shown separately. Exec/s does not prove the speed of the coverage collector
+itself. That requires isolated replay of identical inputs with comparable
+execution lifecycles.
 
-Этот NIF использует приватные структуры ERTS и указатель на coverage buffer
-без доказанной защиты lifetime при reload/purge. Запускать только в
-одноразовой VM; это исследовательский режим, не backend EFZ. При изменении
-OTP, отсутствии DWARF/debug symbols или ошибке регистрации результат нельзя
-использовать. Скрипт не выполняет module reload и не включает внешний NIF
-в основной EFZ runtime.
+This NIF uses private ERTS structures and a coverage-buffer pointer without
+proven lifetime protection during reload/purge. Run it only in a disposable VM;
+it is a research mode, not an EFZ backend. A result is unusable if OTP changes,
+DWARF/debug symbols are missing or registration fails. The script does not
+reload modules or include the external NIF in EFZ's main runtime.
 
-Короткая проверка 2026-10-03: `--duration 2 --seed 424242` завершилась с
-кодом 0, лог подтвердил `coverage on` для всех четырёх Cowboy modules,
-`ft` вырос с начального значения, corpus пополнился. Raw output:
-`artifacts/cowboy-long-bench/20261003T172502Z-erlang_fuzzer/` (локально,
-не в Git). `rebar3 eunit`: 256 PASS. 900-секундный внешний прогон **NOT RUN**;
-короткая проверка не даёт оценки устойчивого throughput.
+Short check on 2026-10-03: `--duration 2 --seed 424242` exited with code 0, the
+log confirmed `coverage on` for all four Cowboy modules, `ft` grew from its
+initial value and the corpus increased. Raw output:
+`artifacts/cowboy-long-bench/20261003T172502Z-erlang_fuzzer/` (local, not in Git).
+`rebar3 eunit`: 256 PASS. The 900-second external run was **NOT RUN**;
+the short check does not estimate sustained throughput.
 
-## Sampling и summary
+## Sampling and summary
 
-`samples.csv` содержит sample на старте и затем каждые 10 секунд без сбора
-телеметрии на каждой iteration. Счётчики EFZ, размер corpus и global coverage
-читаются согласованно через read-only
-`efz_fuzzer:benchmark_snapshot/0` / `efz_worker:handle_call/3`. Точный
-`coverage.term` создаётся один раз после окончания sampling. Колонки:
+`samples.csv` contains a starting sample and then one every 10 seconds, without
+collecting telemetry on every iteration. EFZ counters, corpus size and global
+coverage are read consistently through the read-only
+`efz_fuzzer:benchmark_snapshot/0` / `efz_worker:handle_call/3`. Exact
+`coverage.term` is created once after sampling ends. Columns:
 elapsed, total/window exec/s, corpus, global coverage, discoveries,
 crashes/timeouts/errors, process count, memory total/processes/binary/ETS,
-Linux RSS, run queue, reductions, GC count, map arms/allocations и broken
-coverage observations. Поле `execution_maps_allocated` считает только карту,
-заранее выделенную worker; это не число всех возможных временных карт.
-`summary.term` и `summary.csv` содержат total/mean,
-median, p10/p90 window exec/s, first/last 60s, итоги покрытия/corpus,
-crashes/timeouts и изменения памяти/числа процессов.
-`total_executions` включает calibration, а скорости за интервал отсчитываются
-от первого sample после `efz:start/1`.
+Linux RSS, run queue, reductions, GC count, map arms/allocations and broken
+coverage observations. `execution_maps_allocated` counts only the map
+preallocated by the worker; it is not a count of all possible temporary maps.
+`summary.term` and `summary.csv` contain total/mean,
+median, p10/p90 window exec/s, first/last 60s, final coverage/corpus,
+crashes/timeouts and changes in memory/process count.
+`total_executions` includes calibration, while interval rates are measured from
+the first sample after `efz:start/1`.
 
-`cleanup.term` записывается после `efz:stop/0`. Отсутствие процессов EFZ
-проверяется по зарегистрированным именам; абсолютное число процессов и память
-после остановки сохраняются для ручной диагностики. В bitmap-v2 доступен
-счётчик arms и одна заранее выделенная execution map в worker. Число retired maps
-через текущий публичный API не наблюдаемо, поэтому метрика не заявляется.
-Всем memory выводам нужна полная 15-минутная временная серия и повторения.
+`cleanup.term` is written after `efz:stop/0`. The absence of EFZ processes is
+checked by registered names; absolute process count and memory after stopping
+are saved for manual diagnostics. Bitmap-v2 exposes an arms counter and one
+preallocated execution map in the worker. Retired map count is not observable
+through the current public API, so that metric is not claimed. All memory
+conclusions require a full 15-minute time series and repeats.
 
-## Проверка перед long run
+## Checks before a long run
 
-Выполнено 2026-10-02 на OTP 27.0:
+Completed on 2026-10-02 with OTP 27.0:
 
 - `rebar3 compile` — PASS;
-- `rebar3 eunit` — 255 PASS, включая 12 Cowboy harness cases;
+- `rebar3 eunit` — 255 PASS, including 12 Cowboy harness cases;
 - `rebar3 ct` — 3 PASS;
 - `./scripts/run_cowboy_long_bench.sh --backend ets --duration 30 --seed 424242`
   — 3582 executions, 119.36 exec/s, 266 final coverage points, 56 corpus
   inputs, 0 crashes/timeouts/errors;
-- та же команда с `--backend bitmap` — 1992 executions, 66.36 exec/s,
+- the same command with `--backend bitmap` — 1992 executions, 66.36 exec/s,
   259 final coverage points, 49 corpus inputs, 0 crashes/timeouts/errors.
 
-30-секундные raw results сохранены под
-`artifacts/cowboy-long-bench/20261002T190436Z-ets/` и
-`artifacts/cowboy-long-bench/20261002T190514Z-bitmap/` локально. Среднее
-bitmap/ETS для этой пары ≈0.556. Bitmap остаётся experimental opt-in, а ETS —
-default. Эти данные не заменяют четыре 15-минутных прогона в порядке
-ETS → bitmap → bitmap → ETS: 30 секунд недостаточно для вывода о насыщении
-coverage, стабильности throughput и росте памяти.
+The 30-second raw results are stored locally under
+`artifacts/cowboy-long-bench/20261002T190436Z-ets/` and
+`artifacts/cowboy-long-bench/20261002T190514Z-bitmap/`. Mean bitmap/ETS for
+this pair is ≈0.556. Bitmap remains experimental opt-in; ETS remains the
+default. These data do not replace four 15-minute runs in the order
+ETS → bitmap → bitmap → ETS: 30 seconds is insufficient to conclude coverage
+saturation, throughput stability or memory growth.

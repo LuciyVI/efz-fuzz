@@ -1,0 +1,330 @@
+{
+  "cleanup_us": {
+    "p50": 16936,
+    "p95": 21853,
+    "p99": 25670,
+    "samples": 80
+  },
+  "events": 80,
+  "percentile_method": "nearest_rank",
+  "runs": [
+    {
+      "mode": "semantic_persistent",
+      "recycle_cleanup_samples_us": [
+        20993,
+        14924,
+        19667
+      ],
+      "recycle_startup_samples_us": [
+        198732,
+        221643,
+        195221
+      ],
+      "restarts": 3,
+      "seed": 43,
+      "vm_starts": 4
+    },
+    {
+      "mode": "semantic_persistent",
+      "recycle_cleanup_samples_us": [
+        14338,
+        11391,
+        20011
+      ],
+      "recycle_startup_samples_us": [
+        212301,
+        213359,
+        199255
+      ],
+      "restarts": 3,
+      "seed": 61,
+      "vm_starts": 4
+    },
+    {
+      "mode": "semantic_persistent",
+      "recycle_cleanup_samples_us": [
+        18252,
+        14162,
+        17952
+      ],
+      "recycle_startup_samples_us": [
+        216571,
+        205640,
+        214007
+      ],
+      "restarts": 3,
+      "seed": 29,
+      "vm_starts": 4
+    },
+    {
+      "mode": "hybrid_persistent",
+      "recycle_cleanup_samples_us": [
+        14864,
+        17457,
+        20789
+      ],
+      "recycle_startup_samples_us": [
+        216807,
+        201283,
+        199805
+      ],
+      "restarts": 3,
+      "seed": 29,
+      "vm_starts": 4
+    },
+    {
+      "mode": "hybrid_persistent",
+      "recycle_cleanup_samples_us": [
+        19594,
+        16616,
+        18114
+      ],
+      "recycle_startup_samples_us": [
+        220118,
+        213337,
+        201449
+      ],
+      "restarts": 3,
+      "seed": 43,
+      "vm_starts": 4
+    },
+    {
+      "mode": "hybrid_persistent",
+      "recycle_cleanup_samples_us": [
+        10584,
+        25670,
+        22258
+      ],
+      "recycle_startup_samples_us": [
+        220992,
+        212312,
+        207330
+      ],
+      "restarts": 3,
+      "seed": 17,
+      "vm_starts": 4
+    },
+    {
+      "mode": "hybrid_persistent",
+      "recycle_cleanup_samples_us": [
+        15827,
+        22036,
+        20041
+      ],
+      "recycle_startup_samples_us": [
+        208808,
+        230069,
+        213459
+      ],
+      "restarts": 3,
+      "seed": 89,
+      "vm_starts": 4
+    },
+    {
+      "mode": "erlamsa_persistent",
+      "recycle_cleanup_samples_us": [
+        16845,
+        9759,
+        13372,
+        20464,
+        19470,
+        11774,
+        20535,
+        13747,
+        21076,
+        10310
+      ],
+      "recycle_startup_samples_us": [
+        209335,
+        197858,
+        196390,
+        221483,
+        213526,
+        204495,
+        225810,
+        196703,
+        220108,
+        213733
+      ],
+      "restarts": 10,
+      "seed": 43,
+      "vm_starts": 11
+    },
+    {
+      "mode": "hybrid_persistent",
+      "recycle_cleanup_samples_us": [
+        14447,
+        20481,
+        21853
+      ],
+      "recycle_startup_samples_us": [
+        220246,
+        207671,
+        211216
+      ],
+      "restarts": 3,
+      "seed": 61,
+      "vm_starts": 4
+    },
+    {
+      "mode": "erlamsa_persistent",
+      "recycle_cleanup_samples_us": [
+        18685,
+        15611,
+        17678,
+        18388,
+        12749,
+        15739,
+        18300,
+        12191,
+        16923,
+        11903
+      ],
+      "recycle_startup_samples_us": [
+        220640,
+        209510,
+        203760,
+        207769,
+        199691,
+        200005,
+        214174,
+        212294,
+        210610,
+        196289
+      ],
+      "restarts": 10,
+      "seed": 61,
+      "vm_starts": 11
+    },
+    {
+      "mode": "erlamsa_persistent",
+      "recycle_cleanup_samples_us": [
+        16115,
+        12441,
+        20742,
+        19867,
+        21248,
+        18290,
+        22198,
+        14941,
+        20730,
+        15852
+      ],
+      "recycle_startup_samples_us": [
+        211342,
+        201431,
+        221608,
+        210458,
+        228460,
+        208949,
+        213322,
+        219014,
+        209606,
+        209519
+      ],
+      "restarts": 10,
+      "seed": 29,
+      "vm_starts": 11
+    },
+    {
+      "mode": "semantic_persistent",
+      "recycle_cleanup_samples_us": [
+        20618,
+        16067,
+        18535
+      ],
+      "recycle_startup_samples_us": [
+        218071,
+        209679,
+        208904
+      ],
+      "restarts": 3,
+      "seed": 89,
+      "vm_starts": 4
+    },
+    {
+      "mode": "erlamsa_persistent",
+      "recycle_cleanup_samples_us": [
+        14050,
+        16936,
+        14297,
+        18704,
+        18150,
+        15243,
+        20794,
+        19716,
+        14723,
+        10363
+      ],
+      "recycle_startup_samples_us": [
+        210175,
+        211042,
+        218774,
+        209162,
+        232675,
+        211440,
+        223447,
+        208921,
+        204568,
+        211630
+      ],
+      "restarts": 10,
+      "seed": 89,
+      "vm_starts": 11
+    },
+    {
+      "mode": "erlamsa_persistent",
+      "recycle_cleanup_samples_us": [
+        19361,
+        12944,
+        12299,
+        20510,
+        14669,
+        15467,
+        12635,
+        12687,
+        17852,
+        12185
+      ],
+      "recycle_startup_samples_us": [
+        206515,
+        202192,
+        216630,
+        208933,
+        232801,
+        197268,
+        199685,
+        197536,
+        208940,
+        207836
+      ],
+      "restarts": 10,
+      "seed": 17,
+      "vm_starts": 11
+    },
+    {
+      "mode": "semantic_persistent",
+      "recycle_cleanup_samples_us": [
+        19760,
+        11625,
+        18288
+      ],
+      "recycle_startup_samples_us": [
+        210263,
+        213393,
+        198072
+      ],
+      "restarts": 3,
+      "seed": 17,
+      "vm_starts": 4
+    }
+  ],
+  "schema_version": 1,
+  "source": "performance-persistent-final-recycle-gleam-20261028/runs.json.gz",
+  "startup_us": {
+    "p50": 210175,
+    "p95": 225810,
+    "p99": 232801,
+    "samples": 80
+  }
+}

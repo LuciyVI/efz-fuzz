@@ -1,0 +1,97 @@
+classDiagram
+    direction TB
+    accTitle: EFZ — procesos y propietarios ETS
+    accDescr: Distingue hijos del supervisor, links y monitores. Feedback y planificación son estado del worker, no servidores separados.
+    class efz_sup {
+        <<supervisor>>
+        one_for_all
+        intensity = 0
+    }
+    class efz_fuzzer {
+        <<gen_server>>
+        waiters
+        final_report
+        worker_monitor
+    }
+    class efz_worker_sup {
+        <<supervisor>>
+        one_for_one
+        intensity = 5
+        period = 10
+    }
+    class efz_worker {
+        <<gen_server>>
+        feedback.global
+        mutation_state
+        decisions / failure_context
+    }
+    class efz_corpus {
+        <<gen_server>>
+        entries / next_id
+        config opcional de almacén
+    }
+    class efz_stats {
+        <<gen_server>>
+        contadores de campaña
+    }
+    class ValidationPlan["PlanValidación"] {
+        <<ETS>>
+        efz_coverage_plan
+        conjunto protected
+        sondas / builds permitidos
+    }
+    class ExecutionGuardian["GuardianEjecución"] {
+        <<proceso>>
+        efz_guardian
+        grupo E/S de usuario propio
+        ciclo / barreras de traza
+    }
+    class ExecutionCoordinator["CoordinadorEjecución"] {
+        <<proceso>>
+        efz_executor coordinate
+        uno por entrada
+        monitores de raíz y guardian
+    }
+    class TargetProcess["ProcesoObjetivo"] {
+        <<proceso>>
+        uno por entrada
+        M run(Input)
+        contexto en diccionario
+    }
+    class ExecutionCoverage["CoberturaEjecución"] {
+        <<ETS>>
+        efz_execution_coverage
+        conjunto public
+        identidades de sondas vistas
+    }
+    class IntegrityRegistry["RegistroIntegridad"] {
+        <<ETS>>
+        efz_coverage_observers
+        conjunto nombrado protected
+        PID → contexto esperado / pins
+    }
+    class Descendants["Descendientes"] {
+        <<procesos>>
+        API de spawn controlado
+        contexto heredado en puerta
+    }
+    efz_sup *-- efz_fuzzer : hijo temporal
+    efz_fuzzer -- efz_corpus : start_link / shutdown
+    efz_fuzzer -- efz_stats : start_link / shutdown
+    efz_fuzzer -- efz_worker_sup : start_link / shutdown
+    efz_worker_sup *-- efz_worker : un hijo temporal
+    efz_fuzzer ..> efz_worker : monitor
+    efz_worker *-- ValidationPlan : posee en modo preparado
+    efz_worker ..> ExecutionGuardian : spawn_monitor
+    ExecutionGuardian ..> efz_worker : monitor del caller
+    ExecutionGuardian ..> ExecutionCoordinator : spawn_monitor
+    ExecutionCoordinator ..> TargetProcess : monitor de raíz
+    ExecutionGuardian ..> TargetProcess : spawn_monitor con puerta
+    ExecutionGuardian ..> Descendants : spawn_monitor con puerta
+    ExecutionGuardian *-- ExecutionCoverage : posee / borra tras limpieza
+    ExecutionGuardian *-- IntegrityRegistry : posee por ejecución
+    TargetProcess ..> IntegrityRegistry : hook verifica su contexto
+    Descendants ..> IntegrityRegistry : hook verifica su contexto
+    ExecutionGuardian ..> ValidationPlan : lee lista permitida
+    TargetProcess ..> ExecutionCoverage : hooks escriben sondas
+    Descendants ..> ExecutionCoverage : mismo contexto de ejecución

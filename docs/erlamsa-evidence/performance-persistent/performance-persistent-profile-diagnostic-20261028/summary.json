@@ -1,0 +1,36 @@
+{
+  "accepted": false,
+  "completed": false,
+  "groups": {
+    "erlamsa_persistent": {
+      "accepted_fraction": null,
+      "coverage": null,
+      "direct_core_p50_us": null,
+      "executions_per_second": null,
+      "identity_check_p50_us": null,
+      "input_bytes": null,
+      "legacy_core_wrapper_p50_us": null,
+      "legacy_core_wrapper_p95_us": null,
+      "process_tree_rss_bytes": null,
+      "provider_p50_us": null,
+      "provider_p95_us": null,
+      "recycle_cleanup_p50_us": null,
+      "recycle_cleanup_p95_us": null,
+      "recycle_startup_p50_us": null,
+      "samples": 0,
+      "steady_state_executions_per_second": null,
+      "warm_request_p50_us": null,
+      "warm_request_p95_us": null,
+      "worker_startup_p50_us": null
+    }
+  },
+  "kind": "accepted_wall_time",
+  "limitations": [
+    "Single local query-string workload and one pinned OTP/ERTS build; no discovery advantage claim.",
+    "Stage profiling was disabled for acceptance throughput; diagnostic message, corpus persistence, and sampling were enabled equally in every mode.",
+    "Full campaign throughput includes startup, count-based recycle, and orderly shutdown; request percentiles distinguish warm requests from startup/recycle.",
+    "Memory is sampled; aggregate RSS double-counts shared pages and may miss short peaks."
+  ],
+  "native_off_median_change_percent": null,
+  "native_off_paired_changes": []
+}

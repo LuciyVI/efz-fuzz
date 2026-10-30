@@ -1,0 +1,13 @@
+surface,mode,mutation_us_per_execution,mutation_overhead_percent_vs_off,coverage_lines_delta_vs_off,corpus_size_delta_vs_off
+call,observation_only,3060.642,-6.098627302632186,0,0
+call,guided,3038.058,-6.791510887513185,0,0
+response,observation_only,3207.898,-3.7218914807971792,0,0
+response,guided,3189.84,-4.263863227916254,0,0
+fault,observation_only,3192.95,-8.558937308194148,0,0
+fault,guided,2924.294,-16.2528223168945,0,0
+roundtrip,observation_only,3000.274,-4.411271812948669,0,0
+roundtrip,guided,2867.738,-8.633868708765203,0,0
+dispatch,observation_only,2962.114,2.671363071065813,0,0
+dispatch,guided,2777.528,-3.7266676002168486,0,2
+encoder_validation,observation_only,2867.616,7.516193327104448,0,0
+encoder_validation,guided,2330.794,-12.610998714732002,0,0

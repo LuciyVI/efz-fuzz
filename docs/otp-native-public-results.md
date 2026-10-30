@@ -1,5 +1,7 @@
 # Experimental OTP-public line coverage (2026-10-03)
 
+**English** · [Русский](i18n/ru/otp-native-public-results.md) · [Español](i18n/es/otp-native-public-results.md) · [简体中文](i18n/zh-CN/otp-native-public-results.md) · [All languages](i18n/README.md)
+
 ## Implemented
 
 The opt-in coverage_backend => otp_native_public uses documented OTP 27 native

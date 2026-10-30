@@ -1,5 +1,7 @@
 # Input limits and storage failures
 
+**English** · [Русский](i18n/ru/input-and-storage.md) · [Español](i18n/es/input-and-storage.md) · [简体中文](i18n/zh-CN/input-and-storage.md) · [All languages](i18n/README.md)
+
 `max_input_bytes` is one campaign option, default **4096**, inclusive range
 **0..1048576**. Zero allows only `<<>>`. The maximum itself is allowed; maximum
 plus one is rejected. No layer truncates or converts input bytes.

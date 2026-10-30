@@ -1,6 +1,6 @@
 sequenceDiagram
-    accTitle: EFZ — guardian и controlled descendant lifecycle
-    accDescr: Guardian владеет процессами и coverage независимо от coordinator. Final result возвращается после DOWN, trace barriers и проверки dirty runner.
+    accTitle: EFZ — guardian and controlled descendant lifecycle
+    accDescr: The guardian owns processes and coverage independently of the coordinator. The final result follows DOWN messages, trace barriers and dirty-runner checks.
     autonumber
     participant W as Worker / caller
     participant G as Guardian<br/>efz_guardian

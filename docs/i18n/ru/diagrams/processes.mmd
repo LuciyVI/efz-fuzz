@@ -1,0 +1,97 @@
+classDiagram
+    direction TB
+    accTitle: EFZ — процессы и владельцы ETS
+    accDescr: Различаются дочерние процессы супервизора, обычные связи и мониторы. Обратная связь и планирование — состояние рабочего процесса, не отдельные серверы.
+    class efz_sup {
+        <<супервизор>>
+        one_for_all
+        intensity = 0
+    }
+    class efz_fuzzer {
+        <<gen_server>>
+        waiters
+        final_report
+        worker_monitor
+    }
+    class efz_worker_sup {
+        <<супервизор>>
+        one_for_one
+        intensity = 5
+        period = 10
+    }
+    class efz_worker {
+        <<gen_server>>
+        feedback.global
+        mutation_state
+        decisions / failure_context
+    }
+    class efz_corpus {
+        <<gen_server>>
+        entries / next_id
+        опц. настройки хранилища
+    }
+    class efz_stats {
+        <<gen_server>>
+        счётчики кампании
+    }
+    class ValidationPlan["ПланВалидации"] {
+        <<ETS>>
+        efz_coverage_plan
+        множество protected
+        допуст. пробы / сборки
+    }
+    class ExecutionGuardian["GuardianИсполнения"] {
+        <<процесс>>
+        efz_guardian
+        отдельная группа ввода-вывода
+        жизн. цикл / барьеры трасс
+    }
+    class ExecutionCoordinator["КоординаторИсполнения"] {
+        <<процесс>>
+        efz_executor coordinate
+        один на input
+        мониторы корня и стража
+    }
+    class TargetProcess["ЦелевойПроцесс"] {
+        <<процесс>>
+        один на input
+        M run(Input)
+        контекст в словаре процесса
+    }
+    class ExecutionCoverage["CoverageИсполнения"] {
+        <<ETS>>
+        efz_execution_coverage
+        множество public
+        ID наблюдаемых проб
+    }
+    class IntegrityRegistry["РеестрЦелостности"] {
+        <<ETS>>
+        efz_coverage_observers
+        именованное множество protected
+        PID → ожидаемый контекст / pins
+    }
+    class Descendants["Потомки"] {
+        <<процессы>>
+        API управляемого spawn
+        контекст наследуется у барьера
+    }
+    efz_sup *-- efz_fuzzer : временный ребёнок
+    efz_fuzzer -- efz_corpus : start_link / shutdown
+    efz_fuzzer -- efz_stats : start_link / shutdown
+    efz_fuzzer -- efz_worker_sup : start_link / shutdown
+    efz_worker_sup *-- efz_worker : один временный ребёнок
+    efz_fuzzer ..> efz_worker : monitor
+    efz_worker *-- ValidationPlan : владеет в режиме prepared
+    efz_worker ..> ExecutionGuardian : spawn_monitor
+    ExecutionGuardian ..> efz_worker : monitor вызывающего
+    ExecutionGuardian ..> ExecutionCoordinator : spawn_monitor
+    ExecutionCoordinator ..> TargetProcess : monitor корня
+    ExecutionGuardian ..> TargetProcess : spawn_monitor с барьером
+    ExecutionGuardian ..> Descendants : spawn_monitor с барьером
+    ExecutionGuardian *-- ExecutionCoverage : владеет / удаляет после очистки
+    ExecutionGuardian *-- IntegrityRegistry : владеет на время прогона
+    TargetProcess ..> IntegrityRegistry : хук проверяет свой контекст
+    Descendants ..> IntegrityRegistry : хук проверяет свой контекст
+    ExecutionGuardian ..> ValidationPlan : читает список допуска
+    TargetProcess ..> ExecutionCoverage : хуки пишут пробы
+    Descendants ..> ExecutionCoverage : общий контекст исполнения

@@ -1,5 +1,7 @@
 # Bitmap backend for EFZ coverage
 
+**English** · [Русский](i18n/ru/coverage-bitmap-architecture.md) · [Español](i18n/es/coverage-bitmap-architecture.md) · [简体中文](i18n/zh-CN/coverage-bitmap-architecture.md) · [All languages](i18n/README.md)
+
 Status: opt-in implementation for automatic presence coverage on OTP 27.0.
 The existing ETS backend remains the default, reference and rollback path.
 The [v1 implementation report](coverage-bitmap-implementation-report.md) preserves

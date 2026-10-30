@@ -1,5 +1,7 @@
 # Phase 2.1 performance and closeout record
 
+**English** · [Русский](i18n/ru/phase2.1-performance.md) · [Español](i18n/es/phase2.1-performance.md) · [简体中文](i18n/zh-CN/phase2.1-performance.md) · [All languages](i18n/README.md)
+
 Closed locally on 2026-09-09. The default is **prepared validation with the
 original exact ETS hook**. Membership remains opt-in. Preparation improves the
 measured complete parser and sparse executions/campaigns; membership helps

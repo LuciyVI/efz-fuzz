@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "argv": [
+    "taskset",
+    "-c",
+    "2-4",
+    "python3",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "test",
+    "-p",
+    "pyefz_*test.py",
+    "-v"
+  ],
+  "cwd": "/workspace/efz-erlamsa",
+  "environment": {
+    "ERL_FLAGS": "+S 2:2",
+    "PYEFZ_EFZ_ROOT": "/workspace/efz-erlamsa",
+    "PYEFZ_RUNTIME": "/workspace/.efz-tools/root/usr/lib/erlang/bin/erl",
+    "PYEFZ_CORE_PATH": "/workspace/erlamsa-core",
+    "PYEFZ_ARTIFACTS": "/workspace/scratch/pyefz-e2e/target",
+    "PYEFZ_CODE_PATHS": "/workspace/scratch/pyefz-e2e/harness",
+    "PYEFZ_TARGET": "efz_example_target"
+  },
+  "exit_code": 0,
+  "tests": 21,
+  "skipped": 0,
+  "wall_seconds_reported_by_unittest": 5.816,
+  "log_sha256": "e44ce5942b20d16a84ae1b7363ad372fab713a0acfd126073e8abf4e6d0b5983",
+  "observed": [
+    "binary and batch",
+    "bad config and provider timeout typing",
+    "actual core mutation",
+    "continuous stop and saved report",
+    "raw replay in fresh process; target_executions=1",
+    "close during active request; cancellation and OS descendant reaping",
+    "CLI exact regeneration/config mismatch",
+    "TUI formats actual campaign provider counters"
+  ]
+}

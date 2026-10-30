@@ -1,0 +1,9 @@
+{
+  "sampler": "proc_stat_ppid_v2",
+  "status": "PASS",
+  "fixture": "Popen one local Python child allocating33554432bytes for2seconds; sampleafter0.2seconds; terminate+wait in finally.",
+  "root_process_tree_rss_before_bytes": 14413824,
+  "root_process_tree_rss_with_child_bytes": 54530048,
+  "assertion": "with_child - before >25000000bytes",
+  "reason_for_change": "Kernel omits /proc/PID/task/TID/children; PPID /proc/PID/stat traversal detects descendants."
+}

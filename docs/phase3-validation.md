@@ -1,5 +1,7 @@
 # Phase 3 validation: staged mutation and exact replay
 
+**English** · [Русский](i18n/ru/phase3-validation.md) · [Español](i18n/es/phase3-validation.md) · [简体中文](i18n/zh-CN/phase3-validation.md) · [All languages](i18n/README.md)
+
 Phase 3 is complete for the tested local contract: OTP 27.0, one worker, one
 instrumented target execution process, fixed selected builds and exact source-level
 clause/outcome coverage. Staged mutation is opt-in. This phase adds byte mutation

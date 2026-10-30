@@ -1,0 +1,234 @@
+{
+  "accepted": true,
+  "completed": true,
+  "groups": {
+    "baseline": {
+      "accepted_fraction": {
+        "max": 0.7300998573466476,
+        "median": 0.6900408308183916,
+        "min": 0.45683630278570725
+      },
+      "core_p50_us": null,
+      "core_p95_us": null,
+      "coverage": {
+        "max": 48,
+        "median": 48,
+        "min": 48
+      },
+      "executions_per_second": {
+        "max": 374.6451601268683,
+        "median": 349.7038016453682,
+        "min": 337.8846312178776
+      },
+      "input_bytes": {
+        "max": 94.53292646914066,
+        "median": 67.14358025893118,
+        "min": 46.95397051830718
+      },
+      "process_tree_rss_bytes": {
+        "median": 91705344
+      },
+      "provider_p50_us": null,
+      "provider_p95_us": null,
+      "samples": 5
+    },
+    "erlamsa": {
+      "accepted_fraction": {
+        "max": 0.7450980392156863,
+        "median": 0.6862745098039216,
+        "min": 0.577922077922078
+      },
+      "core_p50_us": {
+        "max": 131,
+        "median": 123,
+        "min": 112
+      },
+      "core_p95_us": {
+        "max": 237,
+        "median": 202,
+        "min": 175
+      },
+      "coverage": {
+        "max": 47,
+        "median": 46,
+        "min": 41
+      },
+      "executions_per_second": {
+        "max": 4.930641696031469,
+        "median": 4.897353143870842,
+        "min": 4.529772177439836
+      },
+      "input_bytes": {
+        "max": 39.70779220779221,
+        "median": 22.40909090909091,
+        "min": 19.444444444444443
+      },
+      "process_tree_rss_bytes": {
+        "median": 80793600
+      },
+      "provider_p50_us": {
+        "max": 212322,
+        "median": 195217,
+        "min": 194602
+      },
+      "provider_p95_us": {
+        "max": 246964,
+        "median": 230766,
+        "min": 223723
+      },
+      "samples": 5
+    },
+    "hybrid": {
+      "accepted_fraction": {
+        "max": 0.7139874739039666,
+        "median": 0.6865979381443299,
+        "min": 0.6272321428571429
+      },
+      "core_p50_us": {
+        "max": 126,
+        "median": 120,
+        "min": 115
+      },
+      "core_p95_us": {
+        "max": 225,
+        "median": 174,
+        "min": 167
+      },
+      "coverage": {
+        "max": 48,
+        "median": 48,
+        "min": 46
+      },
+      "executions_per_second": {
+        "max": 17.554932364709682,
+        "median": 15.753072290382477,
+        "min": 14.397054362677396
+      },
+      "input_bytes": {
+        "max": 75.37787056367432,
+        "median": 56.604910714285715,
+        "min": 36.05440900562852
+      },
+      "process_tree_rss_bytes": {
+        "median": 83816448
+      },
+      "provider_p50_us": {
+        "max": 206791,
+        "median": 193769,
+        "min": 192259
+      },
+      "provider_p95_us": {
+        "max": 265593,
+        "median": 223239,
+        "min": 216166
+      },
+      "samples": 5
+    },
+    "native": {
+      "accepted_fraction": {
+        "max": 0.7292376594294616,
+        "median": 0.689528420297651,
+        "min": 0.457859765693303
+      },
+      "core_p50_us": null,
+      "core_p95_us": null,
+      "coverage": {
+        "max": 48,
+        "median": 48,
+        "min": 48
+      },
+      "executions_per_second": {
+        "max": 380.25740286189597,
+        "median": 367.730216184242,
+        "min": 322.1141764312518
+      },
+      "input_bytes": {
+        "max": 94.4702745235181,
+        "median": 67.08319768493398,
+        "min": 47.07302112744621
+      },
+      "process_tree_rss_bytes": {
+        "median": 88821760
+      },
+      "provider_p50_us": null,
+      "provider_p95_us": null,
+      "samples": 5
+    },
+    "semantic": {
+      "accepted_fraction": {
+        "max": 0.7450271247739603,
+        "median": 0.6432865731462926,
+        "min": 0.521551724137931
+      },
+      "core_p50_us": {
+        "max": 138,
+        "median": 126,
+        "min": 122
+      },
+      "core_p95_us": {
+        "max": 215,
+        "median": 198,
+        "min": 187
+      },
+      "coverage": {
+        "max": 48,
+        "median": 48,
+        "min": 48
+      },
+      "executions_per_second": {
+        "max": 18.21506241139721,
+        "median": 16.19227142884701,
+        "min": 15.25519018708892
+      },
+      "input_bytes": {
+        "max": 49.3687374749499,
+        "median": 43.32974137931034,
+        "min": 33.10615711252654
+      },
+      "process_tree_rss_bytes": {
+        "median": 83570688
+      },
+      "provider_p50_us": {
+        "max": 212955,
+        "median": 202240,
+        "min": 193293
+      },
+      "provider_p95_us": {
+        "max": 262113,
+        "median": 234697,
+        "min": 227170
+      },
+      "samples": 5
+    }
+  },
+  "kind": "accepted_wall_time",
+  "limitations": [
+    "Single local query-string workload and one pinned OTP/ERTS build; no discovery advantage claim.",
+    "Diagnostic message, performance profiling, corpus persistence, and sampling enabled equally in every mode.",
+    "Generation latency includes cold OS worker setup; core time is reported separately when runtime counters support it.",
+    "Memory is sampled; aggregate RSS double-counts shared pages and may miss short peaks."
+  ],
+  "native_off_median_change_percent": -0.9874666237332685,
+  "native_off_paired_changes": [
+    {
+      "seed": 17,
+      "throughput_change_percent": -0.9874666237332685
+    },
+    {
+      "seed": 29,
+      "throughput_change_percent": 12.540603427651975
+    },
+    {
+      "seed": 43,
+      "throughput_change_percent": -2.3367266924319785
+    },
+    {
+      "seed": 61,
+      "throughput_change_percent": -9.201802172396679
+    },
+    {
+      "seed": 89,
+      "throughput_change_percent": 7.628133543297166
+    }
+  ]
+}

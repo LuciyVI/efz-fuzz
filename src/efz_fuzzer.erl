@@ -46,7 +46,9 @@ init(C) ->
     {ok, #{children => [Workers, Stats, Corpus], waiters => #{}, report => pending,
            worker => Worker, worker_monitor => WorkerRef,execution_context=>undefined,
            stop_requested=>false,monitor_pending=>false,monitor_snapshot=>#{schema_version=>1,target=>maps:get(target,C),
-             status=>running,max_iterations=>maps:get(max_iterations,C),elapsed_ms=>0,stats=>#{},last=>null},
+             status=>running,max_iterations=>maps:get(max_iterations,C),elapsed_ms=>0,stats=>#{},last=>null,
+             feature_stability=>efz_stability:public(efz_stability:new(
+                 maps:get(runtime_oracles,C),{maps:get(coverage,C),maps:get(coverage_backend,C)}))},
            execution_identities=>maps:get(execution_identities,C),max_input_bytes=>maps:get(max_input_bytes,C)}}.
 handle_call(request_stop,_,#{stop_requested:=true}=S)->{reply,ok,S};
 handle_call(request_stop,_,#{report:=pending,worker:=W}=S)->
@@ -64,7 +66,9 @@ handle_call(monitor_snapshot, _, #{worker:=Worker,report:=Report}=S) ->
     Request=Report=:=pending andalso not Pending,
     case Request of true->gen_server:cast(Worker,monitor_sample);false->ok end,
     Cached=maps:get(monitor_snapshot,S),
-    Reply=case Report of pending->Cached;_->Cached#{status=>maps:get(status,Report),stats=>maps:remove(primary_infrastructure_failure,maps:get(stats,Report))} end,
+    Reply=case Report of pending->Cached;_->Cached#{status=>maps:get(status,Report),
+        stats=>maps:remove(primary_infrastructure_failure,maps:get(stats,Report)),
+        feature_stability=>maps:get(feature_stability,Report,maps:get(feature_stability,Cached))} end,
     {reply,Reply,S#{monitor_pending=>Pending orelse Request}};
 handle_call(benchmark_snapshot, _, #{worker := Worker, report := Report} = S) ->
     Reply = case Report of
@@ -91,7 +95,12 @@ handle_cast({cancel_await, Token}, #{waiters := Ws} = S) ->
     end;
 handle_cast(_, S) -> {noreply, S}.
 handle_info({monitor_sample,Worker,Snapshot},#{worker:=Worker}=S)->
-    {noreply,S#{monitor_snapshot=>Snapshot,monitor_pending=>false}};
+    Old=maps:get(monitor_snapshot,S),
+    {noreply,S#{monitor_snapshot=>newest_stability(Old,Snapshot),monitor_pending=>false}};
+handle_info({feature_stability_progress,Worker,FS},#{worker:=Worker,report:=pending}=S)->
+    Old=maps:get(monitor_snapshot,S),
+    Fresh=newest_stability(Old,Old#{feature_stability=>FS}),
+    {noreply,S#{monitor_snapshot=>Fresh}};
 handle_info({execution_context,Worker,Context},#{worker:=Worker}=S)->
     {noreply,S#{execution_context=>Context}};
 handle_info({campaign_done, Worker, Report}, #{worker := Worker, waiters := Ws} = S) ->
@@ -110,6 +119,10 @@ handle_info({'DOWN', Ref, process, _, _}, #{waiters := Ws} = S) ->
     {noreply, S#{waiters => maps:filter(fun(_, {_, R}) -> R =/= Ref end, Ws)}};
 handle_info({'EXIT', Pid, Reason}, S) -> {stop, {campaign_child_exit, Pid, Reason}, S};
 handle_info(_, S) -> {noreply, S}.
+newest_stability(Old,New) ->
+    A=maps:get(feature_stability,Old,#{}),B=maps:get(feature_stability,New,#{}),
+    case maps:get(revision,A,0)>maps:get(revision,B,0) of
+        true->New#{feature_stability=>A};false->New end.
 terminate(_, #{children := Children}) ->
     lists:foreach(fun(P) ->
         Ref = monitor(process, P), unlink(P), exit(P, shutdown),

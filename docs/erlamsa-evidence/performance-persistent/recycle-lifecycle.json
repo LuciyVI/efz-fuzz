@@ -1,0 +1,126 @@
+{
+  "cleanup_us": {
+    "p50": 19864,
+    "p95": 33192,
+    "p99": 37015,
+    "samples": 30
+  },
+  "mode": "erlamsa_persistent",
+  "percentile_method": "nearest_rank",
+  "recycle_events": 30,
+  "runs": [
+    {
+      "recycle_cleanup_samples_us": [
+        37015,
+        19385,
+        33192,
+        22993
+      ],
+      "recycle_startup_samples_us": [
+        403414,
+        367027,
+        373801,
+        321754
+      ],
+      "restarts": 4,
+      "seed": 43,
+      "vm_starts": 5
+    },
+    {
+      "recycle_cleanup_samples_us": [
+        12392,
+        17582,
+        24908,
+        18293,
+        18893
+      ],
+      "recycle_startup_samples_us": [
+        231167,
+        252071,
+        250207,
+        271487,
+        279538
+      ],
+      "restarts": 5,
+      "seed": 61,
+      "vm_starts": 6
+    },
+    {
+      "recycle_cleanup_samples_us": [
+        14455,
+        18822,
+        13379,
+        21029,
+        20901,
+        20888,
+        13321,
+        28419
+      ],
+      "recycle_startup_samples_us": [
+        226103,
+        226206,
+        227970,
+        254878,
+        227087,
+        235533,
+        252023,
+        265332
+      ],
+      "restarts": 8,
+      "seed": 29,
+      "vm_starts": 9
+    },
+    {
+      "recycle_cleanup_samples_us": [
+        25179,
+        16013,
+        26546,
+        26792,
+        20442,
+        16463,
+        19629
+      ],
+      "recycle_startup_samples_us": [
+        236260,
+        239090,
+        354196,
+        353073,
+        237786,
+        257306,
+        354994
+      ],
+      "restarts": 7,
+      "seed": 89,
+      "vm_starts": 8
+    },
+    {
+      "recycle_cleanup_samples_us": [
+        18375,
+        15848,
+        25275,
+        26433,
+        19864,
+        20365
+      ],
+      "recycle_startup_samples_us": [
+        353468,
+        240941,
+        352001,
+        328053,
+        290801,
+        230813
+      ],
+      "restarts": 6,
+      "seed": 17,
+      "vm_starts": 7
+    }
+  ],
+  "schema_version": 1,
+  "source": "performance-persistent-recycle-fixed-20261028/runs.json.gz",
+  "startup_us": {
+    "p50": 254878,
+    "p95": 373801,
+    "p99": 403414,
+    "samples": 30
+  }
+}

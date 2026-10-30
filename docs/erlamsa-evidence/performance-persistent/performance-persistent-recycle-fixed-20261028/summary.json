@@ -1,0 +1,186 @@
+{
+  "accepted": true,
+  "completed": true,
+  "groups": {
+    "erlamsa_persistent": {
+      "accepted_fraction": {
+        "max": 0.6560260586319219,
+        "median": 0.6307433694434068,
+        "min": 0.5298552112001914
+      },
+      "coverage": {
+        "max": 49,
+        "median": 48,
+        "min": 48
+      },
+      "direct_core_p50_us": 28,
+      "executions_per_second": {
+        "max": 275.54537591369404,
+        "median": 212.66949306600455,
+        "min": 151.435913357348
+      },
+      "identity_check_p50_us": 31,
+      "input_bytes": {
+        "max": 217.385884907709,
+        "median": 48.18730606488011,
+        "min": 28.39297721329847
+      },
+      "legacy_core_wrapper_p50_us": {
+        "max": 115,
+        "median": 59,
+        "min": 50
+      },
+      "legacy_core_wrapper_p95_us": {
+        "max": 212,
+        "median": 126,
+        "min": 67
+      },
+      "process_tree_rss_bytes": {
+        "median": 209928192
+      },
+      "provider_p50_us": {
+        "max": 1037,
+        "median": 507,
+        "min": 399
+      },
+      "provider_p95_us": {
+        "max": 3265,
+        "median": 1657,
+        "min": 1387
+      },
+      "recycle_cleanup_p50_us": null,
+      "samples": 5,
+      "steady_state_executions_per_second": {
+        "max": 278.53224008179257,
+        "median": 214.8600131682589,
+        "min": 153.48367956873918
+      },
+      "warm_request_p50_us": 434,
+      "warm_request_p95_us": 1490,
+      "worker_startup_p50_us": 290801
+    },
+    "hybrid_persistent": {
+      "accepted_fraction": {
+        "max": 0.6518026565464896,
+        "median": 0.6450445434298441,
+        "min": 0.6041609635915686
+      },
+      "coverage": {
+        "max": 48,
+        "median": 48,
+        "min": 48
+      },
+      "direct_core_p50_us": 42,
+      "executions_per_second": {
+        "max": 177.63007105202843,
+        "median": 138.05458624637734,
+        "min": 117.30211407669782
+      },
+      "identity_check_p50_us": 52,
+      "input_bytes": {
+        "max": 75.29291805710048,
+        "median": 51.58769487750557,
+        "min": 42.93942253255331
+      },
+      "legacy_core_wrapper_p50_us": {
+        "max": 117,
+        "median": 96,
+        "min": 89
+      },
+      "legacy_core_wrapper_p95_us": {
+        "max": 218,
+        "median": 158,
+        "min": 130
+      },
+      "process_tree_rss_bytes": {
+        "median": 207380480
+      },
+      "provider_p50_us": {
+        "max": 1191,
+        "median": 857,
+        "min": 781
+      },
+      "provider_p95_us": {
+        "max": 3269,
+        "median": 2485,
+        "min": 2200
+      },
+      "recycle_cleanup_p50_us": null,
+      "samples": 5,
+      "steady_state_executions_per_second": {
+        "max": 179.71813838796427,
+        "median": 140.52814784467787,
+        "min": 119.71692014358165
+      },
+      "warm_request_p50_us": 724,
+      "warm_request_p95_us": 2024,
+      "worker_startup_p50_us": 375360.5
+    },
+    "semantic_persistent": {
+      "accepted_fraction": {
+        "max": 0.7488280824157855,
+        "median": 0.6806920119607005,
+        "min": 0.6247889226612631
+      },
+      "coverage": {
+        "max": 48,
+        "median": 48,
+        "min": 48
+      },
+      "direct_core_p50_us": 32,
+      "executions_per_second": {
+        "max": 308.86464963273505,
+        "median": 263.21181770577095,
+        "min": 158.22290638372075
+      },
+      "identity_check_p50_us": 40,
+      "input_bytes": {
+        "max": 58.37244578162216,
+        "median": 55.695204322863894,
+        "min": 39.34329009048294
+      },
+      "legacy_core_wrapper_p50_us": {
+        "max": 98,
+        "median": 76,
+        "min": 60
+      },
+      "legacy_core_wrapper_p95_us": {
+        "max": 180,
+        "median": 106,
+        "min": 84
+      },
+      "process_tree_rss_bytes": {
+        "median": 209518592
+      },
+      "provider_p50_us": {
+        "max": 927,
+        "median": 634,
+        "min": 488
+      },
+      "provider_p95_us": {
+        "max": 2507,
+        "median": 1922,
+        "min": 1436
+      },
+      "recycle_cleanup_p50_us": null,
+      "samples": 5,
+      "steady_state_executions_per_second": {
+        "max": 312.10921769444616,
+        "median": 265.875167259378,
+        "min": 160.90884837023967
+      },
+      "warm_request_p50_us": 547,
+      "warm_request_p95_us": 1673,
+      "worker_startup_p50_us": 283792
+    }
+  },
+  "kind": "accepted_wall_time",
+  "limitations": [
+    "Single local query-string workload and one pinned OTP/ERTS build; no discovery advantage claim.",
+    "Diagnostic message, performance profiling, corpus persistence, and sampling enabled equally in every mode.",
+    "Full campaign throughput includes startup, count-based recycle, and orderly shutdown; request percentiles distinguish warm requests from startup/recycle.",
+    "Memory is sampled; aggregate RSS double-counts shared pages and may miss short peaks."
+  ],
+  "native_off_median_change_percent": null,
+  "native_off_paired_changes": []
+}

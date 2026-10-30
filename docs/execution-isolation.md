@@ -1,9 +1,11 @@
 # Execution model: synchronous binary harness with controlled descendants
 
-Поддержанный backend работает в одной локальной Erlang VM с OTP 27 и одним
-одновременным execution. Contract: **synchronous binary harness with controlled
-descendant lifecycle**. Root реализует `Module:run(binary()) -> term()` и вызывает
-обычные instrumented functions. Для дочерних процессов используется lifecycle API:
+**English** · [Русский](i18n/ru/execution-isolation.md) · [Español](i18n/es/execution-isolation.md) · [简体中文](i18n/zh-CN/execution-isolation.md) · [All languages](i18n/README.md)
+
+The supported backend runs in one local Erlang VM with OTP 27 and one concurrent
+execution. Contract: **synchronous binary harness with controlled descendant
+lifecycle**. The root implements `Module:run(binary()) -> term()` and calls
+ordinary instrumented functions. Child processes use the lifecycle API:
 
 ```erlang
 run(Input) ->
@@ -14,89 +16,91 @@ run(Input) ->
     receive {parsed, Child, Value} -> Value end.
 ```
 
-`efz_target:spawn_link/1` создаёт такой же owned child с link к вызывающему
-target-процессу. Обе функции принимают `fun(() -> term())`, возвращают PID и
-доступны только внутри execution. Nested children используют тот же API.
-Guardian создаёт процесс с закрытым start gate, устанавливает monitor и tracing,
-записывает ownership, затем отдаёт PID родителю. Только после этого helper
-открывает gate. В child передаются coverage context и lifecycle capability;
-остальная process dictionary и mailbox создаются заново.
+`efz_target:spawn_link/1` creates the same kind of owned child with a link to the
+calling target process. Both functions accept `fun(() -> term())`, return a PID
+and are available only inside an execution. Nested children use the same API.
+The guardian creates the process with a closed start gate, installs monitoring
+and tracing, records ownership, and then returns the PID to the parent. Only
+then does the helper open the gate. The coverage context and lifecycle capability
+are passed to the child; the rest of its process dictionary and mailbox are new.
 
-Root return определяет outcome case. Если важен результат или exception unlinked
-child, harness должен дождаться его и отразить его в своём результате. EFZ не
-подменяет такой протокол: живые descendants при завершении root принудительно
-останавливаются, а уже записанные probes входят в snapshot этого execution.
+The root return determines the case outcome. If the result or exception of an
+unlinked child matters, the harness must wait for it and reflect it in its own
+result. EFZ does not replace that protocol: live descendants are forcibly stopped
+when the root finishes, and already recorded probes are included in the snapshot
+for that execution.
 
-## Независимый владелец lifecycle
+## Independent lifecycle owner
 
 ```text
 worker / executor caller
   └─ monitor ─ guardian (efz_guardian)
                   ├─ monitor caller
-                  ├─ monitor ─ coordinator (классификация root result + DOWN)
-                  ├─ owns ─ observation ETS и trace session
+                  ├─ monitor ─ coordinator (root result + DOWN classification)
+                  ├─ owns ─ observation ETS and trace session
                   ├─ monitor ─ gated root
-                  └─ monitor ─ все controlled descendants
+                  └─ monitor ─ all controlled descendants
 ```
 
-Guardian не связан link с caller или coordinator и использует стабильный `user`
-group leader. Это необходимо и для `application:stop(efz)`: application master
-может завершать процессы своей I/O group независимо от links. В поддержанном
-окружении существует локальный процесс `user`; stdout targets идёт через него.
+The guardian is not linked to the caller or coordinator and uses a stable `user`
+group leader. This is also necessary for `application:stop(efz)`: the application
+master may terminate processes in its I/O group independently of links. A local
+`user` process exists in the supported environment; target stdout goes through it.
 
-Coordinator сообщает `coordinator_ready` после установки root monitor. До этого
-root не исполняет пользовательский код. Coordinator ждёт `target_result` и root
-`DOWN`; guardian владеет timeout независимо от него. Смерть coordinator даёт
-infrastructure outcome и запускает тот же cleanup.
+The coordinator reports `coordinator_ready` after installing the root monitor.
+The root does not execute user code before that. The coordinator waits for
+`target_result` and root `DOWN`; the guardian owns the timeout independently.
+Coordinator death produces an infrastructure outcome and starts the same cleanup.
 
-Guardian проходит состояния:
+The guardian moves through these states:
 
 ```text
 running
   ├─ root completed/crashed
   ├─ timeout
-  ├─ caller DOWN (включая campaign cancellation)
+  ├─ caller DOWN (including campaign cancellation)
   ├─ coordinator DOWN
-  └─ неподдержанный spawn / превышение admission bound
+  └─ unsupported spawn / exceeded admission bound
        ↓
-cleaning: новые admissions запрещены
+cleaning: new admissions forbidden
        ↓
 kill root + descendants + coordinator
        ↓
-DOWN каждого owned process + trace delivery barriers
+DOWN for every owned process + trace delivery barriers
        ↓
 global loader trace barrier + pinned code/context integrity
        ↓
 snapshot / validation / close ETS / destroy trace session
        ↓
-проверка доступных признаков загрязнения VM
+check available evidence of VM contamination
        ↓
-final result → caller ждёт также guardian DOWN
+final result → caller also waits for guardian DOWN
 ```
 
-`kill` действует независимо от `trap_exit`. Cleanup deadline — 1000 ms; допускается
-не более 4096 controlled processes за case, включая root. Clock проверяется и при
-непустой mailbox, чтобы непрерывные spawn requests не вытеснили timeout.
-Это границы lifecycle, не новая mutation/campaign config.
+`kill` works independently of `trap_exit`. The cleanup deadline is 1000 ms; at most
+4096 controlled processes are admitted per case, including the root. The clock
+is checked even with a nonempty mailbox so that continuous spawn requests cannot
+starve the timeout. These are lifecycle bounds, not new mutation/campaign config.
 
-Trace session использует `procs` и `set_on_spawn`. Обычный local `erlang:spawn`
-обнаруживается как **uncontrolled spawn**: context не внедряется задним числом,
-case прекращается с dirty-runner outcome. Guardian отслеживает и убивает найденные
-local descendants, включая nested. Их `DOWN` может прийти раньше отложенного
-spawn trace, поэтому после каждого `DOWN` вызывается `trace:delivered(Session,Pid)`.
-Возврат разрешён после исчезновения всех live monitors и всех delivery barriers;
-поздно обнаруженный child добавляет новый monitor/barrier. Простого обхода links
-или одного snapshot списка PID здесь нет.
+The trace session uses `procs` and `set_on_spawn`. Ordinary local `erlang:spawn`
+is detected as an **uncontrolled spawn**: context is not injected retrospectively,
+and the case stops with a dirty-runner outcome. The guardian tracks and kills
+local descendants it discovers, including nested descendants. Their `DOWN` may
+arrive before a delayed spawn trace, so `trace:delivered(Session,Pid)` is called
+after every `DOWN`. Return is permitted after all live monitors and delivery
+barriers have cleared; a child discovered late adds another monitor/barrier.
+This does not rely on a simple traversal of links or a single snapshot of PIDs.
 
-Семантика trace sessions и delivery barriers проверена по установленному OTP 27.0
-и [официальной документации trace](https://www.erlang.org/docs/27/apps/kernel/trace.html),
-[trace_delivered](https://www.erlang.org/docs/27/apps/erts/erlang.html#trace_delivered/1).
-Для основных control paths используются реальные monitors и start gates;
-tracing дополняет проверку границ модели.
+Trace-session and delivery-barrier semantics were checked against the installed
+OTP 27.0 and the [official trace documentation](https://www.erlang.org/docs/27/apps/kernel/trace.html)
+and [trace_delivered documentation](https://www.erlang.org/docs/27/apps/erts/erlang.html#trace_delivered/1).
+Real monitors and start gates are used for the main control paths; tracing adds
+checks of the model's boundaries.
 
-## Result и запрет reuse
+## Result and prohibition on reuse
 
-К существующим `outcome`, `coverage`, `coverage_status`, `builds` добавлены:
+The following are added to the existing `outcome`, `coverage`, `coverage_status`
+and `builds`:
 
 ```erlang
 #{execution_model => controlled_descendants,
@@ -106,95 +110,98 @@ tracing дополняет проверку границ модели.
   runner_reusable => true}.
 ```
 
-`confirmed` подтверждает завершение известных процессов и trace closure, а не
-полную очистку произвольного OTP application. При обнаруженном глобальном
-изменении процессы могут быть полностью завершены, но runner всё равно dirty.
+`confirmed` confirms termination of known processes and trace closure, not complete
+cleanup of an arbitrary OTP application. When a global change is detected, all
+processes may have terminated while the runner is still dirty.
 
-Если cleanup deadline истёк или погиб сам guardian, возвращается
-`{infrastructure, #{kind => dirty_runner, ...}}`, `runner_reusable => false` и
-`cleanup.status => unconfirmed`. Guardian failure не объявляется чистым run.
-Потенциально живые процессы после потери guardian требуют уничтожения VM.
-Если погиб caller, результата ему нет, но guardian самостоятельно завершает
-cleanup и при необходимости помечает VM dirty.
+If the cleanup deadline expires or the guardian itself dies, the result is
+`{infrastructure, #{kind => dirty_runner, ...}}`, `runner_reusable => false` and
+`cleanup.status => unconfirmed`. Guardian failure is not declared a clean run.
+Processes that may remain alive after guardian loss require destroying the VM.
+If the caller dies, no result is delivered to it, but the guardian independently
+finishes cleanup and marks the VM dirty if necessary.
 
-Dirty marker хранится в `persistent_term` под `{efz_guardian, dirty_runner}`.
-`efz_executor:runner_status/0` возвращает `ready` или `{dirty, Reason}`. Marker
-сохраняется после `efz:stop/0` и не имеет публичного reset: требуется новая VM.
-Повторный `run/4` в dirty VM возвращает infrastructure result с
-`cleanup.status => not_started`, не создавая новый target. Одновременный второй
-execution отклоняется как `runner_busy`; общий VM state нельзя проверять как
-изолированный при параллельных cases.
+The dirty marker is stored in `persistent_term` under `{efz_guardian, dirty_runner}`.
+`efz_executor:runner_status/0` returns `ready` or `{dirty, Reason}`. The marker
+survives `efz:stop/0` and has no public reset: a new VM is required. A subsequent
+`run/4` in a dirty VM returns an infrastructure result with
+`cleanup.status => not_started` without creating a new target. A second concurrent
+execution is rejected as `runner_busy`; shared VM state cannot be checked as
+isolated while cases run in parallel.
 
-Worker останавливает campaign, увеличивает `infrastructure_failures` и сохраняет
-exact input, recipe и execution result в `failure_context`. Такие observations
-не проходят successful feedback и не расширяют global coverage/corpus.
+The worker stops the campaign, increments `infrastructure_failures` and preserves
+the exact input, recipe and execution result in `failure_context`. Such
+observations do not pass successful feedback and do not expand global
+coverage/the corpus.
 
-## Политика общего состояния
+## Shared-state policy
 
-| Ресурс | Поддержанная политика | Проверка / действие EFZ |
+| Resource | Supported policy | EFZ check / action |
 |---|---|---|
-| Process dictionary, mailbox | Только собственные root/controlled child | Уничтожаются вместе с процессами; следующий case получает новые. |
-| Coverage ETS | Принадлежит guardian | Snapshot только после cleanup; таблица закрывается до результата. |
-| Target-owned ETS | Без heir и передачи ownership наружу | Исчезает с owner; новые surviving tables помечают runner dirty. |
-| Existing shared ETS | Записи запрещены в этой модели | Их содержимое автоматически не копируется/откатывается. Для заведомо такого эффекта harness вызывает `efz_target:dirty(Reason)`; требуется disposable VM. |
-| Registered names | Только для owned processes | После `DOWN` owned names освобождены. Новые/изменённые surviving registrations помечают runner dirty; внешний процесс произвольно не убивается. |
-| `persistent_term` | Target не должен менять VM-global values | Сравнение before/after keys/values; изменение даёт dirty marker. Автоматического восстановления нет. |
-| Application env | Target не должен менять общий env | Сравнение env загруженных applications; изменение даёт dirty. Новая application без env сама по себе не считается env mutation. |
-| Ports, remote spawn, timers/messages во внешние процессы, внешние services, files | Вне поддержанного shared-VM scope | Нет обещания cleanup/rollback или cancellation удалённой работы. Нужен следующий backend. |
+| Process dictionary, mailbox | Only the root's/controlled child's own state | Destroyed with the processes; the next case gets fresh state. |
+| Coverage ETS | Owned by the guardian | Snapshot only after cleanup; the table is closed before the result. |
+| Target-owned ETS | No heir or transfer of ownership outside the execution | Disappears with its owner; new surviving tables mark the runner dirty. |
+| Existing shared ETS | Writes are forbidden in this model | Contents are not copied/rolled back automatically. For an effect known to require this, the harness calls `efz_target:dirty(Reason)`; a disposable VM is required. |
+| Registered names | Only for owned processes | Owned names are released after `DOWN`. New/changed surviving registrations mark the runner dirty; an external process is not killed arbitrarily. |
+| `persistent_term` | The target must not change VM-global values | Before/after keys/values are compared; a change sets the dirty marker. There is no automatic restoration. |
+| Application env | The target must not change shared env | The env of loaded applications is compared; a change produces dirty status. A new application without env is not itself considered an env mutation. |
+| Ports, remote spawn, timers/messages to external processes, external services, files | Outside the supported shared-VM scope | No promise of cleanup/rollback or cancellation of remote work. The next backend is required. |
 
-Snapshots — диагностика нарушений кооперативного contract, **не security sandbox**.
-Они не обнаруживают все записи в уже существующую ETS, временные изменения с
-последующим восстановлением, удаление чужой регистрации, сообщения внешним
-сервисам или намеренную подделку tracing/protocol. Повреждение EFZ coverage context
-и hot reload дополнительно контролирует [coverage integrity](coverage-integrity.md).
-Параллельные изменения VM
-посторонним кодом могут дать conservative dirty result. Восстановление снимка
-`persistent_term`/env поверх чужих изменений было бы небезопасным, поэтому его нет.
+Snapshots diagnose violations of a cooperative contract; they are **not a
+security sandbox**. They do not detect every write to existing ETS, transient
+changes followed by restoration, removal of someone else's registration,
+messages to external services or deliberate forging of tracing/protocol data.
+[Coverage integrity](coverage-integrity.md) additionally checks damage to EFZ
+coverage context and hot reload. Concurrent VM changes by unrelated code may
+produce a conservative dirty result. Restoring a `persistent_term`/env snapshot
+over someone else's changes would be unsafe, so it is not done.
 
-`A → dirty → A` проверяется двумя способами. Для process-local dictionary/mailbox,
-owned ETS и registrations третий `A` действительно выполняется и возвращает те же
-outcome и probes. Для VM-global mutation второй run возвращает dirty, а третий
-`A` **не исполняется**. Загрязнённые values намеренно не «лечатся»; VM выводится из
-использования. Для test isolation эти случаи запускаются в отдельных OS processes.
+`A → dirty → A` is checked in two ways. For process-local dictionary/mailbox,
+owned ETS and registrations, the third `A` actually executes and returns the same
+outcome and probes. For VM-global mutation, the second run returns dirty and the
+third `A` **does not execute**. Contaminated values are deliberately not “repaired”;
+the VM is retired. For test isolation, these cases run in separate OS processes.
 
-## Следующий backend для async OTP scope
+## Next backend for the asynchronous OTP scope
 
-Произвольные OTP applications, фоновые servers, NIF/ports, remote calls и shared
-services требуют **disposable Erlang VM** с внешним владельцем OS process и
-подтверждением его завершения. Этот backend пока не реализован. Даже VM backend
-должен отдельно описать filesystem/network side effects и remote cleanup.
-Текущий guardian не следует links к чужим processes и не выдаёт такую изоляцию
-за уже решённую задачу.
+Arbitrary OTP applications, background servers, NIFs/ports, remote calls and
+shared services require a **disposable Erlang VM**, with an external owner of
+the OS process and confirmation of its termination. This backend is not yet
+implemented. Even a VM backend must separately specify filesystem/network side
+effects and remote cleanup. The current guardian does not follow links to other
+processes and does not present that isolation as an already solved problem.
 
 ## Regression evidence
 
-[efz_isolation_tests](../test/efz_isolation_tests.erl) компилирует реальный
-[instrumented target](../fixtures/efz_isolation_target.erl). Проверяются normal,
+[efz_isolation_tests](../test/efz_isolation_tests.erl) compiles a real
+[instrumented target](../fixtures/efz_isolation_target.erl). It checks normal,
 crash, timeout, trap_exit, linked/unlinked/nested children, caller/coordinator death,
-spawn около deadline, registration/ETS cleanup и совпадение child coverage context.
-После supported case все PID из ownership report должны быть dead, включая
-процессы, умершие ещё на start gate.
+spawns near the deadline, registration/ETS cleanup and matching child coverage
+context. After a supported case, all PIDs in the ownership report must be dead,
+including processes that died while still at the start gate.
 
-Отдельные свежие VM проверяют persistent_term/env/shared ETS, escaped ETS/name,
-обычный/nested unmanaged spawn, потерю guardian и campaign dirty-report. Guard
-failure test сначала доказывает `unconfirmed` и запрет reuse, затем сам завершает
-оставшиеся тестовые процессы: это не выдаётся за cleanup со стороны executor.
-Логи этих runs находятся в `_build/isolation-test/`. Общие regression tests по
-coverage, crash/replay и `A → AB → ABC` продолжают проверять прежний pipeline.
+Separate fresh VMs check persistent_term/env/shared ETS, escaped ETS/names,
+ordinary/nested unmanaged spawn, guardian loss and the campaign dirty report.
+The guardian-failure test first proves `unconfirmed` and the reuse prohibition,
+then terminates the remaining test processes itself: this is not represented as
+cleanup by the executor. Logs of these runs are in `_build/isolation-test/`.
+General regression tests for coverage, crash/replay and `A → AB → ABC` continue
+to verify the existing pipeline.
 
-При сочетании первичной infrastructure failure (например, `coordinator_down`)
-и dirty cleanup `outcome` сохраняет первую причину. `coverage_status`, `cleanup`
-и `runner_reusable => false` фиксируют невозможность повторного использования VM;
-следующий input отклоняется как dirty runner. Regression `coordinator_dirty`
-проверяет это сочетание в отдельной VM.
+When a primary infrastructure failure (for example, `coordinator_down`) coincides
+with dirty cleanup, `outcome` preserves the first reason. `coverage_status`,
+`cleanup` and `runner_reusable => false` record that the VM cannot be reused;
+the next input is rejected as a dirty runner. The `coordinator_dirty` regression
+checks this combination in a separate VM.
 
-Поздняя потеря guardian после настоящего reply проверяется отдельно в
-`efz_crash_retention_tests`: test-only преобразование AST guardian добавляет gate
-после отправки сообщения в приватной VM. После coordinator death reply несёт
-исходную ошибку; затем guardian завершается ненормально. Report/stats сохраняют
-исходную причину, `guardian_failure` описывает вторичную, а `execution_evidence`
-сохраняет исходный cleanup/coverage. Runner retired, следующий target не запускается.
-В production нет опции fault injection.
+Late guardian loss after an actual reply is checked separately in
+`efz_crash_retention_tests`: a test-only AST transform of the guardian adds a gate
+after sending the message in a private VM. Following coordinator death, the reply
+contains the original error; the guardian then terminates abnormally. Report/stats
+preserve the original reason, `guardian_failure` describes the secondary reason,
+and `execution_evidence` preserves the original cleanup/coverage. The runner is
+retired and the next target does not start. Production has no fault-injection
+option.
 
 ## Optional runtime observations
 

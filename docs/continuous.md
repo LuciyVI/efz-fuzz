@@ -1,5 +1,7 @@
 # Continuous fuzzing
 
+**English** · [Русский](i18n/ru/continuous.md) · [Español](i18n/es/continuous.md) · [简体中文](i18n/zh-CN/continuous.md) · [All languages](i18n/README.md)
+
 The ordinary single-VM EFZ loop supports unbounded random and staged/Gleam
 campaigns through `max_iterations => infinity`. Finite campaigns keep their
 existing defaults, execution limits and exhaustion/idle-stop behavior.

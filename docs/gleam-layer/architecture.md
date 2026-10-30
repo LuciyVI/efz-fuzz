@@ -1,5 +1,7 @@
 # Native Gleam architecture — contract v1
 
+**English** · [Русский](../i18n/ru/gleam-layer/architecture.md) · [Español](../i18n/es/gleam-layer/architecture.md) · [简体中文](../i18n/zh-CN/gleam-layer/architecture.md) · [All languages](../i18n/README.md)
+
 Requirements: **2.0-native**. Contract: **1**. Base revision:
 `79d76221c6bc5df30b80e6b0de947f3860f4fa4b`. This describes the current checkout,
 including integration code present before the P1 audit. See [baseline.md](baseline.md)
