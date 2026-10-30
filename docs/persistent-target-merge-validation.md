@@ -44,10 +44,61 @@ Python 3.12.3; commands use `ERL_FLAGS='+S 2:2'`.
 | `rebar3 as erlamsa compile`, `rebar3 as gleam compile`, `rebar3 as erlamsa,gleam compile` | 0/0/0 | Pinned core and Gleam 1.10.0 built separately and together |
 | Combined-profile focused EUnit for target, feature stability, Erlamsa and Gleam | 0 | 44 tests |
 | `python3 -m unittest discover -s test -p 'pyefz_persistent_target_test.py'` | 0 | SDK sequence campaign and raw prefix replay |
+| `PYTHONPATH=packages/pyefz/src PYEFZ_CORE_PATH="$PWD/vendor/erlamsa" python3 -m unittest discover -s test -p 'pyefz_persistent_target_test.py' -v` | 0 | 3 real-runtime SDK tests: sequence replay, four provider/transport combinations with one target VM each, continuous stop and corpus restart in a new client |
 
 The full EUnit run and focused rerun required local Unix socket and OS process
 access. A restricted sandbox can fail provider setup before the target is run.
 No target crash was fabricated from such setup failures.
+
+The new SDK matrix used the actual pinned Erlamsa core, 10 mutation iterations
+per mode and a stateful target. Native, Erlamsa disposable, Erlamsa persistent
+and hybrid persistent each completed 12 target steps (two seed calibrations and
+10 mutations), with one target VM and a complete journal. Erlamsa modes made
+real provider requests; persistent transport reported one separate provider VM.
+The continuous run stopped by request, saved corpus entries, and a new client
+restarted from the same corpus with an empty explicit seed list for two more
+iterations in a new epoch. An initial test attempt reused the same SDK Client
+for a second campaign and failed with `BadConfig`; the corrected test opens a
+new Client, as required by its campaign lifecycle contract.
+
+## Independent checkout and final-code measurement
+
+The review commit `bc29c4758a433fe5af651bdef04483eef359cde7` was cloned
+locally with `git clone --no-local` into a new object store with no Git
+alternates. Recursive submodule initialization resolved the declared HTTPS URL
+through a local URL rewrite to the pinned fork mirror; the checkout gitlink
+was `191f3d9d30d8932319b98f4af25d3dff9ddc5824`. Standard and Erlamsa
+profile builds both exited 0. This verifies independent Git objects and the
+recorded gitlink, but is not a network checkout from GitHub.
+
+The same clean checkout ran a short final-code benchmark:
+
+```sh
+PYTHONPATH=packages/pyefz/src ERL_FLAGS='+S 2:2' \
+  python3 scripts/benchmark_persistent_target.py \
+  --out _build/final-target-benchmark --seconds 1 --cases 80
+```
+
+It used the five fixed seeds 17/29/43/61/89, one full warm-up campaign per
+mode/seed, rotating mode order, and exactly 80 primary inputs per campaign.
+All 56 measured campaigns completed. The median of each seed's median
+primary executions/s was:
+
+| Mode | Primary executions/s | Measured campaigns | Target VM starts per campaign |
+| --- | ---: | ---: | ---: |
+| Isolated stateless | 144.3 | 16 | 0 persistent session starts |
+| Persistent stateless | 128.1 | 15 | 1 |
+| Persistent stateful | 98.6 | 15 | 1 |
+| Persistent stateful with sequence audit | 47.9 | 10 | 1 primary, 2 audit |
+
+The one-second windows are too short for a precise throughput comparison.
+The audit mode replays full prefixes, so its primary rate also includes
+diagnostic work. Every raw campaign, timing, RSS sample, status, and build
+identity is retained in [final review data](persistent-target-evidence/final-review-raw.json)
+(SHA-256 `0489bffce90b5f159870a2c62af9b6065615e2a8289664a04d46b5c14e8302b2`).
+The input/harness build and seed are fixed within each corresponding mode;
+stateless and stateful modes intentionally use different harnesses, so their
+rates are not a controlled comparison of execution mode alone.
 
 ## Short before/after cost check
 
