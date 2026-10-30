@@ -1,0 +1,153 @@
+{
+  "accepted": false,
+  "completed": true,
+  "groups": {
+    "erlamsa": {
+      "accepted_fraction": {
+        "max": 0.5771812080536913,
+        "median": 0.5771812080536913,
+        "min": 0.5771812080536913
+      },
+      "core_p50_us": {
+        "max": 124,
+        "median": 124,
+        "min": 124
+      },
+      "core_p95_us": {
+        "max": 191,
+        "median": 191,
+        "min": 191
+      },
+      "coverage": {
+        "max": 47,
+        "median": 47,
+        "min": 47
+      },
+      "executions_per_second": {
+        "max": 4.762587510463955,
+        "median": 4.762587510463955,
+        "min": 4.762587510463955
+      },
+      "input_bytes": {
+        "max": 22.91946308724832,
+        "median": 22.91946308724832,
+        "min": 22.91946308724832
+      },
+      "process_tree_rss_bytes": {
+        "median": 146255872
+      },
+      "provider_p50_us": {
+        "max": 201889,
+        "median": 201889,
+        "min": 201889
+      },
+      "provider_p95_us": {
+        "max": 234681,
+        "median": 234681,
+        "min": 234681
+      },
+      "samples": 1
+    },
+    "hybrid": {
+      "accepted_fraction": {
+        "max": 0.6981891348088531,
+        "median": 0.6981891348088531,
+        "min": 0.6981891348088531
+      },
+      "core_p50_us": {
+        "max": 121,
+        "median": 121,
+        "min": 121
+      },
+      "core_p95_us": {
+        "max": 185,
+        "median": 185,
+        "min": 185
+      },
+      "coverage": {
+        "max": 47,
+        "median": 47,
+        "min": 47
+      },
+      "executions_per_second": {
+        "max": 16.356180719207583,
+        "median": 16.356180719207583,
+        "min": 16.356180719207583
+      },
+      "input_bytes": {
+        "max": 35.436619718309856,
+        "median": 35.436619718309856,
+        "min": 35.436619718309856
+      },
+      "process_tree_rss_bytes": {
+        "median": 148709376
+      },
+      "provider_p50_us": {
+        "max": 204107,
+        "median": 204107,
+        "min": 204107
+      },
+      "provider_p95_us": {
+        "max": 260249,
+        "median": 260249,
+        "min": 260249
+      },
+      "samples": 1
+    },
+    "semantic": {
+      "accepted_fraction": {
+        "max": 0.7,
+        "median": 0.7,
+        "min": 0.7
+      },
+      "core_p50_us": {
+        "max": 117,
+        "median": 117,
+        "min": 117
+      },
+      "core_p95_us": {
+        "max": 210,
+        "median": 210,
+        "min": 210
+      },
+      "coverage": {
+        "max": 48,
+        "median": 48,
+        "min": 48
+      },
+      "executions_per_second": {
+        "max": 15.786035147107697,
+        "median": 15.786035147107697,
+        "min": 15.786035147107697
+      },
+      "input_bytes": {
+        "max": 33.63125,
+        "median": 33.63125,
+        "min": 33.63125
+      },
+      "process_tree_rss_bytes": {
+        "median": 151539712
+      },
+      "provider_p50_us": {
+        "max": 205092,
+        "median": 205092,
+        "min": 205092
+      },
+      "provider_p95_us": {
+        "max": 255581,
+        "median": 255581,
+        "min": 255581
+      },
+      "samples": 1
+    }
+  },
+  "kind": "probe_only",
+  "limitations": [
+    "Single local query-string workload and one pinned OTP/ERTS build; no discovery advantage claim.",
+    "Diagnostic message, performance profiling, corpus persistence, and sampling enabled equally in every mode.",
+    "Generation latency includes cold OS worker setup; core time is reported separately when runtime counters support it.",
+    "Memory is sampled; aggregate RSS double-counts shared pages and may miss short peaks."
+  ],
+  "native_off_median_change_percent": null,
+  "native_off_paired_changes": []
+}

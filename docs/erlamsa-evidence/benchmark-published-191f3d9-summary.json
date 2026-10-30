@@ -1,0 +1,188 @@
+{
+  "accepted": true,
+  "completed": true,
+  "groups": {
+    "baseline": {
+      "accepted_fraction": {
+        "max": 0.7293922389947048,
+        "median": 0.690724358412893,
+        "min": 0.45703933747412007
+      },
+      "core_p50_us": null,
+      "core_p95_us": null,
+      "coverage": {
+        "max": 48,
+        "median": 48,
+        "min": 48
+      },
+      "executions_per_second": {
+        "max": 420.85724164300376,
+        "median": 344.9964039300169,
+        "min": 256.8587643357094
+      },
+      "input_bytes": {
+        "max": 94.59381469979296,
+        "median": 67.26074582924436,
+        "min": 47.001106456966724
+      },
+      "process_tree_rss_bytes": {
+        "median": 108929024
+      },
+      "provider_p50_us": null,
+      "provider_p95_us": null,
+      "samples": 5
+    },
+    "erlamsa": {
+      "accepted_fraction": {
+        "max": 0.7103448275862069,
+        "median": 0.6907894736842105,
+        "min": 0.5126050420168067
+      },
+      "core_p50_us": {
+        "max": 105,
+        "median": 87,
+        "min": 77
+      },
+      "core_p95_us": {
+        "max": 254,
+        "median": 134,
+        "min": 96
+      },
+      "coverage": {
+        "max": 47,
+        "median": 45,
+        "min": 44
+      },
+      "executions_per_second": {
+        "max": 4.861935517214865,
+        "median": 4.331155628283432,
+        "min": 3.7628778249846895
+      },
+      "input_bytes": {
+        "max": 36.46218487394958,
+        "median": 28.723076923076924,
+        "min": 25.026315789473685
+      },
+      "process_tree_rss_bytes": {
+        "median": 195510272
+      },
+      "provider_p50_us": {
+        "max": 255986,
+        "median": 224324,
+        "min": 201014
+      },
+      "provider_p95_us": {
+        "max": 331674,
+        "median": 252318,
+        "min": 222719
+      },
+      "samples": 5
+    },
+    "hybrid": {
+      "accepted_fraction": {
+        "max": 0.6710182767624021,
+        "median": 0.6349206349206349,
+        "min": 0.610752688172043
+      },
+      "core_p50_us": {
+        "max": 134,
+        "median": 90,
+        "min": 84
+      },
+      "core_p95_us": {
+        "max": 258,
+        "median": 159,
+        "min": 112
+      },
+      "coverage": {
+        "max": 48,
+        "median": 48,
+        "min": 46
+      },
+      "executions_per_second": {
+        "max": 15.29078679126537,
+        "median": 12.562820768468747,
+        "min": 10.286229139302606
+      },
+      "input_bytes": {
+        "max": 70.86092715231788,
+        "median": 50.01075268817204,
+        "min": 42.78095238095238
+      },
+      "process_tree_rss_bytes": {
+        "median": 195276800
+      },
+      "provider_p50_us": {
+        "max": 351555,
+        "median": 228471,
+        "min": 213089
+      },
+      "provider_p95_us": {
+        "max": 387173,
+        "median": 262439,
+        "min": 236202
+      },
+      "samples": 5
+    },
+    "native": {
+      "accepted_fraction": {
+        "max": 0.7311280013819312,
+        "median": 0.6859368593685937,
+        "min": 0.4578874355925486
+      },
+      "core_p50_us": null,
+      "core_p95_us": null,
+      "coverage": {
+        "max": 48,
+        "median": 48,
+        "min": 48
+      },
+      "executions_per_second": {
+        "max": 385.0431563104188,
+        "median": 345.0968487944577,
+        "min": 243.25694801202079
+      },
+      "input_bytes": {
+        "max": 94.56173206500198,
+        "median": 67.17713304065661,
+        "min": 47.023147348419414
+      },
+      "process_tree_rss_bytes": {
+        "median": 108326912
+      },
+      "provider_p50_us": null,
+      "provider_p95_us": null,
+      "samples": 5
+    }
+  },
+  "kind": "accepted_wall_time",
+  "limitations": [
+    "Single local query-string workload and one pinned OTP/ERTS build; no discovery advantage claim.",
+    "Diagnostic message, performance profiling, corpus persistence, and sampling enabled equally in every mode.",
+    "Generation latency includes cold OS worker setup; core time is reported separately when runtime counters support it.",
+    "Memory is sampled; aggregate RSS double-counts shared pages and may miss short peaks."
+  ],
+  "native_off_median_change_percent": 0.029114756935588737,
+  "native_off_paired_changes": [
+    {
+      "seed": 17,
+      "throughput_change_percent": -35.92189897735063
+    },
+    {
+      "seed": 29,
+      "throughput_change_percent": 30.669343935218695
+    },
+    {
+      "seed": 43,
+      "throughput_change_percent": -8.509794245851332
+    },
+    {
+      "seed": 61,
+      "throughput_change_percent": 0.029114756935588737
+    },
+    {
+      "seed": 89,
+      "throughput_change_percent": 2.839167677454335
+    }
+  ]
+}

@@ -62,8 +62,14 @@ New content gets new cursors. There is no whole-campaign checkpoint format.
 `mutation` map and requires the default `mutator` setting; it rejects a custom
 legacy callback rather than silently ignoring it. Supplying `mutation` options
 in random mode is an error. In staged mode, omitted `max_iterations` becomes
-1,000; explicit `infinity` is rejected. Random mode retains its previous budget
+1,000; explicit `infinity` enables the [continuous loop](continuous.md), with
+orderly stop and corpus persistence. Random mode retains its previous budget
 semantics and does not acquire the staged limits implicitly.
+
+The optional [Erlamsa provider](erlamsa-integration.md) supplies ordinary staged
+candidates through the same executor and corpus admission path. Source weights
+are independent of semantic adapters and their structured opportunities.
+Omitting the provider preserves the native planner's RNG sequence.
 
 | Planner setting (inside `mutation` except campaign `max_input_bytes`) | Default | Accepted bound |
 |---|---:|---:|

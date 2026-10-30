@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "audit_date": "2026-10-27",
+  "working_directory": "/workspace/efz-erlamsa",
+  "branch": "feat/erlamsa-integration",
+  "base_commit": "db1add0bc47bc1011d55a4cb528b741a0b870f97",
+  "original_checkout": {
+    "path": "/workspace/efz-fuzz",
+    "branch": "feat/xmlrpc-harness-suite",
+    "commit": "199f564017ae389f25963b0cbc170105fde02511",
+    "dirty": false
+  },
+  "initial_submodules": [],
+  "upstream": {
+    "url": "https://github.com/Darkkey/erlamsa",
+    "default_branch": "master",
+    "commit": "4a844bcd1083e3278c10405bb415a32871b216c3"
+  },
+  "fork": {
+    "url": "https://github.com/LuciyVI/erlamsa",
+    "existence": "UNVERIFIED",
+    "github_api": "BLOCKED: Forbidden including approved escalated retry",
+    "git_ls_remote": "Repository not found (absence versus access cannot be distinguished)"
+  },
+  "environment": {
+    "otp": "27",
+    "erts": "15.2.7",
+    "rebar3": "3.25.0",
+    "python": "3.12.14",
+    "gleam": "1.10.0",
+    "os": "Linux",
+    "kernel": "6.18.55",
+    "architecture": "x86_64",
+    "erl_flags": "+S 2:2"
+  },
+  "network_draft": {
+    "added_domain": "api.github.com",
+    "status": "saved, requires user Review/Save/Publish before active"
+  },
+  "baseline_check_directory": "/workspace/scratch/erlamsa-baseline",
+  "acceptance_status": "PARTIAL: local implementation validated; actual fork/publication/gitlink/remote recursive checkout BLOCKED",
+  "local_core_commit": "86dd745aafb8ebe78f578c51f783132800b89238",
+  "efz_implementation_commit": "ff50194eb3def35f3b164cb2fa4a3ff38ea5fa29"
+}

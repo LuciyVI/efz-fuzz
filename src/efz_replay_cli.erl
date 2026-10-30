@@ -20,13 +20,17 @@ help() ->
     "is the sibling .replay file. Raw .input is authoritative and does not need .recipe/.term.\n"
     "--code-path is repeatable. Target contract is Module:run(binary()).\n"
     "Exit: 0 reproduced; 3 not-reproduced; 2 invalid invocation/compatibility; 1 infrastructure.\n"
-    "Bytes only (legacy): replay.escript RECIPE OUTPUT_INPUT [--max-input-bytes N]\n".
+    "Bytes only (legacy): replay.escript RECIPE OUTPUT_INPUT [--max-input-bytes N]\n"
+    "Verify provider generation: --recipe FILE.recipe --provider-config TRUSTED.term\n"
+    "       --provider-regenerate NEW_OUTPUT [--max-input-bytes N]\n"
+    "Provider regeneration runs no target and requires matching build/config identities.\n".
 parse([],O)->O;
 parse([Flag,Value|Rest],O)->
     Key=case Flag of
         "--runtime-finding"->runtime_finding;"--runs"->runs;
         "--input"->raw;"--recipe"->recipe;"--target"->target;"--artifacts"->artifacts;
         "--expect"->expect;"--code-path"->code_paths;"--timeout"->timeout;
+        "--provider-config"->provider_config;"--provider-regenerate"->provider_regenerate;
         "--max-input-bytes"->max_input_bytes;_->usage("Unknown option: "++Flag)
     end,
     case Value of "--"++_->usage("Missing value: "++Flag);[]->usage("Empty value: "++Flag);_->ok end,
@@ -42,6 +46,7 @@ parse([Flag,Value|Rest],O)->
 parse(_,_) -> usage("Missing option value; use --help").
 number(S)->case S=/=[] andalso lists:all(fun(C)->C>=$0 andalso C=<$9 end,S) of
     true->list_to_integer(S);false->usage("Expected nonnegative integer") end.
+launch(#{provider_regenerate:=Out}=O)->provider_regenerate(Out,O);
 launch(#{runtime_finding:=Path}=O)->
     case maps:keys(O)--[runtime_finding,target,artifacts,code_paths,runs] of
         []->ok;_->usage("Runtime replay accepts only --runtime-finding, --target, --artifacts, --code-path, --runs") end,
@@ -56,6 +61,7 @@ launch(#{runtime_finding:=Path}=O)->
             Error->result(Error) end;
         Error->result(Error) end;
 launch(O)->
+    case maps:is_key(provider_config,O) of true->usage("--provider-config requires --provider-regenerate");false->ok end,
     case maps:is_key(runs,O) of true->usage("--runs requires --runtime-finding");false->ok end,
     case [K||K<-[target,artifacts],not maps:is_key(K,O)] of
         []->ok;_->usage("--target and --artifacts are required") end,
@@ -72,6 +78,43 @@ launch(O)->
         {{error,Why},_}->rejected(Why);
         {_,{error,Why}}->rejected(Why)
     end.
+provider_regenerate(Out,O)->
+    case maps:keys(O)--[recipe,provider_config,provider_regenerate,max_input_bytes] of
+        []->ok;_->usage("Provider regeneration accepts only --recipe, --provider-config, --provider-regenerate, --max-input-bytes")
+    end,
+    case maps:is_key(recipe,O) andalso maps:is_key(provider_config,O) of
+        true->ok;false->usage("Provider regeneration requires --recipe and --provider-config")
+    end,
+    ConfigPath=maps:get(provider_config,O),
+    case efz_fs:read_bounded(ConfigPath,1048576) of
+        {ok,_}->case file:consult(ConfigPath) of
+            {ok,[#{mutation_provider:=Provider}=C]}->
+                provider_generate(Out,O,Provider,maps:get(max_input_bytes,C,efz_input:default_limit()));
+            {ok,[Provider]} when is_map(Provider);Provider=:=erlamsa;Provider=:=hybrid->
+                provider_generate(Out,O,Provider,efz_input:default_limit());
+            _->usage("Trusted provider config must contain one provider map or campaign map with mutation_provider")
+        end;
+        E->result(E)
+    end.
+provider_generate(Out,O,Provider,DefaultMax)->
+    Max=maps:get(max_input_bytes,O,DefaultMax),
+    case efz_recipe:load(maps:get(recipe,O)) of
+        {ok,R}->case efz_recipe:regenerate(R,#{max_input_bytes=>Max}) of
+            {ok,_}->case efz_mutation_provider:prepare(Provider,Max) of
+                {ok,P}->case efz_recipe:regenerate_provider(R,P) of
+                    {ok,B}->case efz_fs:write_file(Out,B) of
+                        ok->io:format("Provider generation verified; ~B bytes; SHA-256 ~s~n",
+                            [byte_size(B),binary:encode_hex(crypto:hash(sha256,B),lowercase)]),0;
+                        E->result(E)
+                    end;
+                    E->result(E)
+                end;
+                E->result(E)
+            end;
+            E->result(E)
+        end;
+        E->result(E)
+    end.
 result({ok,#{status:=Status,input_hash:=H}})->
     Text=case Status of reproduced->"reproduced";not_reproduced->"not-reproduced" end,
     io:format("~s; build/harness compatibility verified; input SHA-256 ~s~n",[Text,binary:encode_hex(H,lowercase)]),
@@ -82,6 +125,9 @@ rejected(Why)->
     error_exit(Why).
 error_exit(#{kind:=filesystem,reason:=file_size_limit})->2;
 error_exit(#{kind:=K}) when K=:=filesystem;K=:=replay_infrastructure->1;
+error_exit({provider_recipe_error,_})->1;
+error_exit({provider_recipe_timeout,_})->1;
+error_exit(provider_recipe_cancelled)->1;
 %% Discovery/preflight retain the existing instrumentation error protocol.
 %% Its IO failures are infrastructure failures too, not build mismatches.
 error_exit({artifact_directory,_,_})->1;

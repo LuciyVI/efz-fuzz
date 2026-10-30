@@ -11,7 +11,12 @@ Optional semantic/Gleam layer: [connecting Erlang libraries](docs/gleam-layer/co
 [final P5 validation](docs/gleam-layer/p5-validation.md) ·
 [automatic connector generation from `-spec`](docs/gleam-layer/connector-generation.md).
 
-Continuous mode: [staged/Gleam without an execution limit](docs/continuous.md).
+Continuous mode: [staged and Gleam campaigns without an execution limit](docs/continuous.md).
+
+Optional local Erlamsa provider: [configuration and replay](docs/erlamsa-integration.md) ·
+[validation](docs/erlamsa-validation.md) · [measurements](docs/erlamsa-benchmark.md).
+Mutation providers and semantic adapters are independent settings. Native builds
+need neither Erlamsa nor Gleam. See the [local Python SDK](packages/pyefz/README.md).
 
 TUI: [terminal campaign dashboard](docs/tui.md) — `python3 scripts/tui.py --demo --out _build/tui-demo-1`.
 

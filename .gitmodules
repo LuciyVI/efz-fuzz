@@ -1,0 +1,3 @@
+[submodule "vendor/erlamsa"]
+	path = vendor/erlamsa
+	url = https://github.com/LuciyVI/erlamsa.git

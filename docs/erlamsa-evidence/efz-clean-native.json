@@ -1,0 +1,29 @@
+{
+  "checkout": "independent GitHub EFZ clone; NOT fork/submodule acceptance",
+  "commit": "d5dc25ecd1f61fc8c4e1fc9ba97219b79363ab60",
+  "core_present": false,
+  "GLEAM_BIN": "/unavailable/gleam",
+  "ERLAMSA_SOURCE": "/unavailable/erlamsa",
+  "checks": [
+    {
+      "check": "native_compile",
+      "argv": [
+        "rebar3",
+        "compile"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 21.03
+    },
+    {
+      "check": "missing_core_profile",
+      "argv": [
+        "rebar3",
+        "as",
+        "erlamsa",
+        "compile"
+      ],
+      "exit_code": 1,
+      "wall_seconds": 3.632
+    }
+  ]
+}

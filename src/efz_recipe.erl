@@ -1,12 +1,18 @@
 %% EFZR v1: checksummed, bounded, data-only recipes. Never dispatches artifact code.
 -module(efz_recipe).
 -export([make/4, regenerate/1, regenerate/2, encode/1, decode/1, save/2, load/1,
-         execute/5, execute_file/5, build_ids/1, regenerate_semantic/2]).
+         execute/5, execute_file/5, build_ids/1, regenerate_semantic/2,
+         regenerate_provider/2]).
 -define(MAX_FILE, 41943040).
 %% OTP exsplus deliberately exports the seed as an improper two-word list.
 %% state_from_words validates both words before reconstructing that OTP format.
 -dialyzer({no_improper_lists, state_from_words/1}).
 
+make(#{source_kind:=provider}=P,B,C,Builds)->
+    P#{schema_version=>5,engine_version=>1,operation_version=>4,
+       limits=>maps:with([max_input_bytes,max_block_bytes,max_token_bytes,max_delta],C),
+       output_size=>byte_size(B),output_hash=>efz_mutation:hash(B),target_builds=>build_ids(Builds),
+       rng=>#{algorithm=>exsplus,seed=>maps:get(seed,C)}};
 make(P,B,C,Builds)->
     OperationVersion=case lists:any(fun({structured_replace,_,_,_,_})->true;(_)->false end,maps:get(operations,P)) of
         true->case lists:any(fun({structured_replace,2,_,_,_})->true;(_)->false end,maps:get(operations,P)) of
@@ -18,8 +24,20 @@ make(P,B,C,Builds)->
        rng=>#{algorithm=>exsplus,seed=>maps:get(seed,C)}}.
 build_ids(Bs)->lists:sort([{atom_to_binary(M,utf8),B}||{M,B}<-maps:to_list(Bs)]).
 regenerate(R)->
-    try regenerate_checked(R)
+    try
+        case legacy_provider_operation(R) of
+            true->{error,{recipe_operation,invalid_operation}};
+            false->regenerate_checked(R)
+        end
     catch error:Why->{error,{invalid_recipe,Why}} end.
+
+%% New operation versions must not broaden the accepted historical schemas.
+%% The schema 1..4 validator below remains unchanged.
+legacy_provider_operation(#{schema_version:=V,operations:=Ops})
+  when is_integer(V),V>=1,V=<4,is_list(Ops) ->
+    lists:any(fun(Op)->is_tuple(Op) andalso tuple_size(Op)>0 andalso
+                       element(1,Op)=:=provider_replace end,Ops);
+legacy_provider_operation(_)->false.
 %% Standalone recipe regeneration uses its recorded campaign limit. A replay
 %% in another campaign must also satisfy that campaign's explicit limit.
 regenerate(R, #{max_input_bytes:=Max}=Opts) when map_size(Opts)=:=1 ->
@@ -43,6 +61,41 @@ regenerate(R, #{max_input_bytes:=Max}=Opts) when map_size(Opts)=:=1 ->
 regenerate(R, Opts) when is_map(Opts), map_size(Opts)=:=0 ->
     regenerate(R,#{max_input_bytes=>efz_input:default_limit()});
 regenerate(_,_) -> {error,unsupported_replay_options}.
+regenerate_checked(#{schema_version:=5,engine_version:=1,operation_version:=4,
+    primary:=Primary,primary_id:=Id,operations:=Ops,limits:=Limits,output_size:=Size,
+    output_hash:=Expected,config_id:=ConfigId,dictionary_id:=DictId,stage:=Stage,
+    target_builds:=Bs,rng:=#{algorithm:=exsplus,seed:={A,B,D}},parent:=Parent,
+    source_kind:=provider,provider:=Provider}=R) ->
+    true=lists:sort(maps:keys(R))=:=lists:sort([schema_version,engine_version,operation_version,
+        primary,primary_id,operations,limits,output_size,output_hash,config_id,dictionary_id,stage,
+        target_builds,rng,parent,source_kind,provider]),
+    true=is_binary(Primary) andalso byte_size(Primary)=<efz_input:hard_limit(),
+    true=is_integer(Size) andalso Size>=0,
+    true=is_integer(Parent) andalso Parent>0,
+    true=lists:all(fun(X)->is_binary(X) andalso byte_size(X)=:=32 end,[Id,Expected,ConfigId,DictId]),
+    true=efz_mutation:hash(Primary)=:=Id,
+    true=is_list(Ops) andalso length(Ops)>0 andalso length(Ops)=<32,
+    true=lists:member(Stage,maps:get(stages,efz_mutation_plan:defaults())),
+    true=lists:all(fun(X)->is_integer(X) andalso X>=0 andalso X<1 bsl 64 end,[A,B,D]),
+    true=lists:sort(maps:keys(maps:get(rng,R)))=:=[algorithm,seed],
+    true=is_list(Bs) andalso length(Bs)=<4096,
+    true=lists:all(fun({M,H})->is_binary(M) andalso byte_size(M)>0 andalso byte_size(M)=<255
+        andalso is_binary(H) andalso byte_size(H)=:=32;(_)->false end,Bs),
+    true=length(lists:usort([M||{M,_}<-Bs]))=:=length(Bs),
+    true=is_map(Limits) andalso lists:sort(maps:keys(Limits))=:=
+        lists:sort([max_input_bytes,max_block_bytes,max_token_bytes,max_delta]),
+    {ok,C}=efz_mutation_plan:prepare(Limits#{seed=>{A,B,D}},[Primary]),
+    true=Size=<maps:get(max_input_bytes,C),
+    true=efz_mutation_provider:valid_recipe_data(Provider),
+    ok=validate_provider_operations(Provider,Primary,Ops),
+    case efz_mutation:apply_operations(Primary,Ops,C) of
+        {ok,Candidate} when byte_size(Candidate)=:=Size ->
+            case efz_mutation:hash(Candidate)=:=Expected of
+                true->{ok,Candidate};false->{error,output_hash_mismatch}
+            end;
+        {ok,_}->{error,output_size_mismatch};
+        {error,Why}->{error,{recipe_operation,Why}}
+    end;
 regenerate_checked(#{schema_version:=Version,engine_version:=1,operation_version:=OperationVersion,
     primary:=Primary,primary_id:=Id,operations:=Ops,limits:=Limits,output_size:=Size,
     output_hash:=Expected,config_id:=ConfigId,dictionary_id:=DictId,stage:=Stage,
@@ -80,6 +133,20 @@ regenerate_checked(#{schema_version:=Version,engine_version:=1,operation_version
         {error,Why}->{error,{recipe_operation,Why}}
     end;
 regenerate_checked(_) -> {error,incompatible_recipe}.
+
+validate_provider_operations(#{source:=erlamsa,limits:=L},Primary,
+                             [{provider_replace,1,Expected,Out}]) ->
+    true=is_binary(Expected) andalso byte_size(Expected)=:=32,
+    true=is_binary(Out),
+    true=byte_size(Primary)=<maps:get(input_bytes,L),
+    true=byte_size(Primary)=<maps:get(intermediate_bytes,L),
+    true=byte_size(Out)=<maps:get(output_bytes,L),
+    true=byte_size(Out)=<maps:get(intermediate_bytes,L),
+    ok;
+validate_provider_operations(#{source:=native},_,Ops) ->
+    false=lists:any(fun(Op)->is_tuple(Op) andalso tuple_size(Op)>0 andalso
+        lists:member(element(1,Op),[provider_replace,structured_replace]) end,Ops),
+    ok.
 
 %% Cold-path validation only. Replay applies the bounded replacement bytes;
 %% it never loads Gleam or dispatches functions selected by an artifact.
@@ -144,6 +211,9 @@ decode(B) when is_binary(B),byte_size(B)=< ?MAX_FILE ->
         {<<>>,_}=scan(Term,0,20000),
         _=code:ensure_loaded(efz_mutation),_=code:ensure_loaded(efz_mutation_plan),
         _=code:ensure_loaded(efz_gleam_adapter),
+        _=code:ensure_loaded(efz_mutation_provider),
+        %% Intern fixed EFZ-owned identity atoms, without loading core code.
+        _=code:ensure_loaded(efz_erlamsa),
         R=binary_to_term(Payload,[safe]),true=is_map(R),
         case regenerate(R) of {ok,_}->{ok,R};Error->Error end
     catch error:_->{error,invalid_recipe_encoding} end;
@@ -246,3 +316,58 @@ regenerate_semantic(#{schema_version:=4,primary:=B,structured:=#{identity:=I,
             {error,Why}->{error,{semantic_layer_error,Why}} end;
         Error->Error end;
 regenerate_semantic(_,_) -> {error,semantic_recipe_identity_mismatch}.
+
+%% Explicit provider regeneration uses caller-prepared local configuration.
+%% Validation and portable reconstruction always finish before optional code
+%% can run; artifact identity fields never select a module or filesystem path.
+regenerate_provider(R,TrustedP) ->
+    case regenerate(R) of
+        {ok,Expected}->regenerate_provider_checked(R,TrustedP,Expected);
+        Error->Error
+    end.
+
+regenerate_provider_checked(#{schema_version:=5,source_kind:=provider,
+    primary:=Primary,provider:=#{identity:=Identity,config_identity:=Config}=Data},
+    TrustedP,Expected) when is_map(TrustedP) ->
+    case maps:get(core_identity,TrustedP,undefined)=:=Identity of
+        false->{error,provider_recipe_identity_mismatch};
+        true->case maps:get(config_identity,TrustedP,undefined)=:=Config of
+            false->{error,provider_recipe_configuration_mismatch};
+            true->regenerate_provider_source(Primary,Data,TrustedP,Expected)
+        end
+    end;
+regenerate_provider_checked(#{schema_version:=5,source_kind:=provider},_,_) ->
+    {error,provider_recipe_identity_mismatch};
+regenerate_provider_checked(_,_,_) -> {error,incompatible_provider_recipe}.
+
+regenerate_provider_source(_,#{source:=native,request:=none},_,Expected) ->
+    {ok,Expected};
+regenerate_provider_source(Primary,#{source:=erlamsa,request:=Request,recipe:=Recipe},P,Expected) ->
+    %% Source selection already happened in the recorded planner request.
+    %% Replaying hybrid must not select a second source from its child seed.
+    case efz_mutation_provider:mutate(Primary,Request,P#{mode=>erlamsa}) of
+        {ok,Expected,Actual}->case provider_recipe_matches(Recipe,Actual) of
+            true->{ok,Expected};false->{error,provider_recipe_data_mismatch} end;
+        {ok,_,_}->{error,provider_recipe_output_mismatch};
+        {skip,Why}->{error,{provider_recipe_unsupported,Why}};
+        {error,Why}->{error,{provider_recipe_error,Why}};
+        {timeout,Why}->{error,{provider_recipe_timeout,Why}};
+        cancelled->{error,provider_recipe_cancelled}
+    end;
+regenerate_provider_source(Primary,#{source:=native,request:=Request,fallback:=Fallback},P,Expected) ->
+    case efz_mutation_provider:mutate(Primary,Request,P#{mode=>erlamsa}) of
+        {skip,Why}->case provider_skip_reason(Why)=:=Fallback of
+            true->{ok,Expected};false->{error,provider_recipe_fallback_mismatch}
+        end;
+        {ok,_,_}->{error,provider_recipe_fallback_mismatch};
+        {error,Why}->{error,{provider_recipe_error,Why}};
+        {timeout,Why}->{error,{provider_recipe_timeout,Why}};
+        cancelled->{error,provider_recipe_cancelled}
+    end.
+
+provider_recipe_matches(Recorded,Actual) when is_binary(Recorded),is_map(Actual)->
+    Recorded=:=term_to_binary(Actual,[deterministic]);
+provider_recipe_matches(Recorded,Actual)->Recorded=:=Actual.
+
+%% Match the planner's bounded fallback provenance representation.
+provider_skip_reason(Why) when is_atom(Why)->atom_to_binary(Why,utf8).

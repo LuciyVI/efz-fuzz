@@ -1,0 +1,88 @@
+{
+  "accepted": false,
+  "completed": true,
+  "groups": {
+    "baseline": {
+      "accepted_fraction": {
+        "max": 0.7309032430983651,
+        "median": 0.6872286079182631,
+        "min": 0.4578933474128828
+      },
+      "core_p50_us": null,
+      "core_p95_us": null,
+      "coverage": {
+        "max": 48,
+        "median": 48,
+        "min": 48
+      },
+      "executions_per_second": {
+        "max": 260.28175300159853,
+        "median": 251.91183445192837,
+        "min": 248.10868704516596
+      },
+      "input_bytes": {
+        "max": 94.41921858500528,
+        "median": 69.7743295019157,
+        "min": 46.89949075314929
+      },
+      "process_tree_rss_bytes": {
+        "median": 108478464
+      },
+      "provider_p50_us": null,
+      "provider_p95_us": null,
+      "samples": 3
+    },
+    "native": {
+      "accepted_fraction": {
+        "max": 0.7312491959346455,
+        "median": 0.6856227472967561,
+        "min": 0.4580870499731327
+      },
+      "core_p50_us": null,
+      "core_p95_us": null,
+      "coverage": {
+        "max": 48,
+        "median": 48,
+        "min": 48
+      },
+      "executions_per_second": {
+        "max": 258.4582087684784,
+        "median": 249.0743899848735,
+        "min": 247.445461613035
+      },
+      "input_bytes": {
+        "max": 94.44062332079527,
+        "median": 69.81177412895475,
+        "min": 47.086839058278656
+      },
+      "process_tree_rss_bytes": {
+        "median": 104595456
+      },
+      "provider_p50_us": null,
+      "provider_p95_us": null,
+      "samples": 3
+    }
+  },
+  "kind": "probe_only",
+  "limitations": [
+    "Single local query-string workload and one pinned OTP/ERTS build; no discovery advantage claim.",
+    "Diagnostic message, performance profiling, corpus persistence, and sampling enabled equally in every mode.",
+    "Generation latency includes cold OS worker setup; core time is reported separately when runtime counters support it.",
+    "Memory is sampled; aggregate RSS double-counts shared pages and may miss short peaks."
+  ],
+  "native_off_median_change_percent": -1.7729904784388628,
+  "native_off_paired_changes": [
+    {
+      "seed": 17,
+      "throughput_change_percent": -4.305858127771334
+    },
+    {
+      "seed": 29,
+      "throughput_change_percent": -1.7729904784388628
+    },
+    {
+      "seed": 43,
+      "throughput_change_percent": 4.171366124487386
+    }
+  ]
+}

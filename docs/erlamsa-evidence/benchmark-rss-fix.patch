@@ -1,0 +1,38 @@
+--- a/scripts/benchmark_erlamsa.py
++++ b/scripts/benchmark_erlamsa.py
+@@ -36,6 +36,17 @@
+     Shared pages may be counted multiple times. This is sampled aggregate RSS,
+     not a hard memory bound and not peak proportional/private memory.
+     """
++    # Some managed kernels omit task/TID/children. PPID in /proc/PID/stat is
++    # available here, so do not silently degrade to root-only RSS.
++    children = {}
++    for process in Path('/proc').iterdir():
++        if not process.name.isdecimal():
++            continue
++        try:
++            fields=(process/'stat').read_text().rsplit(')',1)[1].split()
++            children.setdefault(int(fields[1]),[]).append(int(process.name))
++        except (OSError,ValueError,IndexError):
++            continue
+     pending, seen, rss = [root], set(), 0
+     while pending:
+         pid = pending.pop()
+@@ -46,8 +57,7 @@
+             status = Path(f"/proc/{pid}/status").read_text()
+             rss += next((int(line.split()[1])*1024 for line in status.splitlines()
+                          if line.startswith("VmRSS:")), 0)
+-            for children in Path(f"/proc/{pid}/task").glob("*/children"):
+-                pending.extend(int(child) for child in children.read_text().split())
++            pending.extend(children.get(pid,[]))
+         except (OSError, ValueError):
+             continue
+     return rss
+@@ -105,6 +115,7 @@
+         "target_artifact_sha256":sha(out/"target/cow_qs.beam"),
+         "order_seed":20261027, "jobs":jobs, "off_overhead_tolerance_percent":5.0,
+         "sampling_ms":{"coverage_vm_memory":1000,"os_process_tree_rss":100},
++        "rss_sampler":"proc_stat_ppid_v2",
+         "candidate_source_selection":"independent state-threaded planner RNG",
+         "decode_definition":"ordinary cow_qs harness returned accepted pairs; separate from coverage",
+         "benchmark_kind":"accepted_wall_time" if len(seeds)>=5 and args.seconds>=30 else "probe_only",

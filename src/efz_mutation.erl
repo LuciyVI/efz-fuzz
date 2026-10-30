@@ -68,6 +68,17 @@ operation(_,{structured_replace,2,I,Op,Bytes},L)
     case byte_size(Bytes)=<maps:get(max_input_bytes,L) of
         true->{ok,Bytes};false->{skip,size_limit}
     end;
+%% Provider artifacts carry only replacement bytes and their digest. Applying
+%% this operation never loads or invokes the optional mutation library.
+operation(_,{provider_replace,1,Expected,Bytes},L)
+  when is_binary(Expected),byte_size(Expected)=:=32,is_binary(Bytes) ->
+    case byte_size(Bytes)=<maps:get(max_input_bytes,L) andalso
+         byte_size(Bytes)=<efz_input:hard_limit() of
+        false->{skip,size_limit};
+        true->case hash(Bytes)=:=Expected of
+            true->{ok,Bytes};false->{error,provider_replacement_hash_mismatch}
+        end
+    end;
 operation(B,{dictionary_overwrite,Off,Token},L) when is_binary(Token) ->
     dictionary(B,Off,byte_size(Token),Token,L);
 operation(B,{dictionary_insert,Off,Token},L) when is_binary(Token) -> dictionary(B,Off,0,Token,L);
