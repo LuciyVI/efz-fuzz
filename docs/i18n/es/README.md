@@ -435,3 +435,10 @@ ERL_FLAGS='+S 4:4' escript scripts/fuzz.escript \
 El modo supervisado no está disponible deliberadamente en sistemas distintos
 de Linux, en lugar de debilitar silenciosamente las garantías de limpieza del
 worker y de muerte del padre.
+
+## Integraciones y guías actuales
+
+- [Erlamsa](erlamsa-integration.md)
+- [Persistent worker](erlamsa-performance.md)
+- [Feature stability](feature-stability.md)
+- [Python SDK](packages/pyefz/README.md)

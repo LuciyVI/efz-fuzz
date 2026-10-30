@@ -167,3 +167,7 @@ continuos conservan las últimas 1.024 decisiones explicativas con un contador
 hallazgos. Las trazas siguen acotadas. El crecimiento real del corpus y los
 hallazgos distintos siguen consumiendo almacenamiento/memoria; ejecuciones
 ilimitadas no significan recursos ilimitados.
+
+### Feature stability en el TUI
+
+Con la auditoría activa, el TUI muestra `feature_stability`, estado, grupos auditados y antigüedad de la medición. `disabled` indica que está desactivada; `N/A` no equivale a 100%. Las llamadas diagnósticas se cuentan aparte de primary exec/s. Véase la [guía breve](feature-stability.md).

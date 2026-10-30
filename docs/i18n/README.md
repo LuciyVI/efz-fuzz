@@ -93,3 +93,10 @@ unavailable in a fresh checkout.
 The editions document the same EFZ interfaces and guarantees. Translations do not
 introduce separate engines or language-specific behavior. Historical reports keep
 their original scope; translating them does not rerun or extend their validation.
+
+## New integration quick references
+
+The Erlamsa integration, persistent provider worker, feature stability and Python SDK
+have localized quick references in [Russian](ru/index.md), [Spanish](es/index.md)
+and [Simplified Chinese](zh-CN/index.md). These pages link to the complete
+English technical contracts and historical evidence.

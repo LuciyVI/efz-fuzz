@@ -1,5 +1,7 @@
 # pyefz
 
+Localized quick references: [Русский](../../docs/i18n/ru/packages/pyefz/README.md) · [Español](../../docs/i18n/es/packages/pyefz/README.md) · [简体中文](../../docs/i18n/zh-CN/packages/pyefz/README.md).
+
 `pyefz` controls an explicitly selected local EFZ build through an owned Erlang
 process. It uses the Python standard library and requires Python 3.9+, OTP 27+
 and a POSIX system with `/dev/stdin` and `/dev/stdout`. It does not bundle or

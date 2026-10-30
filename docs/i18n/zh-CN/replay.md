@@ -260,3 +260,7 @@ Runtime schema v1 独立于 crash expectation/recipe。使用
 --runs 3`。身份/哈希/策略检查后用同 executor；区分 `observed`、`not_observed`、
 `inconclusive`，包含样本数量及可重复性。一次成功不能反证不稳定。
 [完整格式与限制](runtime-diagnostics.md)。
+
+### 提供者与 raw replay
+
+已保存的原始字节可在没有 Erlamsa 的情况下重放。候选重新生成需要兼容的 build/config 标识；不匹配时会明确报错。参见[简明指南](erlamsa-integration.md)。

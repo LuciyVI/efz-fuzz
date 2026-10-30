@@ -1,5 +1,7 @@
 # Local Erlamsa mutation provider
 
+Localized quick references: [Русский](i18n/ru/erlamsa-integration.md) · [Español](i18n/es/erlamsa-integration.md) · [简体中文](i18n/zh-CN/erlamsa-integration.md).
+
 This integration adds a byte mutation source alongside native EFZ mutations.
 Semantic adapters remain a separate choice: the existing term, query-string,
 XML-RPC, and stateful adapter contracts do not become Erlamsa callbacks. EFZ

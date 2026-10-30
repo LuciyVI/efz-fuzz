@@ -86,3 +86,10 @@
 - [位图覆盖后端实现计划](plans/coverage-bitmap-implementation-plan.md)
 
 [UML 图的源文件和图像](diagrams/README.md)单独维护。
+
+## 新增集成与当前指南
+
+- [Erlamsa](erlamsa-integration.md)
+- [Persistent worker](erlamsa-performance.md)
+- [Feature stability](feature-stability.md)
+- [Python SDK](packages/pyefz/README.md)

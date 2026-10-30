@@ -186,3 +186,7 @@ P0 仅采样 guardian 接纳的进程及其 ETS 所有者。
 它给 guardian 增加有界采样器监视及生命周期；所有权、开始门、追踪屏障和 dirty-runner 规则仍具权威性。
 采样器失败是部分诊断证据；guardian 故障或未确认生命周期故障仍使 VM 退役。
 清理 kill 不构成进程泄漏。参见[运行时诊断](runtime-diagnostics.md)。
+
+### 不同的外部 VM
+
+持久 Erlamsa 提供者 VM 只负责变异，不执行目标代码；其生命周期不改变默认的 isolated 目标执行。参见 [worker 指南](erlamsa-performance.md)。

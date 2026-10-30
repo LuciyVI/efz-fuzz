@@ -113,3 +113,7 @@ python3 scripts/tui.py --demo --continuous --out _build/tui-continuous-1
 仍然生效。连续报告保留最近 1,024 条解释性决策并记录 `decisions_dropped`，不会丢弃工作
 语料或发现分组。轨迹上限保持有界。实际语料增长和不同发现仍消耗存储与内存；
 无限执行不代表无限资源。
+
+### TUI 中的 Feature stability
+
+启用审核后，TUI 显示 `feature_stability`、状态、已审核组数和上次测量的时间。`disabled` 表示关闭；`N/A` 不等于 100%。诊断调用与 primary exec/s 分开计数。参见[简明指南](feature-stability.md)。

@@ -246,6 +246,26 @@
     {
       "source": "examples/xmlrpc/README.md",
       "localized": "examples/xmlrpc/README.md"
+    },
+    {
+      "source": "docs/erlamsa-integration.md",
+      "localized": "erlamsa-integration.md",
+      "translation_status": "summary"
+    },
+    {
+      "source": "docs/erlamsa-performance.md",
+      "localized": "erlamsa-performance.md",
+      "translation_status": "summary"
+    },
+    {
+      "source": "docs/feature-stability.md",
+      "localized": "feature-stability.md",
+      "translation_status": "summary"
+    },
+    {
+      "source": "packages/pyefz/README.md",
+      "localized": "packages/pyefz/README.md",
+      "translation_status": "summary"
     }
   ]
 }

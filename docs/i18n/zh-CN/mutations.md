@@ -256,3 +256,7 @@ Decisions 只留 stage/primary/config/candidate 哈希短摘要，不对每个�
 缺陷数。Crash/timeout 保留观察，但崩溃独有覆盖不并入成功 novelty。
 [coverage.md](coverage.md) 中单 worker、单目标进程、固定 build 的覆盖/隔离限制
 仍适用。
+
+### Erlamsa 候选输入来源
+
+默认仍为 `native`。`erlamsa` 和 `hybrid` 必须显式启用；语义适配器独立配置。core 需要固定版本的 submodule 和单独构建。参见[简明指南](erlamsa-integration.md)。

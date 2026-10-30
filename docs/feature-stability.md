@@ -1,5 +1,7 @@
 # Feature stability in the existing campaign TUI
 
+Localized quick references: [Русский](i18n/ru/feature-stability.md) · [Español](i18n/es/feature-stability.md) · [简体中文](i18n/zh-CN/feature-stability.md).
+
 `feature_stability` is an EFZ presence metric for audited inputs. For each
 fixed input group, let `F_r` be the **full** set of features observed in valid
 execution `r`. The worker updates `U = union(F_r)` and

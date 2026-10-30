@@ -86,3 +86,10 @@ Los informes históricos conservan la fecha, el entorno verificado, el alcance y
 - [Plan de implementación del backend de cobertura bitmap](plans/coverage-bitmap-implementation-plan.md)
 
 Las [fuentes e imágenes de los diagramas UML](diagrams/README.md) se mantienen por separado.
+
+## Integraciones y guías actuales
+
+- [Erlamsa](erlamsa-integration.md)
+- [Persistent worker](erlamsa-performance.md)
+- [Feature stability](feature-stability.md)
+- [Python SDK](packages/pyefz/README.md)

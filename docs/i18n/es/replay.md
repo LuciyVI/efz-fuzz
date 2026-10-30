@@ -341,3 +341,7 @@ o `scripts/replay.escript --runtime-finding DIRECTORY --target MODULE --artifact
 ejecutor; la salida distingue `observed`, `not_observed`, `inconclusive`, incluidos
 número de muestras y repetibilidad. Una repetición exitosa no refuta inestabilidad.
 [Formato y límites completos](runtime-diagnostics.md).
+
+### Proveedor y raw replay
+
+Los bytes guardados se pueden reproducir sin Erlamsa. La regeneración exige identidades de build/config compatibles y comunica explícitamente cualquier discrepancia. Véase la [guía breve](erlamsa-integration.md).

@@ -337,3 +337,7 @@ bugs independientes demostrados. Fallos/timeouts conservan observaciones de
 ejecución pero nunca combinan cobertura exclusiva de fallos en la novedad del
 corpus exitoso. Siguen aplicándose las restricciones de un trabajador, un proceso
 objetivo y compilaciones fijas de cobertura/aislamiento de [coverage.md](coverage.md).
+
+### Erlamsa como fuente de candidatos
+
+`native` sigue siendo el valor predeterminado. `erlamsa` y `hybrid` son opcionales y el adaptador semántico se configura por separado. El núcleo necesita el submodule fijado y una compilación independiente. Véase la [guía breve](erlamsa-integration.md).
