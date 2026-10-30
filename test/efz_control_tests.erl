@@ -36,6 +36,14 @@ request_schema_test() ->
     ?assertEqual(#{seed=>{1,2,3},pattern=>[once,burst]},efz_control_json:mutation_request(
         #{<<"seed">>=>[1,2,3],<<"pattern">>=>[<<"once">>,<<"burst">>]})).
 
+coverage_idle_wire_config_test() ->
+    C=efz_control_json:campaign(#{<<"stop_after_no_new_coverage_seconds">>=>60}),
+    ?assertEqual(60,maps:get(stop_after_no_new_coverage_seconds,C)),
+    ?assertException(error,_,efz_control_json:campaign(
+        #{<<"stop_after_no_new_coverage_seconds">>=>0})),
+    ?assertException(error,_,efz_control_json:campaign(
+        #{<<"stop_after_no_new_coverage_seconds">>=><<"60">>})).
+
 summary_excludes_diagnostics_test() ->
     R=#{status=>completed,stats=>#{executions=>12,primary_infrastructure_failure=>{self(),make_ref()}},
         corpus=>[#{input=><<0,255>>}],coverage=>[some_probe],arbitrary=>fun()->ok end},
@@ -53,6 +61,17 @@ summary_keeps_provider_measurements_test() ->
     ?assertEqual(3,maps:get(<<"requests">>,maps:get(<<"provider_stats">>,Json))),
     ?assertEqual(#{<<"base64">>=><<"AP8=">>},
         maps:get(<<"config_identity">>,maps:get(<<"provider">>,Json))).
+
+summary_keeps_coverage_idle_test() ->
+    R=#{status=>{stopped,no_new_coverage},stats=>#{executions=>42},
+        corpus=>[],coverage=>[],coverage_idle=>#{schema_version=>1,enabled=>true,
+            limit_seconds=>2,status=>expired,elapsed_ms=>2001,remaining_ms=>0}},
+    S=efz_control:report_summary(R,"/tmp/efz-control-idle"),
+    {ok,Json}=efz_control_json:decode(efz_control_json:encode(S)),
+    Idle=maps:get(<<"coverage_idle">>,Json),
+    ?assertEqual(2,maps:get(<<"limit_seconds">>,Idle)),
+    ?assertEqual(<<"expired">>,maps:get(<<"status">>,Idle)),
+    ?assertEqual(<<"stopped">>,maps:get(<<"kind">>,maps:get(<<"status">>,Json))).
 
 provider_cli_overrides_test() ->
     Base=#{mode=>erlamsa,weights=>[{native,2},{erlamsa,8}],

@@ -5,6 +5,7 @@ defaults() -> #{max_input_bytes => efz_input:default_limit(), timeout => 100, wo
                 coverage => automatic, coverage_backend => ets, coverage_feedback => presence,
                 coverage_bitmap_bits => 65536,
                 coverage_validation => prepared, coverage_policy => diagnostic, max_iterations => infinity,
+                stop_after_no_new_coverage_seconds => disabled,
                 performance_profile => false, gleam_layer => false, monitoring => false,
                 runtime_oracles => efz_runtime_config:defaults(),
                 crash_dir => "_build/efz-crashes",crash_policy=>efz_crash:defaults()}.
@@ -33,6 +34,8 @@ prepare_known(C0) ->
         end;
         Missing -> {error, {missing_campaign_keys, Missing}}
     end.
+prepare_inputs(#{coverage_backend:=none,stop_after_no_new_coverage_seconds:=Seconds})
+  when is_integer(Seconds) -> {error, coverage_idle_requires_coverage};
 prepare_inputs(C) ->
     Inputs=maps:get(seeds,C)++maps:get(benchmark_replay_inputs,C,[]),
     case [E || B <- Inputs, {error,E} <- [efz_input:check(B,maps:get(max_input_bytes,C),initial_seed)]] of
@@ -88,6 +91,8 @@ valid_field(benchmark_replay_inputs,V) -> is_list(V) andalso V=/=[] andalso
 valid_field(max_input_bytes, V) -> efz_input:valid_limit(V);
 valid_field(timeout, V) -> is_integer(V) andalso V >= 0;
 valid_field(max_iterations, V) -> V =:= infinity orelse (is_integer(V) andalso V >= 0);
+valid_field(stop_after_no_new_coverage_seconds, disabled) -> true;
+valid_field(stop_after_no_new_coverage_seconds, V) -> is_integer(V) andalso V >= 1 andalso V =< 86400;
 valid_field(mutation_mode, V) -> lists:member(V, [random, staged]);
 valid_field(mutation, V) -> is_map(V);
 valid_field(mutation_provider,V)->is_map(V) orelse lists:member(V,[native,erlamsa,hybrid]);

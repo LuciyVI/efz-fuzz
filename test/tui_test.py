@@ -10,6 +10,16 @@ spec.loader.exec_module(tui)
 
 
 class MonitorTests(unittest.TestCase):
+    def test_coverage_idle_presentation(self):
+        self.assertEqual(tui.coverage_idle_line({}), '')
+        self.assertEqual(tui.coverage_idle_line({'coverage_idle': {'enabled': False}}), '')
+        self.assertEqual(tui.coverage_idle_line({'coverage_idle': {
+            'enabled': True, 'limit_seconds': 10, 'status': 'waiting_for_mutation'}}),
+            'No new coverage: waiting / 10s')
+        self.assertEqual(tui.coverage_idle_line({'coverage_idle': {
+            'enabled': True, 'limit_seconds': 10, 'elapsed_ms': 3500}}),
+            'No new coverage: 3.5s / 10s')
+
     def test_feature_stability_states_and_precision(self):
         self.assertEqual(tui.stability_lines({})[0], 'Stability: unavailable')
         self.assertEqual(tui.stability_lines({'feature_stability': {'status': 'disabled'}})[0],

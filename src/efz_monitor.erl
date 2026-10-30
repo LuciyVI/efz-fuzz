@@ -34,7 +34,9 @@ snapshot(S) ->
       covered_functions=>functions(Coverage,maps:get(monitor_index,S)),
       stats=>maps:remove(primary_infrastructure_failure,efz_stats:get()),corpus_size=>efz_corpus:size(),
       outcomes=>maps:get(monitor_counts,S,#{}),last=>maps:get(monitor_last,S,null),
-      feature_stability=>efz_stability:public(maps:get(feature_stability,S))},
+      feature_stability=>efz_stability:public(maps:get(feature_stability,S)),
+      coverage_idle=>efz_coverage_idle:public(maps:get(coverage_idle,S),
+          erlang:monotonic_time(millisecond))},
     case maps:find(provider,maps:get(mutation,S,#{})) of
         {ok,P}->Base#{provider=>maps:without([core_context,core_path],P),
             provider_stats=>maps:get(provider_stats,S,#{})};

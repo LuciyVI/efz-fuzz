@@ -65,6 +65,7 @@ bytes(_,_) -> error(expected_base64_bytes).
 
 campaign(M) ->
     Allowed=[target,seeds,artifacts,code_paths,out,timeout,workers,max_iterations,
+        stop_after_no_new_coverage_seconds,
         max_input_bytes,mutation_mode,mutation_provider,mutation,coverage,
         coverage_backend,coverage_feedback,coverage_bitmap_bits,coverage_validation,
         coverage_policy,corpus_dir,corpus_build_policy,random_seed,selection_seed,
@@ -82,6 +83,7 @@ campaign_value(K,V,_) when K=:=artifacts;K=:=out;K=:=corpus_dir -> path(V);
 campaign_value(code_paths,V,_) -> true=is_list(V) andalso length(V)=<64,[path(P)||P<-V];
 campaign_value(max_iterations,<<"infinity">>,_) -> infinity;
 campaign_value(max_input_bytes,V,_) -> integer(V,0,1048576);
+campaign_value(stop_after_no_new_coverage_seconds,V,_) -> integer(V,1,86400);
 campaign_value(K,V,_) when K=:=timeout;K=:=max_iterations;K=:=coverage_bitmap_bits -> integer(V,0,1000000000);
 campaign_value(workers,1,_) -> 1;
 campaign_value(monitoring,V,_) when is_boolean(V) -> V;
