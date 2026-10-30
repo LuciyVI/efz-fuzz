@@ -69,7 +69,36 @@ alternates. Recursive submodule initialization resolved the declared HTTPS URL
 through a local URL rewrite to the pinned fork mirror; the checkout gitlink
 was `191f3d9d30d8932319b98f4af25d3dff9ddc5824`. Standard and Erlamsa
 profile builds both exited 0. This verifies independent Git objects and the
-recorded gitlink, but is not a network checkout from GitHub.
+recorded gitlink.
+
+The previously blocked **remote** checkout was subsequently reproduced from
+GitHub for both published `dev` at `eceef451eca37ab7fa9c99c20165d47d087683d1`
+and review commit `4fcaa4832e41d34ddc27c8353aa19c3a2a0288b9`. Each fresh
+clone used the repository HTTPS URL and `--recurse-submodules`; Git fetched the
+submodule object directly from `LuciyVI/erlamsa`. No local Git alternates or
+URL rewrite were used. Both clones reported gitlink and checked-out submodule
+`191f3d9d30d8932319b98f4af25d3dff9ddc5824`; `rebar3 compile` and
+`rebar3 as erlamsa compile` both exited 0 in each clone. Pinned Cowboy,
+Cowlib and Ranch commits were fetched through the normal Rebar3 dependency
+configuration. The working network path was to unset proxy variables for the
+Git process in the authorized network context:
+
+```sh
+env -u HTTPS_PROXY -u HTTP_PROXY -u https_proxy -u http_proxy \
+    -u ALL_PROXY -u all_proxy GIT_TERMINAL_PROMPT=0 \
+    git clone --branch integrate/dev-persistent-target-review \
+      --single-branch --recurse-submodules \
+      https://github.com/LuciyVI/efz-fuzz.git /tmp/efz-remote-review
+cd /tmp/efz-remote-review
+env -u HTTPS_PROXY -u HTTP_PROXY -u https_proxy -u http_proxy \
+    -u ALL_PROXY -u all_proxy ERL_FLAGS='+S 2:2' rebar3 compile
+env -u HTTPS_PROXY -u HTTP_PROXY -u https_proxy -u http_proxy \
+    -u ALL_PROXY -u all_proxy ERL_FLAGS='+S 2:2' rebar3 as erlamsa compile
+```
+
+The two build commands above ran with the same six proxy variables unset for
+dependency fetching. This is a command-local environment setting; no global
+Git or proxy configuration was changed.
 
 The same clean checkout ran a short final-code benchmark:
 
@@ -129,9 +158,11 @@ Erlamsa benchmark is re-labelled as this result.
 
 ## Publication gate
 
-GitHub API confirmed the pinned Erlamsa fork commit and exact merge objects.
-Direct Git HTTPS still returned `Proxy CONNECT aborted`, so a fresh remote
-recursive checkout of the final EFZ commit has **not run**. The localized
+GitHub API confirmed the pinned Erlamsa fork commit and exact merge objects,
+and the remote recursive checkout gate above now passes. The localized
 RU/ES/zh-CN persistent-target pages are quick references, not full translations
-of the English technical contract. These limits keep the integration status
-PARTIAL even though the new fault fixtures pass.
+of the English technical contract. The tested OS cleanup boundary still
+excludes descendants reparented before observation and those beyond the 1024
+snapshot cap. The wider integration therefore remains PARTIAL; the review
+branch stays outside `dev` pending an explicit acceptance decision on these
+remaining limits.
