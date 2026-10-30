@@ -42,6 +42,7 @@ paths are retained as provenance.
 - [coverage](coverage.md)
 - [cowboy long benchmark](cowboy-long-benchmark.md)
 - [Cowboy data-flow harnesses](cowboy-harness-suite.md)
+- [XML-RPC data-flow harnesses](xmlrpc-harness-suite.md)
 - [dwarf native coverage results](dwarf-native-coverage-results.md)
 - [dwarf native coverage](dwarf-native-coverage.md)
 - [engine performance profile v2](engine-performance-profile-v2.md)

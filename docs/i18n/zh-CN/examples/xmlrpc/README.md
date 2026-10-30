@@ -2,6 +2,8 @@
 
 [English](../../../../../examples/xmlrpc/README.md) · [Русский](../../../ru/examples/xmlrpc/README.md) · [Español](../../../es/examples/xmlrpc/README.md) · **简体中文** · [所有语言](../../../README.md)
 
+新的 [XML-RPC 数据流测试集](../../xmlrpc-harness-suite.md) 检查调用、响应、fault、编码/解码往返、本地分发及编码器的预期拒绝。输入为有效载荷字节，支持关闭层、仅观察和引导模式；下文的原始 XML 示例仍采用独立的输入格式。
+
 此测试示例使用 [etnt/xmlrpc](https://github.com/etnt/xmlrpc) 的提交
 `fb46463b2acadf164ec534d9e2033e194341c507`。它在普通 EFZ 执行中仅调用一次
 `xmlrpc_decode:payload(binary_to_list(Input))`，不涉及网络服务器、RPC 回调、
