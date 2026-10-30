@@ -103,7 +103,8 @@ report(S, Name) ->
     {ok, B} = file:read_file(path(S, atom_to_list(Name) ++ "/report.term")), binary_to_term(B).
 help(S) ->
     {0, Output} = invoke(S, ["--help"]), contains(Output, <<"MODULE:run(binary())">>),
-    contains(Output, <<"--max-input-bytes">>).
+    contains(Output, <<"--max-input-bytes">>),
+    contains(Output, <<"--stop-after-no-new-coverage-seconds">>).
 invalid(S, Name, Changes, Message) ->
     {Status, Output} = invoke(S, args(S, Name, Changes)),
     contains(Output, Message), ?assertEqual(2, Status),

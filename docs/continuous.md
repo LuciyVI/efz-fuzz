@@ -38,6 +38,35 @@ unchanged. Ctrl-C/SIGTERM is process termination, not this orderly report-saving
 protocol. The external `--supervised` launcher retains its separate finite run,
 restart and deadline policies; this change does not remove those safeguards.
 
+### Stop when coverage stops growing
+
+Set `stop_after_no_new_coverage_seconds => N` in a campaign map, or pass
+`--stop-after-no-new-coverage-seconds N` to the CLI. `N` is 1..86400; the
+default is `disabled`. The option requires a coverage backend other than
+`none`. It can be combined with `max_iterations => infinity` or a finite cap:
+
+```sh
+escript scripts/fuzz.escript --config campaign.term --out out \
+  --max-iterations infinity --stop-after-no-new-coverage-seconds 60
+```
+
+The timer starts when seed calibration ends and the mutation phase begins. It
+resets only when a successful primary target execution adds a new presence probe/line
+to the campaign coverage map. Hit-count bucket novelty, semantic-only novelty,
+findings, and diagnostic repeats do not reset it. A campaign with no observed
+features stops after the same interval unless strict coverage policy reports
+an instrumentation error. Replay-only executions do not use this stop rule.
+
+EFZ checks the deadline between mutations. A target or provider call already
+in progress finishes or reaches its own timeout and cleanup first. New coverage
+returned after the deadline does not extend it. The report
+status is `{stopped,no_new_coverage}` (successful CLI exit 0); `coverage_idle`
+in snapshots and reports gives the limit, elapsed milliseconds, and last
+coverage-producing mutation iteration. Saved corpus and report follow the
+usual orderly completion path. The TUI shows the elapsed idle time on its
+main screen. Old configs and reports remain valid; an absent `coverage_idle`
+field means the criterion was not recorded.
+
 Continuous staged preparation appends havoc if the selected stages lack it and
 computes the normal configuration/recipe identity from that effective plan.
 Deterministic cursors are not reset. Idle exhaustion falls back to a real byte

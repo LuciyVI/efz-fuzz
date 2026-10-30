@@ -392,7 +392,7 @@ report_summary(R,Out) ->
       corpus_size=>length(maps:get(corpus,R,[])),
       paths=>#{out=>str(Out),report=>str(filename:join(Out,"report.term")),
           summary=>str(filename:join(Out,"report.json")),crashes=>str(filename:join(Out,"crashes"))}},
-    maps:merge(Base,snapshot(maps:with([provider,provider_stats,feature_stability],R))).
+    maps:merge(Base,snapshot(maps:with([provider,provider_stats,feature_stability,coverage_idle],R))).
 status(A) when is_atom(A)->atom_to_binary(A,utf8);
 status({A,R}) when is_atom(A)->#{kind=>atom_to_binary(A,utf8),reason=>efz_control_json:text(R)};
 status(T)->efz_control_json:text(T).
