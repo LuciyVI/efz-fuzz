@@ -44,8 +44,11 @@ env -u HTTPS_PROXY -u HTTP_PROXY -u ALL_PROXY \
     -u https_proxy -u http_proxy -u all_proxy make -C "$COWBOY_BUILD/cowboy"
 ```
 
-EFZ не добавляет
-Cowboy в свои основные зависимости. Каждый запуск escript использует свежую VM.
+Для отдельного длительного HTTP/1 benchmark Cowboy 2.19.0 теперь закреплён в
+`rebar.config` и `rebar.lock`; его runner описан в
+[`docs/cowboy-long-benchmark.md`](../../docs/cowboy-long-benchmark.md).
+Этот старый пример query string продолжает использовать соседний checkout
+Cowboy и запускается в свежей VM.
 
 Runner автоматически инструментирует allowlist `[cowboy_req, cow_qs]` в
 `_build/cowboy-targets`, проверяет BEAM/manifest и запускает штатный executor.

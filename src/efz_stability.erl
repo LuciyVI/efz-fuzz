@@ -9,21 +9,32 @@ outcome({infrastructure,_})->infrastructure.
 reason(A) when is_atom(A)->A;
 reason(T) when is_tuple(T),tuple_size(T)>0,is_atom(element(1,T))->{tag,element(1,T)};
 reason(_)->other.
-%% Fixed node/byte budget; runtime identities and floats (often timestamps) are unsupported.
+%% Validate before canonical serialization. Unordered map iteration does not
+%% compare arbitrary keys. No container conversion/sort or binary scan occurs
+%% before validation. Independent budgets: nodes, binary bytes, elements, depth.
 bounded_return(T) ->
-    try {V,_}=bound(T,1024),{comparable,crypto:hash(sha256,term_to_binary(V,[deterministic]))}
+    try _=bound(T,{1024,1024,1024},64),
+        {comparable,crypto:hash(sha256,term_to_binary(T,[deterministic]))}
     catch throw:not_comparable->not_comparable end.
-bound(_,N) when N=<0->throw(not_comparable);
-bound(T,N) when is_atom(T)->{T,N-1};
-bound(T,N) when is_integer(T),T>=-9223372036854775808,T=<9223372036854775807->{T,N-1};
-bound(T,N) when is_binary(T),byte_size(T)=<N->{T,N-byte_size(T)-1};
-bound([],N)->{[],N-1};
-bound([H|T],N)->{A,N1}=bound(H,N-1),{B,N2}=bound(T,N1),{[A|B],N2};
-bound(T,N) when is_tuple(T),tuple_size(T)=<N->
-    {L,N1}=bound(tuple_to_list(T),N-1),{list_to_tuple(L),N1};
-bound(T,N) when is_map(T),map_size(T)=<N div 3->
-    {L,N1}=bound(lists:sort(maps:to_list(T)),N-1),{maps:from_list(L),N1};
-bound(_,_)->throw(not_comparable).
+bound(_, {N,_,_}, _) when N=<0->throw(not_comparable);
+bound(_, _, D) when D=<0->throw(not_comparable);
+bound(T,{N,B,E},_) when is_atom(T)->{N-1,B,E};
+bound(T,{N,B,E},_) when is_integer(T),T>=-9223372036854775808,T=<9223372036854775807->{N-1,B,E};
+bound(T,{N,B,E},_) when is_binary(T),byte_size(T)=<B->{N-1,B-byte_size(T),E};
+bound([],{N,B,E},_)->{N-1,B,E};
+bound([H|T],{N,B,E},D) when E>0->
+    S=bound(H,{N-1,B,E-1},D-1),bound(T,S,D-1);
+bound(T,{N,B,E},D) when is_tuple(T),tuple_size(T)=<E,tuple_size(T)<N->
+    bound_tuple(T,1,{N-1,B,E-tuple_size(T)},D-1);
+bound(T,{N,B,E},D) when is_map(T),map_size(T)=<E div 2,map_size(T)<N div 2->
+    bound_map(maps:iterator(T),{N-1,B,E-2*map_size(T)},D-1);
+bound(_,_,_)->throw(not_comparable).
+bound_tuple(T,I,S,_) when I>tuple_size(T)->S;
+bound_tuple(T,I,S,D)->bound_tuple(T,I+1,bound(element(I,T),S,D),D).
+bound_map(It,S,D)->case maps:next(It) of
+    none->S;
+    {K,V,Next}->S1=bound(K,S,D),S2=bound(V,S1,D),bound_map(Next,S2,D)
+end.
 failure(#{outcome:={infrastructure,Why}})->{error,Why};
 failure(#{runner_reusable:=false}=R)->{error,{runner_not_reusable,maps:get(cleanup,R,#{})}};
 failure(#{coverage_status:={error,Why}})->{error,{coverage_failure,Why}};

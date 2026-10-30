@@ -44,6 +44,7 @@ verdict(C,Rows,_)->
     Complete=Rows=/=[] andalso lists:all(fun(R)->
         Rt=maps:get(runtime,R),maps:get(valid,R) andalso not maps:get(partial,Rt,true) andalso
         case C of
+            vm_memory_growth_suspected->maps:get(completeness,maps:get(post_execution_memory,Rt,#{}),incomplete)=:=complete;
             child_abnormal_exit->true;descendant_activity->true;
             ets_growth_suspected->maps:get(ets_scans,Rt,0)>0;
             _->maps:get(sample_count,Rt,0)>=2

@@ -1,0 +1,26 @@
+#{timeout => 1000,artifacts => [],coverage_backend => none,
+  mutation_mode => staged,
+  mutation => #{seed => {17,23,41},stages => [havoc]},
+  random_seed => {17,23,41},
+  selection_seed => {29,31,37},
+  max_input_bytes => 4096,max_iterations => 100,
+  target => efz_term_maps_target,
+  seeds =>
+      [<<69,70,90,84,1,0,2,8,0,1,7,0,1,8,0,1,6,0,2,2,0,0,0,0,0,0,0,7,4,0,0,0,
+         1,118>>],
+  gleam_layer =>
+      #{adapter => efz_term_api_adapter,
+        adapter_options =>
+            #{arguments =>
+                  [#{values => [present,missing],kind => atom},
+                   #{value =>
+                         #{items => [#{kind => integer},#{kind => binary}],
+                           kind => tuple},
+                     key => #{values => [present,missing],kind => atom},
+                     kind => map}],
+              entrypoint => {maps,find,2}},
+        structured_fraction => 10,feedback => guided,oracle => disabled,
+        oracle_budget => 64,
+        limits =>
+            #{nodes => 128,depth => 8,bytes => 4096,collection => 32,
+              operations => 1}}}.

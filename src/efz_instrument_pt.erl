@@ -25,7 +25,8 @@ parse_transform(Forms, Options) ->
     end,
     case lists:prefix("efz_", atom_to_list(M)) andalso
          lists:member(M, [efz_instrument_pt, efz_instrument, efz_cov_rt, efz_cov,
-                         efz_cov_manifest, efz_feedback, efz_executor, efz, efz_app,
+                         efz_coverage, efz_cov_ets, efz_cov_bitmap,
+                         efz_cov_manifest, efz_cov_count, efz_feedback, efz_executor, efz, efz_app,
                          efz_cli, efz_config, efz_corpus, efz_corpus_store, efz_crash, efz_crash_store, efz_fuzzer, efz_mutator,
                          efz_fs, efz_input, efz_guardian, efz_cov_integrity, efz_replay, efz_replay_cli,
                          efz_mutator_random, efz_stats, efz_sup, efz_target, efz_worker, efz_worker_sup,

@@ -1,0 +1,79 @@
+{
+  "efz_commit": "205e18ba172d74bd6c652a68abfc73e02e4a1f86",
+  "afl_reference": {
+    "sha": "dbaf11913c1b2702dee5b4d3dcfffd52f1defe50",
+    "date": "2026-09-02T09:40:04Z",
+    "files": [
+      "src/afl-fuzz-bitmap.c",
+      "include/coverage-64.h",
+      "src/afl-forkserver.c",
+      "instrumentation/afl-compiler-rt.o.c",
+      "instrumentation/README.lto.md",
+      "instrumentation/README.llvm.md",
+      "instrumentation/README.persistent_mode.md",
+      "src/afl-fuzz-init.c"
+    ]
+  },
+  "checks": {
+    "compile": {
+      "exit": 0,
+      "seconds": 0.48
+    },
+    "eunit": {
+      "exit": 0,
+      "seconds": 71.06
+    },
+    "ct": {
+      "exit": 0,
+      "seconds": 3.87
+    },
+    "xref": {
+      "exit": 0,
+      "seconds": 0.49
+    },
+    "dialyzer": {
+      "exit": 0,
+      "seconds": 4.55
+    }
+  },
+  "eunit_passed": 186,
+  "ct_passed": 3,
+  "audit_experiments": "ALL COVERAGE AUDIT ASSERTIONS PASSED",
+  "production_unchanged": true,
+  "production_sha256": {
+    "src/efz_crash.erl": "1269a42d32a996f09981d58d46d4eeafb65bcda795c535eb4abc2cead5791e96",
+    "src/efz_input.erl": "da76333fefb799962e5c6b9fa251e5e80637d631d1be4cdc6917d9e6e73c262c",
+    "src/efz_mutation.erl": "89fb06e50d5f93e831bcfd429ad8b92d55fc70d18d1b2e99a2ee455289b1a0ec",
+    "src/efz_crash_store.erl": "6f266fb3590fc7c8390cc6a73e740dd588e3208db486ebba10bfacd5bfe09072",
+    "src/efz_corpus.erl": "9eae0e5c5fc261cddf65c76c0266fc4def0ac80519ffad0da59f2f1ca576cf08",
+    "src/efz_replay_cli.erl": "2970f01128703d542c1ce401f9f66ae7a2a07feadd936d5778109c755716e20d",
+    "src/efz_cov.erl": "2d32b0aca9c1641e40ab111e844d020004fb5cb9b743d76c40a46385fa4489d0",
+    "src/efz_stats.erl": "cd1f4241f9f449f0bcc3f7ec18938dcbabf4b4a1e550297d2dcce78ff8d38810",
+    "src/efz_guardian.erl": "e0e086e8aa0c163151744fb823f1a75b95e9396168ce01ae0816d7f618e92926",
+    "src/efz_mutator_random.erl": "2c920f0eb5dbe533d8c2d7e5529c59ccfa5f83a1abc100a16ae13a45a93b45d2",
+    "src/efz_cli.erl": "4c3e5de535b6fbc9784a5331ad4b67fc5cc4040c7c061d016309af9d9fd577c1",
+    "src/efz_fuzzer.erl": "7bd5c56981800893af600c4f7239e1517a34922e51af234c20d5b4b41b394f62",
+    "src/efz_replay.erl": "c1b4bf5061ede2df9bd1647473c0687592cb4a8260dfc4c8543ef2de1377401a",
+    "src/efz_instrument.erl": "7effe7def3925c43e4133ac0d0597dc8911437887baad7cae2c88d6485c1aae8",
+    "src/efz_app.erl": "6de2764fc7556915f3a3f1fef4a4d302896e463f402bb373ca5022c8b85a3684",
+    "src/efz_config.erl": "cecd6e156f1738e70a9495b8fdb20c8c8ee12cc6aec2da1bb4c3152e0cd8cafa",
+    "src/efz_recipe.erl": "a12acf7ac4f0b8cdd7022d29f33d1178c730b37f18d3d6b2fab519b0972677df",
+    "src/efz_worker.erl": "37801bf020fe14ca78c7c8e65a7933b3a084926c719b402ca69fcb7f5d22c3b7",
+    "src/efz.erl": "b6ea846a228597b59b653d94888c8d8fdfa67be7636db0f205560b41c21a40dd",
+    "src/efz_fs.erl": "e05b449943db98b3ab4ca32ebd7642c55e90ecf4b6a19b068d3ab091a9e9b575",
+    "src/efz_mutation_plan.erl": "2da280dff7c15a75d1dec29bca2dc5ba3c898bd6ba2a2611008e711a4ce47f51",
+    "src/efz_dictionary.erl": "8f6e3efb940cf93edc5c866a92576a1f98787e10585058f914f1e7640c8c8ddd",
+    "src/efz_executor.erl": "59812cad3b8836f5d7de9b17e912ca7fb1dc71782980272a6f3441539187aca2",
+    "src/efz_cov_integrity.erl": "d86e67dea82f75a7ba623c981f1722febb7dcbbc448f342dad2f25a31d19a873",
+    "src/efz_mutator.erl": "660afda0f884560fe02c3f1dd94283640dc19f50a82b79cdcad1285084b9f47b",
+    "src/efz_cov_manifest.erl": "c6db75ecc6ffb7b9c9ae3794747560d4f2cf1c97dc68b007b4eae97ea6d6397d",
+    "src/efz_instrument_pt.erl": "c057fe1547175f7c1234057e557842f065202dfdeea805062f1148cb0c28c6d4",
+    "src/efz_target.erl": "4e69efa1f6af8b9179088bc10191979473c47675d56de108e1b833480c6ab82f",
+    "src/efz_cov_rt.erl": "5c3da47ac7641badf4712d699b9d7eec3ad7a2f25683cf26524525ed3cfd8f55",
+    "src/efz_sup.erl": "df7db26164a61d4a44ab3ad79baa3935b13cf3981340db8be4949bfc88c5ed3a",
+    "src/efz_corpus_store.erl": "c59ad904415a3f6689362166853e8b495b9f86a57c04c3e4378188a2ed1c078c",
+    "src/efz.app.src": "12fc90278bf4bbbb8dfd934c3ec8cd5cba402c099236b7306b03447d4f2cb4c0",
+    "src/efz_feedback.erl": "e0a83794e6e59a4bf8256c4d98f48aa9b7556ce131a76b53cd0652c1ee4d1003",
+    "src/efz_worker_sup.erl": "1a1f574cf4f228ed44ae9e3d8e032092f56c33a2b825cbef049ea757de8c27ea"
+  }
+}

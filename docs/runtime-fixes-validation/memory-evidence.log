@@ -1,0 +1,6 @@
+=INFO REPORT==== 21-Sep-2026::08:45:28.287406 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+RESIDUAL reproduced=3/3 replay=1/3 temporary_delta=40

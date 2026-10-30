@@ -2,14 +2,14 @@
 
 Назначение каждого файла сверено с рабочим деревом **15 сентября 2026 года**.
 Корень в этом документе — каталог `efz/`; соседние checkout, например `../cowboy/`,
-не являются частью EFZ. Описание охватывает **167 файлов проекта**, включая этот
-документ, и **19 подкаталогов**. Учитываются исходники, ещё не добавленные в Git,
+не являются частью EFZ. Описание охватывает **186 файлов проекта**, включая этот
+документ, и **21 подкаталог**. Учитываются исходники, ещё не добавленные в Git,
 тесты, примеры, документация и сохранённые доказательства проверок.
 
 Для каждого файла ниже приведены назначение и реализуемая функция либо, для
 данных, их содержание и потребитель. Внутренности Git и изменяемые результаты
 сборки описаны отдельно по типам: имена тестовых каталогов, логи и BEAM-файлы
-генерируются заново и не входят в число 167 файлов проекта.
+генерируются заново и не входят в число 186 файлов проекта.
 
 Связи компонентов, владельцы состояния и UML находятся в
 [описании архитектуры](architecture.md). Эта карта отвечает на вопрос «где что
@@ -34,10 +34,14 @@
 ```text
 efz/
 ├── src/                      runtime, контракты и instrumentation
+├── c_src/                    Linux lifecycle helper внешнего worker
+├── priv/                     bounded external supervisor/controller
 ├── scripts/                  подготовка, CLI campaign/replay и coverage benchmark
 ├── test/                     EUnit и Common Test
 ├── fixtures/                 искусственные targets для тестов
 │   ├── include/              include-файл для проверки компиляции
+│   ├── external/             отдельная BEAM и native-crash fixtures P1-01
+│   ├── hit_count/            targets для count feedback tests и benchmarks
 │   └── performance/          parser и sparse target для benchmarks
 ├── examples/                 самостоятельные примеры использования
 │   ├── automatic/            random campaign с automatic coverage
@@ -51,6 +55,7 @@ efz/
 │   ├── diagrams/             Mermaid-исходники UML и готовые SVG
 │   ├── examples/             сохранённая пара crash input + recipe
 │   ├── performance/          зафиксированные результаты измерений
+│   ├── coverage-audit-2026-09-15/  диагностические targets и evidence probe-set аудита
 │   └── audit-2026-09-12/     исторические диагностики и их результаты
 ├── _build/                   генерируемые сборки, тестовые данные и логи
 └── .git/                     служебное состояние Git
@@ -61,13 +66,13 @@ efz/
 | [.gitignore](../.gitignore) | Исключения для Git | Исключает `_build`, BEAM, PLT, логи, crash dumps, Erlang cookie и файлы редакторов. Это правила учёта файлов, а не конфигурация fuzz campaign. |
 | [LICENSE](../LICENSE) | Лицензия проекта | Текст Apache License 2.0; соответствует идентификатору лицензии в `efz.app.src`. |
 | [README.md](../README.md) | Главная точка входа в документацию | Сборка, launcher, harness, instrumentation, staged mutation, replay и ссылки на подробные контракты. |
-| [rebar.config](../rebar.config) | Сборка и проверки Rebar3 | Минимум OTP 27, `debug_info`, warnings as errors, EUnit, Xref и Dialyzer. В `src_dirs` включены `src` и `examples/simple_parser`; внешних Erlang-зависимостей нет. |
+| [rebar.config](../rebar.config) | Сборка и проверки Rebar3 | Минимум OTP 27, `debug_info`, warnings as errors, EUnit, Xref и Dialyzer. В `src_dirs` включены `src` и `examples/simple_parser`; Linux pre-hook собирает `c_src/efz_vm_launcher`. Внешних Erlang-зависимостей нет. |
 | [rebar.lock](../rebar.lock) | Фиксация зависимостей | Сейчас содержит `[]`: закреплённых внешних Rebar-зависимостей нет. Файл обслуживает Rebar3. |
 
 <a id="src"></a>
 ## src — runtime и сборка instrumentation
 
-Каталог [src/](../src/) содержит **34 файла** основного приложения. Файл модуля
+Каталог [src/](../src/) содержит **35 файлов** основного приложения. Файл модуля
 не обязательно означает отдельный процесс: `gen_server` явно отмечены ниже;
 mutator, feedback, recipe и filesystem helpers вызываются как обычные функции.
 
@@ -80,6 +85,8 @@ mutator, feedback, recipe и filesystem helpers вызываются как об
 | [efz_app.erl](../src/efz_app.erl) | Lifecycle OTP application | Callback `start/2` создаёт `efz_sup`; `stop/1` завершает application callback. Не содержит mutation loop. |
 | [efz_sup.erl](../src/efz_sup.erl) | Корневой supervisor | Начинает с пустого списка children; `efz:start/1` добавляет временный `efz_fuzzer`. Стратегия `one_for_all` с нулевой интенсивностью рестартов не восстанавливает campaign state. |
 | [efz_cli.erl](../src/efz_cli.erl) | Универсальный launcher | `main/1` разбирает опции, читает raw seeds с лимитом, проверяет пути и artifacts, вызывает `efz:start/1`, сохраняет `report.term`, возвращает exit code. Собственного fuzzing engine нет. |
+| [efz_external.erl](../src/efz_external.erl) | Граница supervised CLI | До target lookup запускает file-only controller через `spawn_executable`, передаёт явный argv и обслуживает parent-death ACK. На non-Linux возвращает понятную ошибку. |
+| [efz_external_worker.erl](../src/efz_external_worker.erl) | Worker entrypoint и обязательный barrier | Выполняется только в дочерней BEAM: проверяет identity, запускает обычный CLI/campaign и реализует bounded HELLO/READY/PREPARE/RUN/RESULT protocol. Legacy executor вызывает closure напрямую. |
 | [efz_config.erl](../src/efz_config.erl) | Строгая campaign schema | `prepare/1` проверяет известные ключи, `run/1`, workers, лимиты, mutation config и coverage artifacts; загружает durable corpus и формирует нормализованную конфигурацию. `function` и `arity` не поддерживаются. |
 | [efz_fuzzer.erl](../src/efz_fuzzer.erl) | Campaign coordinator, `gen_server` | Создаёт связанные corpus, stats и worker supervisor; следит за worker, обслуживает `await`, собирает итоговый report и останавливает сервисы. Отдельный input исполняет executor. |
 | [efz_worker_sup.erl](../src/efz_worker_sup.erl) | Supervision worker | Создаёт один temporary `efz_worker` под `one_for_one`. Название не означает реализованный параллельный pool: campaign schema допускает только `workers => 1`. |
@@ -92,7 +99,7 @@ mutator, feedback, recipe и filesystem helpers вызываются как об
 |---|---|---|
 | [efz_target.erl](../src/efz_target.erl) | Контракт harness | Behaviour с callback `run(binary()) -> term()`. Пользовательский модуль реализует callback, config проверяет экспорт. Также предоставляет `spawn/1`, `spawn_link/1` для controlled descendants и `dirty/1` для декларации внешних эффектов. |
 | [efz_input.erl](../src/efz_input.erl) | Общий предел размера input | `check/3` проверяет binary и inclusive limit; `read_file/3` ограничивает чтение файлов. Default 4096, допустимый предел 0..1048576; bytes не обрезаются. Используется ingestion, corpus, executor, mutations, replay и crash storage. |
-| [efz_executor.erl](../src/efz_executor.erl) | Исполнение одного input | `run/4` создаёт независимого guardian; coordinator классифицирует root. Возврат после final cleanup result и guardian DOWN; при потере guardian VM помечается dirty. `run/3` — compatibility wrapper. |
+| [efz_executor.erl](../src/efz_executor.erl) | Исполнение одного input | `run/4` сначала проходит external barrier, когда supervised broker зарегистрирован, затем создаёт прежнего guardian. Возврат после final cleanup result и guardian DOWN; при потере guardian VM помечается dirty. `run/3` — compatibility wrapper. |
 | [efz_guardian.erl](../src/efz_guardian.erl) | Lifecycle ownership | Владеет root/controlled descendants, start gates, monitors, observation ETS и trace barriers. Выполняет cleanup независимо от caller/coordinator, проверяет shared-state violations, запрещает reuse dirty VM. |
 
 ### Coverage: компиляция, runtime hooks и feedback
@@ -103,9 +110,10 @@ mutator, feedback, recipe и filesystem helpers вызываются как об
 | [efz_instrument_pt.erl](../src/efz_instrument_pt.erl) | Compiler `parse_transform` | Обходит Erlang AST, вставляет clause/outcome probes, создаёт build ID и source manifest. Проверяет allowlist, повторную instrumentation и неподдержанную syntax; strict mode отклоняет неполное покрытие. |
 | [efz_cov_manifest.erl](../src/efz_cov_manifest.erl) | Manifest и допустимое пространство coverage | Проверяет schema и probe identities, извлекает embedded manifest, сопоставляет observed probes с builds. `prepare/2` создаёт переиспользуемый validation plan с protected ETS; `release/1` освобождает его. |
 | [efz_cov_integrity.erl](../src/efz_cov_integrity.erl) | Целостность coverage observation | Pins loaded harness/build identities, independent protected PID/context registry, context/code-load traces и классификация valid empty / broken observation. |
-| [efz_cov_rt.erl](../src/efz_cov_rt.erl) | Runtime hook вставленных probes | `hit/1` сверяет process-dictionary context с PID registry и пишет probe в ETS set; поддерживает `ets` и `ets_member`. Вне executor hook может быть inactive; context/table error и первый insert уведомляют guardian. |
+| [efz_cov_rt.erl](../src/efz_cov_rt.erl) | Runtime hook вставленных probes | `hit/1` сверяет context с PID registry. Presence использует ETS set; opt-in hit-count — atomic ETS counter по exact identity. Context/table error и первый hit уведомляют guardian. |
+| [efz_cov_count.erl](../src/efz_cov_count.erl) | Экспериментальные count features | Проверяет counter snapshot и совпадение его keys с exact coverage; классифицирует counts в восемь buckets. Не владеет процессом/таблицей и не заменяет presence backend. |
 | [efz_cov.erl](../src/efz_cov.erl) | Execution coverage context | `open`, `attach`, `snapshot`, `detach`, `close` управляют таблицей одного исполнения. Также содержит set merge и manual compatibility helpers `hit/1`, `reset_local/0`, `snapshot/0`, `interesting/2`; решение runtime принимает `efz_feedback`. |
-| [efz_feedback.erl](../src/efz_feedback.erl) | Новизна покрытия | `evaluate/3` проверяет builds/status и вычисляет `Observed − Global`. Для успешного execution возвращает новое состояние и `new_probes`/`retention_reason`; ошибки target не расширяют global coverage. Состояние хранит worker. |
+| [efz_feedback.erl](../src/efz_feedback.erl) | Новизна покрытия | `evaluate/3` проверяет builds/status и вычисляет `Observed − Global`. Opt-in hit-count дополнительно сравнивает exact bucket features, различая `new_probe`/`new_hit_count`. Ошибки target не расширяют global state. |
 
 ### Corpus и постоянное хранение
 
@@ -148,7 +156,7 @@ mutator, feedback, recipe и filesystem helpers вызываются как об
 <a id="test"></a>
 ## test — автоматические проверки
 
-Каталог [test/](../test/) содержит **20 файлов**. `*_tests.erl` запускаются через
+Каталог [test/](../test/) содержит **21 файл**. `*_tests.erl` запускаются через
 `rebar3 eunit`, `efz_coverage_SUITE.erl` — через `rebar3 ct`. Helpers с `run/1`
 внутри тестов служат тестовыми harness; их экспорт не делает их runtime сервисами.
 
@@ -163,6 +171,7 @@ mutator, feedback, recipe и filesystem helpers вызываются как об
 | [efz_executor_tests.erl](../test/efz_executor_tests.erl) | Базовый execution contract | Короткие проверки `run/3`: return, error, exit и timeout. Это compatibility path; automatic coverage подробнее проверяется другими suites. |
 | [efz_phase2_tests.erl](../test/efz_phase2_tests.erl) | Automatic instrumentation и executor | Сравнивает обычную/instrumented семантику, probe kinds, manifests/build IDs, includes/options, tail calls, strict syntax, контексты, crash/kill/timeout coverage и отмену campaign. |
 | [efz_backend_tests.erl](../test/efz_backend_tests.erl) | Эквивалентность coverage вариантов | Сопоставляет `ets`/`ets_member` и prepared/per-execution validation: exact probes, outcomes, novelty, жизнь validation plan, ошибки backend, caller death и cleanup. |
+| [efz_hit_count_tests.erl](../test/efz_hit_count_tests.erl) | Count feedback integration | Все buckets, multiplicity/namespace, multi-probe delta, controlled children, crash/timeout/corrupt counters, mutation independence, real staged parent reuse, durable restore и crash replay в свежих VM. |
 | [efz_coverage_SUITE.erl](../test/efz_coverage_SUITE.erl) | Common Test интеграция | Три сценария: automatic campaign, coverage при crash и timeout. Campaign использует scripted fixture; доказательство реального многошагового parent reuse находится в отдельном feedback-loop тесте. |
 | [efz_mutator_tests.erl](../test/efz_mutator_tests.erl) | Базовый random mutator | Проверяет возвращаемый binary для непустого и пустого primary. Общий campaign limit проверяется в `efz_limits_tests`. |
 | [efz_mutation_tests.erl](../test/efz_mutation_tests.erl) | Byte operators и staged planner | Модели операций, dictionary, limits, enumeration, fairness, finite exhaustion, RNG, growing corpus, donors и progress guard. Содержит regression с 256 seeds и недоступным первым dictionary lane. |
@@ -174,11 +183,14 @@ mutator, feedback, recipe и filesystem helpers вызываются как об
 | [efz_limits_tests.erl](../test/efz_limits_tests.erl) | Общий input limit и storage failures | Границы 0/max/max+1, random/staged/restore/replay/executor/crash; отказ callback с oversized result; filesystem errors, rollback, corrupt groups и interrupted staging. Проверяет exact input и primary reason в report при невозможности записи. |
 | [efz_smoke_tests.erl](../test/efz_smoke_tests.erl) | Минимальный lifecycle campaign | Десять random executions в explicit manual mode и корректная остановка. Не доказывает automatic coverage или реальное расширение corpus. |
 | [efz_scripted_mutator.erl](../test/efz_scripted_mutator.erl) | Fixture фиксированной последовательности | Callback выдаёт заранее заданные bytes по iteration для Phase 2/backend/CT acceptance. Используется только тестами; не является production mutator или доказательством staged scheduling. |
+| [efz_external_tests.erl](../test/efz_external_tests.erl) | Legacy compatibility gate | Доказывает, что отсутствие external broker не меняет executor return path, quarantine или readiness. |
+| [external_supervisor_test.py](../test/external_supervisor_test.py) | Native P1-01 acceptance | Реальные вторые BEAM VM и NIF: durable gate, SIGSEGV/SIGABRT recovery/replay, hard timeout, dirty recycle, protocol corruption, storage faults, restart budget и parent-death cleanup. |
+| [external_bench.py](../test/external_bench.py) | Legacy/supervised comparison | Три чередующихся запуска одинакового safe target; отдельно считает mutation/total throughput и durable prepare time без отключения fsync. |
 
 <a id="fixtures"></a>
 ## fixtures — цели и данные для проверок
 
-Каталог [fixtures/](../fixtures/) содержит **18 файлов с учётом подкаталогов**.
+Каталог [fixtures/](../fixtures/) содержит **23 файла с учётом подкаталогов**.
 Это искусственные targets, которые tests/bench компилируют обычным compiler либо
 через `efz_instrument`. Они не входят в основной `src_dirs` приложения.
 
@@ -200,6 +212,12 @@ mutator, feedback, recipe и filesystem helpers вызываются как об
 | [efz_crash_target.erl](../fixtures/efz_crash_target.erl) | Instrumented parser crash fixture | Возвращает ok для `OK`, ждёт на `WAIT`, иначе падает с data-dependent Reason. Compile macro создаёт несовместимый build; source relocation проверяет нормализацию signature. |
 | [efz_crash_harness.erl](../fixtures/efz_crash_harness.erl) | Обычный внешний binary harness | Вызывает реальный parser. Compile macro меняет harness identity; test-only env выбирает normal return, другую ошибку либо infrastructure failure в свежей replay VM. |
 
+### fixtures/external
+
+`efz_external_target` и `efz_external_startup` задают SAFE, dirty, timeout,
+ordinary-exit и startup paths. `efz_native_fixture` — test-only NIF с управляемыми
+SIGSEGV, SIGABRT и зависанием; он загружается только в дочерней acceptance VM.
+
 ### fixtures/include
 
 Каталог [fixtures/include/](../fixtures/include/) нужен для проверки разрешения
@@ -208,6 +226,19 @@ include paths и preprocessing при сборке instrumented target.
 | Файл | Назначение и функциональность |
 |---|---|
 | [efz_fixture.hrl](../fixtures/include/efz_fixture.hrl) | Макрос `INCLUDED` с `case` и record `item`. Макрос использует `MAGIC`, задаваемый compiler option; проверяется сохранение source locations и поведение expanded code. |
+
+### fixtures/hit_count
+
+Пять обычных targets/helpers для проверки кратности вызовов и контролируемого
+сравнения feedback. Test/benchmark выбирают instrumentation scope явно.
+
+| Файл | Назначение |
+|---|---|
+| [efz_count_sites.erl](../fixtures/hit_count/efz_count_sites.erl) | Три функции x/a/b; compiler добавляет по одному probe. Позволяет отделить кратность hits от probes dispatch/loop control. |
+| [efz_count_harness.erl](../fixtures/hit_count/efz_count_harness.erl) | Неинструментированный binary adapter для L-counts, пар probes, controlled children, crash/timeout и тестового повреждения counter. |
+| [efz_count_repeat.erl](../fixtures/hit_count/efz_count_repeat.erl) | Prefix одинаковых bytes; отдельная deep clause при 16 повторах. |
+| [efz_count_records.erl](../fixtures/hit_count/efz_count_records.erl) | Parser полных коротких records; deep clause при восьми records. |
+| [efz_count_machine.erl](../fixtures/hit_count/efz_count_machine.erl) | State machine с повторяющимся tick/ack и commit после восьми transitions. |
 
 ### fixtures/performance
 
@@ -286,7 +317,7 @@ listener: target синхронно разбирает query string.
 <a id="bench"></a>
 ## bench — измерения производительности
 
-Каталог [bench/](../bench/) содержит **9 файлов** вспомогательной инфраструктуры
+Каталог [bench/](../bench/) содержит **13 файлов** вспомогательной инфраструктуры
 измерений. Они не запускаются при обычном старте EFZ. Результаты сохраняются в
 `_build`; зафиксированные исторические samples находятся в `docs/performance`.
 
@@ -301,11 +332,15 @@ listener: target синхронно разбирает query string.
 | [report.escript](../bench/report.escript) | Чтение результатов benchmark | Читает локальные бинарные `.term` rows для hooks/executor/campaign, выводит median, raw samples, стоимость операции и throughput. Нагрузку повторно не запускает. |
 | [archive.escript](../bench/archive.escript) | Архив доказательств Phase 2.1 | Проверяет количество samples, canonical comparisons, source/BEAM/build hashes, memory/profiles; формирует компактный текстовый Erlang term для документации. Рассчитан на конкретную структуру исторических artifacts. |
 | [mutations.escript](../bench/mutations.escript) | Staged mutation benchmark | Измеряет короткие/средние/предельные inputs, dictionary, splice и havoc; проверяет применение operations. Сравнивает конечные random/staged campaigns, фиксирует memory, reductions, environment и hashes. |
+| [hit_count.escript](../bench/hit_count.escript) | Launcher нового эксперимента | Запускает storage/executor/campaign/random/large-loop измерения и экспортирует samples в JSON. |
+| [efz_hit_count_micro.erl](../bench/efz_hit_count_micro.erl) | Storage microbenchmark | ETS set/counter, dense counters/atomics с exact mapping; 100–100000 probes, hit/snapshot/reset/memory/lifecycle, concurrent writers. |
+| [efz_hit_count_experiment.erl](../bench/efz_hit_count_experiment.erl) | Controlled end-to-end comparison | Реальные staged/random campaigns с равными budgets/RNG, first deep input, corpus/count-only growth, fixed-input executor overhead и saturation. |
+| [efz_count_bench_harness.erl](../bench/efz_count_bench_harness.erl) | Наблюдение deep outcome | Вызывает выбранный instrumented target и отправляет время `deep` observer. Не выбирает mutations и не собирает coverage сам. |
 
 <a id="docs"></a>
 ## docs — документация, UML и архивы
 
-Каталог [docs/](./) содержит **62 файла с учётом подкаталогов**. Контракты
+Каталог [docs/](./) содержит **70 файлов с учётом подкаталогов**. Контракты
 описывают использование текущих подсистем. Audit/validation/performance records
 фиксируют состояние и результаты на дату записи; их старые ошибки, counts и
 команды не являются утверждением о текущем checkout.
@@ -320,16 +355,32 @@ listener: target синхронно разбирает query string.
 | [execution-isolation.md](execution-isolation.md) | Supported binary harness contract, guardian protocol, controlled spawn API, dirty VM policy, shared-state boundaries и следующий disposable-VM backend. |
 | [coverage-integrity.md](coverage-integrity.md) | Pins harness/builds, независимое evidence наблюдения, context states, code replacement, campaign diagnostic/strict policy и supported boundaries. |
 | [coverage.md](coverage.md) | Automatic source coverage contract: поддержанная syntax, granularity, manifest/build identities, compilation и execution APIs, backend/validation варианты и ограничения. |
+| [coverage-tracking-audit.md](coverage-tracking-audit.md) | Аудит exact probe-set representation, runtime lifetime/global feedback, сравнение с pinned AFL++ bitmap/counters, 15 разделов и результаты реальных экспериментов. |
+| [hit-count-experiment.md](hit-count-experiment.md) | Контракт opt-in count feedback, выбор ETS counters после benchmark, парные fuzzing результаты, overhead, corpus growth, compatibility и команды воспроизведения. |
 | [quickstart.md](quickstart.md) | Подготовка сборки и тестового corpus, точные команды fuzz/replay/restore, текущие ограничения и приоритеты до более широкого применения. |
 | [mutations.md](mutations.md) | Staged engine: defaults, dictionary format, lazy enumeration, progress/exhaustion, byte operators, havoc, provenance и accounting. |
 | [replay.md](replay.md) | Crash occurrence/signature/group contract, bounded report, Reason policies, EFZR/EFZX schema, raw authority, verified replay CLI/APIs, compatibility и regression evidence. |
-| [corpus.md](corpus.md) | Durable corpus schema 1: content-addressed layout, публикация, metadata, restore, duplicate/build policies и corrupt/partial diagnostics. Объясняет отличие reusable corpus от exact resume. |
+| [corpus.md](corpus.md) | Durable corpus records v1/v2: content-addressed layout, atomic publication, probe/count provenance, restore, duplicate/build policies и corrupt/partial diagnostics. Reusable corpus, не exact resume. |
 | [input-and-storage.md](input-and-storage.md) | Единый `max_input_bytes`, границы replay/crash, atomic artifact groups, structured IO failures и сохранение triggering input в runtime context. |
 | [calibration-readiness.md](calibration-readiness.md) | Аудит от 9 сентября о prerequisites для повторной calibration/feature stability. Анализирует полноту snapshots, termination, cross-case state и содержит диагностические scripts; предлагаемая модель не означает реализованную feature stability. |
 | [phase2-validation.md](phase2-validation.md) | Историческое закрытие automatic instrumentation: команды, retention/continuation, coverage после termination, baseline и ограничения Phase 2. |
 | [phase2.1-performance.md](phase2.1-performance.md) | Методика и результаты performance work: ETS variants, prepared validation, executor/campaign costs, memory, profiles и выбор defaults. |
 | [phase3-validation.md](phase3-validation.md) | Историческая проверка staged mutation и replay: discoveries, crashes, measured costs, memory, команды и границы Phase 3. |
 | [technical-audit-2026-09-12.md](technical-audit-2026-09-12.md) | Полный аудит 12 сентября: component inventory, реальные call paths, integration matrix, experiments, bugs, maturity и план. Найденные тогда scheduler/CLI/persistence/IO gaps нужно сопоставлять с текущим кодом и новыми regression tests. |
+| [p1-01-external-supervisor.md](p1-01-external-supervisor.md) | P1-01 contract и evidence | Process boundary, protocol/state machine, durable pre-execution journal, timeout/dirty/native recovery, replay, Linux limits, regression и benchmark evidence. |
+
+### docs/coverage-audit-2026-09-15
+
+Воспроизводимые диагностические fixtures и evidence аудита coverage tracking.
+Это не production instrumentation или новый fuzzing engine.
+
+| Файл | Назначение и содержание |
+|---|---|
+| [efz_cov_audit_sites.erl](coverage-audit-2026-09-15/efz_cov_audit_sites.erl) | Четыре обычные функции a/b/c/x для automatic instrumentation. Target-local diagnostic count в x подтверждает число реальных вызовов, не участвуя в coverage. |
+| [efz_cov_audit_harness.erl](coverage-audit-2026-09-15/efz_cov_audit_harness.erl) | Неинструментированный binary dispatcher: A/B/AB/ABC, LOOP1…1000, crash/timeout/context erase и controlled/native children. Не даёт лишним dispatch/loop probes исказить сравнение count semantics. |
+| [run.escript](coverage-audit-2026-09-15/run.escript) | Компилирует fixtures, запускает оба настоящих ETS backend, feedback/corpus/planner, проверяет rows/cleanup/novelty; native child проверяется в отдельной VM. Raw records сохраняются в `_build`. |
+| [results.txt](coverage-audit-2026-09-15/results.txt) | Сохранённые реальные snapshots/novelty/corpus sizes, invocation multiplicity, child results и lineage production staged campaign. |
+| [validation.json](coverage-audit-2026-09-15/validation.json) | EFZ/AFL++ revisions, команды и exit codes, counts EUnit/CT и SHA-256 неизменённого production source. |
 
 ### docs/adr
 
@@ -372,7 +423,8 @@ listener: target синхронно разбирает query string.
 ### docs/performance
 
 Каталог [docs/performance/](performance/) хранит **текстовые Erlang terms**
-с историческими measurements. Несмотря на расширение `.term`, здесь не binary ETF:
+с историческими measurements и JSON samples нового count эксперимента.
+Несмотря на расширение `.term`, terms здесь не binary ETF:
 содержимое предназначено для просмотра или `file:consult/1`.
 
 | Файл | Назначение и содержание |
@@ -380,6 +432,7 @@ listener: target синхронно разбирает query string.
 | [phase2.1-samples.term](performance/phase2.1-samples.term) | Архив environment, sample rows, canonical campaign checks, memory, profiling и source/BEAM hashes для отчёта Phase 2.1. |
 | [phase3-mutations.term](performance/phase3-mutations.term) | Измерения mutation workloads и random/staged campaigns, environment, compiler/build identities, memory/reductions и source hashes. Основание performance tables Phase 3. |
 | [phase3-validation.term](performance/phase3-validation.term) | Архив Phase 3 acceptance evidence: source hashes, результаты кампании/проверок и ссылка на measurement environment. Фиксирует тот запуск, не автоматически обновляемый test report. |
+| [hit-count-samples.json](performance/hit-count-samples.json) | Raw storage/executor samples, configs/builds и результаты парных campaigns, random control, large loops, environment и validation нового прототипа. |
 
 ### docs/audit-2026-09-12
 
@@ -445,6 +498,7 @@ crash/corpus artifacts и локальные доказательства про
 | `_build/durable-e2e-*/` | Раздельные VM phases: descriptor, plain/instrumented/v2 targets, persistent `corpus/`, phase reports/logs и `lineage.txt`. `durable-e2e-latest.txt` указывает последний каталог. |
 | `_build/cli-test-*/`, `cli-acceptance/`, `cli-checks/` | Временные fixtures/launcher copies, fresh VM results и локальные подтверждения CLI. `*-test-*` обычно убираются test cleanup. |
 | `_build/quickstart/`, `quickstart-checks/` | Подготовленные seeds, instrumented parser, reusable corpus/findings и логи проверки скрипта подготовки, общего CLI, restore и replay. |
+| `_build/coverage-audit-2026-09-15/` | Скомпилированный diagnostic target, полные experiment records, validation logs и скачанные pinned reference sources AFL++. |
 | `_build/limits-test-*/`, `limits-checks/`, `limits-storage-failure.term` | Inputs/targets и fault-injection artifacts тестов лимитов, command logs и report с сохранённым triggering input при storage failure. |
 | `_build/scheduler-checks/`, `scheduler-progress.term` | Локальные evidence исправления staged progress/exhaustion, включая campaign с 256 seeds. |
 | `_build/isolation-test/`, `isolation-checks/` | Instrumented lifecycle fixture, fresh VM dirty-policy logs и результаты проверки guardian regression suite. |
@@ -521,3 +575,15 @@ crash/corpus artifacts и локальные доказательства про
 | `fixtures/runtime/`, `test/efz_runtime_tests.erl` | Instrumented resources/lifecycle/verification regressions |
 | `bench/efz_runtime_bench.erl` | Same-driver baseline/off/stability/resources/full measurement |
 | `docs/runtime-diagnostics.md`, `docs/runtime-diagnostics-validation.md` | Contract and actual validation |
+
+## P1-01 external supervisor additions
+
+| Path | Purpose |
+|---|---|
+| `c_src/efz_vm_launcher.c`, `c_src/Makefile` | Linux pidfd/PDEATHSIG/session/subreaper lifecycle and authoritative wait status |
+| `priv/efz_external.py` | Bounded protocol, durable journal, state machine, restart policy and external replay |
+| `src/efz_external.erl`, `src/efz_external_worker.erl` | Pre-load CLI delegation and worker-side execution gate |
+| `fixtures/external/` | Safe/native-crash/hang/dirty/startup fixtures loaded only by integration workers |
+| `test/efz_external_tests.erl`, `test/external_supervisor_test.py` | Legacy gate and real OS-process acceptance |
+| `test/external_bench.py` | Same-target legacy/supervised durability-cost measurement |
+| `docs/p1-01-external-supervisor.md` | Contract, commands, evidence and limitations |

@@ -3,6 +3,8 @@
 -export([main/1, local_target/2]).
 
 main(Args) ->
+    case lists:member("--supervised",Args) of true->efz_external:main(Args);false->main_local(Args) end.
+main_local(Args) ->
     try
         case parse(Args, #{}) of
             help -> io:put_chars(help()), 0;
@@ -16,6 +18,7 @@ main(Args) ->
 help() ->
     "Usage: escript scripts/fuzz.escript --target MODULE --out DIR --artifacts DIR [--seeds DIR | --corpus-dir DIR] [options]\n"
     "\nTarget contract: MODULE:run(binary()) -> term(). Coverage is automatic.\n"
+    "  --config FILE            Trusted campaign map (efz:start schema); requires --out\n"
     "  --target MODULE          Harness or instrumented target exporting run/1 (required)\n"
     "  --seeds DIR              Read raw seed files (required unless --corpus-dir is supplied)\n"
     "  --corpus-dir DIR         Load/store reusable successful corpus, not a campaign checkpoint\n"
@@ -23,16 +26,30 @@ help() ->
     "  --out DIR                Create/use DIR; write report.term and crashes/ (required)\n"
     "  --artifacts DIR          Instrumented .beam files with paired .efz-manifest files (required)\n"
     "  --coverage-policy diagnostic|strict  No-probe campaign policy (default: diagnostic)\n"
+    "  --coverage-feedback presence|hit_count  Experimental count feedback (default: presence)\n"
     "  --code-path DIR          Ordinary harness/dependency BEAM directory (repeatable)\n"
     "  --mutation staged|random Default: staged\n"
     "  --timeout MS             Per-input timeout, nonnegative integer (default: 100)\n"
-    "  --max-iterations N       Mutation execution limit (default: 1000)\n"
+    "  --max-iterations N|infinity  Mutation limit; infinity runs until stopped\n"
+    "                           Stop infinity campaigns with OUT/stop.request\n"
     "  --max-input-bytes N      Campaign/replay input bound, 0..1048576 (default: 4096)\n"
+    "  --gleam-layer            Enable legacy optional QS layer; new adapters use --config (build profile gleam)\n"
+    "  --structured-fraction N  Structured branch percent 0..100 (default: 10)\n"
+    "  --semantic-feedback disabled|observation_only|guided (default: disabled)\n"
+    "  --semantic-oracle disabled|inline (default: disabled)\n"
+    "  --oracle-budget N        Maximum inline checks 0..10000 (default: 64)\n"
     "  --runtime-diagnostics    Enable automatic runtime observations and bounded verification\n"
     "  --runtime-runs N         Total runs per selected input, including original (1..16)\n"
     "  --verification-budget N  Maximum extra executions (0..1000000)\n"
     "  --sample-interval MS     Process sampling interval (1..10000)\n"
     "  --help                   Show this help\n"
+    "  --supervised             Linux external VM supervisor (see docs/p1-01-external-supervisor.md)\n"
+    "  --restart-budget N       Supervised worker restarts, 0..128 (default: 8)\n"
+    "  --supervised-runs N      Total supervised execution cap, 1..100000\n"
+    "  --campaign-ms MS         Absolute supervised campaign deadline\n"
+    "  --startup-ms MS          Worker startup/idle deadline\n"
+    "  --ipc-grace-ms MS        Bounded IPC/finalization deadline allowance\n"
+    "  --journal-bytes N        Durable external journal byte budget\n"
     "\nSeed directories are not recursive; subdirectories are ignored. Empty files are valid seeds;\n"
     "a directory without seed files is an error.\n"
     "Exit: 0 completed/exhausted/idle stop (including target crashes); 2 invalid invocation/config;\n"
@@ -40,6 +57,10 @@ help() ->
 
 parse([], Options) -> Options;
 parse(["--help"], _) -> help;
+parse(["--gleam-layer"|Rest],Options)->
+    case maps:is_key(gleam_enabled,Options) of
+        true->fail("Duplicate option: --gleam-layer",[]);
+        false->parse(Rest,Options#{gleam_enabled=>true}) end;
 parse(["--runtime-diagnostics"|Rest],Options) ->
     case maps:is_key(runtime_enabled,Options) of
         true->fail("Duplicate option: --runtime-diagnostics",[]);
@@ -58,7 +79,12 @@ parse([Option | Rest], Options) ->
                 end
             end
     end.
+option("--config") -> config_file;
 option("--runtime-runs") -> runtime_runs;
+option("--structured-fraction") -> structured_fraction;
+option("--semantic-feedback") -> semantic_feedback;
+option("--semantic-oracle") -> semantic_oracle;
+option("--oracle-budget") -> oracle_budget;
 option("--verification-budget") -> verification_budget;
 option("--sample-interval") -> sample_interval;
 option("--target") -> target;
@@ -68,6 +94,7 @@ option("--corpus-build-policy") -> corpus_build_policy;
 option("--out") -> out;
 option("--artifacts") -> artifacts;
 option("--coverage-policy") -> coverage_policy;
+option("--coverage-feedback") -> coverage_feedback;
 option("--code-path") -> code_paths;
 option("--mutation") -> mutation_mode;
 option("--timeout") -> timeout;
@@ -76,6 +103,13 @@ option("--max-input-bytes") -> max_input_bytes;
 option(Unknown) -> fail("Unknown option: ~ts (use --help)", [Unknown]).
 value(target, Name) when Name =/= [], length(Name) =< 255 -> Name;
 value(target, _) -> fail("--target must be a module name of 1..255 characters", []);
+value(semantic_feedback,"disabled")->disabled;
+value(semantic_feedback,"observation_only")->observation_only;
+value(semantic_feedback,"guided")->guided;
+value(semantic_feedback,_)->fail("Invalid --semantic-feedback",[]);
+value(semantic_oracle,"disabled")->disabled;
+value(semantic_oracle,"inline")->inline;
+value(semantic_oracle,_)->fail("Invalid --semantic-oracle",[]);
 value(mutation_mode, "staged") -> staged;
 value(mutation_mode, "random") -> random;
 value(mutation_mode, _) -> fail("--mutation must be staged or random", []);
@@ -85,7 +119,11 @@ value(corpus_build_policy, _) -> fail("--corpus-build-policy must be reject or r
 value(coverage_policy, "diagnostic") -> diagnostic;
 value(coverage_policy, "strict") -> strict;
 value(coverage_policy, _) -> fail("--coverage-policy must be diagnostic or strict", []);
-value(K, Text) when K =:= timeout; K =:= max_iterations; K =:= max_input_bytes; K =:= runtime_runs; K =:= verification_budget; K =:= sample_interval ->
+value(coverage_feedback, "presence") -> presence;
+value(coverage_feedback, "hit_count") -> hit_count;
+value(coverage_feedback, _) -> fail("--coverage-feedback must be presence or hit_count", []);
+value(max_iterations,"infinity")->infinity;
+value(K, Text) when K =:= timeout; K =:= max_iterations; K =:= max_input_bytes; K =:= runtime_runs; K =:= verification_budget; K =:= sample_interval; K=:=structured_fraction; K=:=oracle_budget ->
     case Text =/= [] andalso lists:all(fun(C) -> C >= $0 andalso C =< $9 end, Text) of
         true -> list_to_integer(Text);
         false -> fail("~ts must be a nonnegative integer", [flag(K)])
@@ -93,12 +131,48 @@ value(K, Text) when K =:= timeout; K =:= max_iterations; K =:= max_input_bytes; 
 value(_, []) -> fail("Directory arguments must not be empty", []);
 value(_, Text) -> Text.
 flag(runtime_runs) -> "--runtime-runs";
+flag(structured_fraction)->"--structured-fraction";
+flag(oracle_budget)->"--oracle-budget";
 flag(verification_budget) -> "--verification-budget";
 flag(sample_interval) -> "--sample-interval";
 flag(timeout) -> "--timeout";
 flag(max_iterations) -> "--max-iterations";
 flag(max_input_bytes) -> "--max-input-bytes".
 
+launch(#{config_file:=Path}=O) ->
+    lists:foreach(fun add_code_path/1,maps:get(code_paths,O,[])),
+    case efz_fs:read_bounded(Path,1048576) of {ok,_}->ok;{error,E}->fail("Cannot read config: ~tp",[E]) end,
+    C0=case file:consult(Path) of {ok,[C]} when is_map(C)->C;
+        Other->fail("Config must contain one campaign map: ~tp",[Other]) end,
+    case maps:find(out,O) of error->fail("--config requires --out",[]);{ok,_}->ok end,
+    C1=maps:merge(C0,maps:with([corpus_dir,corpus_build_policy,coverage_policy,coverage_feedback,
+        mutation_mode,timeout,max_iterations,max_input_bytes],O)),
+    C2=case maps:find(artifacts,O) of error->C1;{ok,Dir}->
+        C1#{artifacts=>require(efz_instrument:discover(Dir),"Invalid artifacts")} end,
+    C3=case maps:find(target,O) of error->C2;{ok,Name}->
+        C2#{target=>require(local_target(Name,maps:get(artifacts,C2,[])),"Invalid target")} end,
+    C4=case maps:find(seeds,O) of error->C3;{ok,Dir2}->
+        C3#{seeds=>read_seeds(Dir2,maps:get(max_input_bytes,C3,efz_input:default_limit()))} end,
+    Keys=[gleam_enabled,structured_fraction,semantic_feedback,semantic_oracle,oracle_budget],
+    C5=case maps:with(Keys,O) of
+        None when map_size(None)=:=0->C4;
+        _->Layer0=maps:get(gleam_layer,C4,#{}),
+            Layer=case Layer0 of false->#{};_->Layer0 end,
+            Pairs=[{case K of semantic_feedback->feedback;semantic_oracle->oracle;_->K end,V}
+                ||{K,V}<-maps:to_list(maps:with(tl(Keys),O))],
+            C4#{gleam_layer=>maps:merge(Layer,maps:from_list(Pairs))}
+    end,
+    RuntimeKeys=[runtime_enabled,runtime_runs,verification_budget,sample_interval],
+    C6=case maps:with(RuntimeKeys,O) of
+        NoneRuntime when map_size(NoneRuntime)=:=0->C5;
+        _->C5#{runtime_oracles=>runtime_options(O)}
+    end,
+    Out=filename:absname(maps:get(out,O)),Crashes=filename:join(Out,"crashes"),
+    writable_directory(Out),writable_directory(Crashes),
+    try case efz:start(C6#{crash_dir=>Crashes}) of
+        {ok,_}->finish(await_campaign(C6,Out),Out);
+        {error,Why}->fail("Cannot start campaign: ~ts",[start_error(Why)]) end
+    after _=efz:stop() end;
 launch(O) ->
     lists:foreach(fun(K) ->
         case maps:is_key(K, O) of
@@ -123,7 +197,7 @@ launch(O) ->
         {error,local_target_not_found}->fail("target module ~ts could not be loaded; use --code-path for ordinary BEAM files",[maps:get(target,O)]);
         {error,TargetError}->fail("Invalid local target: ~tp",[TargetError]) end,
     Runtime=runtime_options(O),
-    C0 = #{target => Target, runtime_oracles=>Runtime, seeds => Seeds, artifacts => Artifacts,
+    C0 = #{target => Target, runtime_oracles=>Runtime, gleam_layer=>gleam_options(O), seeds => Seeds, artifacts => Artifacts,
            mutation_mode => Mode, timeout => maps:get(timeout, O, 100),
            max_iterations => maps:get(max_iterations, O, 1000)},
     C = C0#{max_input_bytes => Max},
@@ -131,11 +205,35 @@ launch(O) ->
     Crashes = filename:join(Out, "crashes"),
     writable_directory(Out), writable_directory(Crashes),
     try
-        case efz:start(maps:merge(C#{crash_dir => Crashes}, maps:with([corpus_dir,corpus_build_policy,coverage_policy],O))) of
-            {ok, _} -> finish(efz:await(infinity), Out);
+        case efz:start(maps:merge(C#{crash_dir => Crashes}, maps:with([corpus_dir,corpus_build_policy,coverage_policy,coverage_feedback],O))) of
+            {ok, _} -> finish(await_campaign(C,Out), Out);
             {error, Why} -> fail("Cannot start campaign: ~ts", [start_error(Why)])
         end
     after _ = efz:stop() end.
+
+await_campaign(C,Out)->
+    Default=case maps:get(mutation_mode,C,random) of staged->1000;random->infinity end,
+    case maps:get(max_iterations,C,Default) of
+        infinity->await_continuous(Out);
+        _->efz:await(infinity)
+    end.
+await_continuous(Out)->
+    case filelib:is_regular(filename:join(Out,"stop.request")) of
+        true->ok=efz:request_stop(),efz:await(infinity);
+        false->case efz_fuzzer:status() of
+            finished->efz:await(infinity);
+            running->receive after 250->await_continuous(Out) end
+        end
+    end.
+
+gleam_options(O)->
+    Keys=[structured_fraction,semantic_feedback,semantic_oracle,oracle_budget],
+    case maps:get(gleam_enabled,O,false) of
+        false->case maps:with(Keys,O) of M when map_size(M)=:=0->false;
+            _->fail("Semantic options require --gleam-layer",[]) end;
+        true->maps:from_list([{case K of semantic_feedback->feedback;semantic_oracle->oracle;_->K end,V}
+            ||{K,V}<-maps:to_list(maps:with(Keys,O))])
+    end.
 
 add_code_path(Dir) ->
     case code:add_pathz(filename:absname(Dir)) of
@@ -192,6 +290,7 @@ finish(Report, Out) ->
     end,
     case Status of
         completed -> 0;
+        stopped_by_user -> 0;
         {mutation_exhausted, _} -> 0;
         {mutation_stopped, idle_budget_exhausted} -> 0;
         _ -> io:format(standard_error, "EFZ infrastructure failure: ~tp~n", [Status]), 1
@@ -203,6 +302,8 @@ start_error({module_unavailable, Kind, M, Why}) ->
     io_lib:format("~p module ~p could not be loaded (~tp); use --code-path for ordinary BEAM files", [Kind, M, Why]);
 start_error({missing_callback, Kind, M, F, A}) ->
     io_lib:format("~p module ~p must export ~p/~B", [Kind, M, F, A]);
+start_error({gleam_configuration,unsupported_gleam_target}) ->
+    "This target requires an explicit gleam_layer.adapter in --config; the implicit QS adapter is legacy-only";
 start_error(Why) -> io_lib:format("~tp", [Why]).
 require({ok, Value}, _) -> Value;
 require({error, Why}, Context) -> fail("~ts: ~tp", [Context, Why]).

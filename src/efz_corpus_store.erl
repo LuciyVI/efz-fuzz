@@ -4,10 +4,14 @@
 -export([identity/1, restore/3, restore/4, save/4]).
 -define(MAX_META, 67108864).
 
-identity(#{target := M, coverage := Mode, manifests := Ms}) ->
-    #{target => atom_to_binary(M, utf8), callback => {<<"run">>, 1},
+identity(#{target := M, coverage := Mode, manifests := Ms}=C) ->
+    I=#{target => atom_to_binary(M, utf8), callback => {<<"run">>, 1},
       target_md5 => M:module_info(md5), coverage => Mode,
-      builds => efz_recipe:build_ids(maps:from_list([{maps:get(module, X), maps:get(build_id, X)} || X <- Ms]))}.
+      builds => efz_recipe:build_ids(maps:from_list([{maps:get(module, X), maps:get(build_id, X)} || X <- Ms]))},
+    case maps:get(gleam_layer,C,false) of
+        #{adapter_identity:=SI}=P -> case maps:get(legacy_qs,P,false) of
+            true->I;false->I#{semantic_identity=>SI} end;
+        _->I end.
 
 restore(Dir, Identity, Policy) -> restore(Dir, Identity, Policy, efz_input:default_limit()).
 restore(Dir0, Identity, Policy, Max) -> protect(fun() ->
@@ -43,13 +47,26 @@ save(#{dir := Dir, identity := Identity} = Store, Input, QueueId, Meta) -> prote
         error -> none;
         {ok, R} -> need(efz_recipe:encode(R), recipe_encoding)
     end,
-    {Origin, Parent, Discovery} = case maps:get(retention_reason, Meta, initial_seed) of
+    {Origin, Parent, Discovery0} = case maps:get(retention_reason, Meta, initial_seed) of
         initial_seed -> {initial, none, #{new_probes => [], phase => initial}};
         new_coverage ->
             {discovery, #{content_hash => maps:get(parent_content, Meta), queue_id => maps:get(parent, Meta)},
-             #{new_probes => [probe(P) || P <- maps:get(new_probes, Meta)], phase => mutation}}
+             #{new_probes => [probe(P) || P <- maps:get(new_probes, Meta)], phase => mutation}};
+        new_semantic ->
+            {discovery,#{content_hash=>maps:get(parent_content,Meta),queue_id=>maps:get(parent,Meta)},
+             #{new_probes=>[],phase=>mutation}};
+        Reason when Reason=:=new_probe; Reason=:=new_hit_count ->
+            {discovery, #{content_hash=>maps:get(parent_content,Meta),queue_id=>maps:get(parent,Meta)},
+             #{new_probes=>[probe(P)||P<-maps:get(new_probes,Meta)],phase=>mutation,
+               coverage_feedback=>hit_count,retention_reason=>Reason,
+               new_count_features=>[{probe(P),B}||{P,B}<-maps:get(new_count_features,Meta)]}}
     end,
-    Record = #{schema_version => 1, content_hash => Hash, input_size => byte_size(Input),
+    Discovery=case maps:find(semantic,Meta) of
+        {ok,Semantic}->Discovery0#{semantic=>Semantic,retention_reason=>maps:get(retention_reason,Meta)};
+        error->Discovery0 end,
+    Version=case maps:is_key(semantic,Discovery) of
+        true->3;false->case maps:get(coverage_feedback,Discovery,presence) of presence->1;hit_count->2 end end,
+    Record = #{schema_version => Version, content_hash => Hash, input_size => byte_size(Input),
                queue_id => QueueId, origin => Origin, parent => Parent,
                discovery => Discovery, identity => Identity, recipe => Recipe},
     valid_record(Record, Input),
@@ -108,13 +125,22 @@ decode(<<"EFZC", 1, N:32, Hash:32/binary, Payload:N/binary>>, Path) ->
     try
         <<131, Term/binary>> = Payload,
         {<<>>, _} = scan(Term, 0, 1000000),
+        %% Fixed schema atoms for fresh-VM v3 restore; no Gleam module is loaded.
+        {module,efz_semantic}=code:ensure_loaded(efz_semantic),
         binary_to_term(Payload, [safe])
     catch error:_ -> error({invalid_corpus_encoding, Path}) end;
 decode(_, Path) -> error({truncated_or_invalid_corpus_metadata, Path}).
 
+%% The EFZC envelope stays at version 1. Record v2 identifies count provenance;
+%% v1 records and initial seeds retain their exact historical representation.
+valid_record(#{schema_version:=3,origin:=discovery,discovery:=#{semantic:=_}}=R,Input) -> valid_record_data(R,Input);
+valid_record(#{schema_version:=2,origin:=discovery,
+               discovery:=#{coverage_feedback:=hit_count}}=R,Input) -> valid_record_data(R,Input);
+valid_record(#{schema_version:=1}=R,Input) -> valid_record_data(R,Input);
 valid_record(R = #{schema_version := Version}, _) when Version =/= 1 ->
     error({incompatible_corpus_schema, maps:get(schema_version, R)});
-valid_record(R = #{schema_version := 1, content_hash := Hash, input_size := Size,
+valid_record(_, _) -> error(invalid_metadata_shape).
+valid_record_data(R = #{schema_version := Version, content_hash := Hash, input_size := Size,
                   queue_id := Q, origin := Origin, parent := Parent, discovery := Discovery,
                   identity := Identity, recipe := Recipe}, Input) ->
     check(lists:sort(maps:keys(R)) =:= lists:sort([schema_version, content_hash, input_size,
@@ -130,15 +156,41 @@ valid_record(R = #{schema_version := 1, content_hash := Hash, input_size := Size
         {discovery, #{content_hash := PH, queue_id := PQ}, #{new_probes := Ps, phase := mutation}} ->
             check(hash(PH) andalso is_integer(PQ) andalso PQ > 0 andalso map_size(Parent) =:= 2,
                   invalid_parent_provenance),
-            check(is_list(Ps) andalso Ps =/= [] andalso map_size(Discovery) =:= 2, invalid_discovery),
-            lists:foreach(fun valid_probe/1, Ps),
+            valid_discovery(Version,Discovery,Ps),
             valid_recipe(Recipe, Input, PH, PQ, maps:get(builds, Identity));
         _ -> error(invalid_corpus_origin)
     end;
-valid_record(_, _) -> error(invalid_metadata_shape).
+valid_record_data(_, _) -> error(invalid_metadata_shape).
+valid_discovery(1,D,Ps) ->
+    check(is_list(Ps) andalso Ps=/=[] andalso map_size(D)=:=2,invalid_discovery),
+    lists:foreach(fun valid_probe/1,Ps);
+valid_discovery(2,#{coverage_feedback:=hit_count,retention_reason:=Reason,new_count_features:=Fs}=D,Ps) ->
+    check(map_size(D)=:=5 andalso is_list(Ps) andalso is_list(Fs) andalso Fs=/=[],invalid_discovery),
+    lists:foreach(fun valid_probe/1,Ps),
+    lists:foreach(fun({P,B})->valid_probe(P),
+        check(lists:member(B,[1,2,4,8,16,32,64,128]),invalid_count_bucket);
+        (_)->error(invalid_count_feature) end,Fs),
+    check(Fs=:=lists:usort(Fs),invalid_count_features),
+    check((Reason=:=new_hit_count andalso Ps=:=[]) orelse
+          (Reason=:=new_probe andalso Ps=/=[] andalso
+           lists:all(fun(P)->lists:keymember(P,1,Fs) end,Ps)),invalid_count_retention);
+valid_discovery(3,#{semantic:=S,retention_reason:=Reason}=D,Ps) ->
+    Fs=efz_semantic:features(#{semantic=>S}),
+    check(is_list(Ps) andalso (Ps=/=[] orelse Fs=/=[]),invalid_discovery),
+    lists:foreach(fun valid_probe/1,Ps),
+    case maps:get(coverage_feedback,D,presence) of
+        presence ->
+            check(map_size(D)=:=4,invalid_discovery),
+            check(lists:member(Reason,[new_coverage,new_probe,new_semantic]),invalid_semantic_retention),
+            check(Reason=/=new_semantic orelse Ps=:=[],invalid_semantic_retention);
+        hit_count -> valid_discovery(2,maps:remove(semantic,D),Ps);
+        _ -> error(invalid_discovery)
+    end;
+valid_discovery(_,_,_) -> error(invalid_discovery).
 valid_identity(#{target := M, callback := {<<"run">>, 1}, target_md5 := MD5,
                  coverage := Mode, builds := Bs} = I) ->
-    check(map_size(I) =:= 5 andalso is_binary(M) andalso byte_size(M) > 0 andalso
+    check((map_size(I) =:= 5 orelse (map_size(I)=:=6 andalso
+          efz_gleam_adapter:identity_valid(maps:get(semantic_identity,I,#{})))) andalso is_binary(M) andalso byte_size(M) > 0 andalso
           is_binary(MD5) andalso byte_size(MD5) =:= 16 andalso
           lists:member(Mode, [automatic, manual]) andalso is_list(Bs), invalid_target_identity),
     check(lists:all(fun({Name, H}) -> is_binary(Name) andalso byte_size(Name) > 0 andalso hash(H);

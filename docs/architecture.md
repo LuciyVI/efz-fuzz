@@ -119,7 +119,7 @@ campaign. Эти аварийные пути не эквивалентны но�
 | Состояние | Владелец | Представление и lifetime |
 |---|---|---|
 | Active queue и `next` ID | `efz_corpus` | Список maps в состоянии `gen_server`; до остановки campaign |
-| Global coverage | `efz_worker` | `feedback.global`: Erlang `sets` и pinned build map |
+| Global coverage | `efz_worker` | `feedback.global`: exact probe set и pinned builds; opt-in hit-count также хранит `global_features` |
 | Staged cursors / RNG / pending round | `efz_worker` | `mutation_state`, возвращаемый `efz_mutation_plan`; не отдельный процесс |
 | Validation allowlist | `efz_worker` в default prepared mode | Безымянная `protected` ETS `efz_coverage_plan`; исчезает при смерти владельца |
 | Coverage текущего input | Execution guardian | Новая безымянная `public` ETS `efz_execution_coverage`; удаляется после исполнения |
@@ -291,9 +291,14 @@ spawn API и границы автоматических проверок: [exec
 <a id="coverage"></a>
 ## 6. Coverage и принятие решения
 
+Проект перехода на [bitmap backend](coverage-bitmap-architecture.md) описывает
+границы storage, lifecycle и критерии проверки. Сейчас backend не реализован:
+текущие `ets`/`ets_member` и правила `efz_feedback` остаются действующим контрактом.
+
 Метрика — **`clause_outcome_probe`**: custom points в clause/outcome bodies.
-Это не OTP native coverage, не `cover`, не bitmap edge coverage и не hit-count
-buckets. Полная identity автоматического probe:
+Это не OTP native coverage, не `cover` и не bitmap edge coverage. Default feedback
+использует присутствие probes; opt-in `coverage_feedback => hit_count` дополнительно
+учитывает buckets. Полная identity автоматического probe:
 
 ```erlang
 {ModuleAtom, BuildSHA256, ProbeIdInteger}
@@ -324,6 +329,15 @@ Result.builds должен совпасть с pinned FeedbackState.builds.
 Target failure: global coverage не меняется; reason = target_failure.
 Coverage / infrastructure failure: error; worker останавливает campaign.
 ```
+
+В экспериментальном hit-count mode та же guardian-owned ETS содержит
+`{{probe, ProbeIdentity}, Count}`. `ets:update_counter/4` атомарно увеличивает
+счётчик; exact probe set остаётся проекцией ключей. `efz_cov_count` классифицирует
+значения в восемь buckets. `efz_feedback` отдельно вычисляет разность
+`CurrentFeatures − GlobalFeatures`, сохраняя прежнюю формулу `New` для probes.
+Причины retention: `new_probe` либо `new_hit_count`; calibration обновляет оба
+множества, ошибки target — ни одно. Worker передаёт retained input в тот же corpus.
+Default presence сохраняет `new_coverage`. [Контракт и измерения](hit-count-experiment.md).
 
 Нет отдельного coverage collector server и нет общей observation table для
 нескольких inputs. Сериализация одного worker устраняет race «два worker
@@ -524,7 +538,7 @@ lifecycle**. `efz_target:spawn/1` и `spawn_link/1` передают context и 
 | Owned ETS и registrations | Уходят вместе с процессами; escaping resources делают runner dirty |
 | `persistent_term` / application env | Сравнение before/after; изменения запрещают reuse, rollback не выполняется |
 | Запись в существующую внешнюю ETS | Вне модели; нет полной автоматической проверки, требуется explicit dirty declaration / disposable VM |
-| Arbitrary OTP applications, ports/NIF, remote work, filesystem effects | Не изолируются этим backend; следующий backend — disposable Erlang VM |
+| Arbitrary OTP applications, ports/NIF, remote work, filesystem effects | Legacy backend не изолирует их; opt-in P1-01 переносит target/NIF в отдельную BEAM, но не откатывает внешние side effects и не является sandbox |
 | Instrumentation / code loading | Pinned harness/builds; hot replacement и context corruption диагностируются как infrastructure. Подделка EFZ protocol/tracing вне защищаемой модели |
 | Campaign concurrency | Один worker и один execution в VM; второй caller получает runner_busy |
 | Stability | Calibration остаётся одним проходом; recipe determinism не гарантирует target determinism |
@@ -590,3 +604,23 @@ process/ETS metrics in the deadline path. Result `runtime_observations` is separ
 from outcome. `efz_runtime_store` bounds/deduplicates independent artifacts;
 `efz_replay:runtime/4` delegates compatible verification to `efz_runtime_replay`.
 The [diagnostic contract](runtime-diagnostics.md) specifies semantics and bounds.
+
+## P1-01 external supervisor
+
+Linux-only `--supervised` delegates before target lookup or application startup.
+The controller and target worker are different OS processes and address spaces;
+the existing campaign loop, executor and guardian stay inside the worker. The
+first operation of every `efz_executor:run/4` is a PREPARE barrier: the controller
+publishes and fsyncs the exact raw input plus bounded metadata, durably records
+authorization, and only then returns a digest-bound RunId permission. Legacy mode
+uses the same executor API without IPC or journal writes.
+
+The native launcher owns a worker process group, reports authoritative wait status
+and confirmed cleanup, and uses Linux pidfd/PDEATHSIG/subreaping to prevent a hung
+worker from surviving CLI/controller death. Native crash, external hard timeout
+and dirty result finalize the in-flight record, retire the old VM, restore the
+durable corpus and recalibrate it in a new generation. Recovery preserves global
+budgets but intentionally reconstructs worker-local coverage, RNG and staged
+cursors. The fixed bounded protocol, state machine, journal guarantees, replay
+flow, acceptance evidence and platform limits are documented in
+[P1-01 External supervisor](p1-01-external-supervisor.md).

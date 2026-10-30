@@ -1,4 +1,4 @@
-# Reusable durable corpus, schema 1
+# Reusable durable corpus
 
 Persistence is opt-in through `corpus_dir` in the campaign map or `--corpus-dir`
 in the launcher. Without it the existing in-memory campaign path remains in use.
@@ -36,7 +36,7 @@ escript scripts/fuzz.escript \
 CORPUS_DIR/
   <64 lowercase hex SHA-256 of input>/
     input       exact raw binary, including zero-length inputs
-    metadata    checksummed EFZC envelope containing schema-1 metadata
+    metadata    checksummed EFZC envelope containing versioned metadata
   .tmp-<random transaction suffix>/   unpublished transaction, if interrupted
 ```
 
@@ -50,12 +50,12 @@ Metadata contains:
 
 | Field | Meaning |
 |---|---|
-| `schema_version` | `1` |
+| `schema_version` | `1` for initial/presence entries; `2` for hit-count discoveries |
 | `content_hash`, `input_size` | SHA-256 and exact byte length |
 | `queue_id` | Historical source-campaign queue ID |
 | `origin` | `initial` or successful new-coverage `discovery` |
 | `parent` | `none` for initial seeds; parent content SHA-256 and historical queue ID for discoveries |
-| `discovery` | Phase and newly observed probe identities; empty probe list for pre-calibration initial seeds |
+| `discovery` | Phase and newly observed probe identities; v2 also stores `coverage_feedback`, `retention_reason`, `new_count_features` |
 | `identity` | Harness module name, canonical `run/1`, loaded harness code MD5, coverage mode and selected module/build SHA-256 identities |
 | `recipe` | Encoded EFZR recipe when available, otherwise `none` |
 
@@ -65,6 +65,18 @@ historical inspection and are never decoded during restore. Runtime execution
 references, target return values, PIDs, ETS handles and process dictionaries are
 not part of the durable metadata. Recipe RNG seeds and probe deltas are historical
 provenance; neither initializes the new scheduler or its global coverage.
+
+The optional [hit-count mode](hit-count-experiment.md) writes record v2 for
+discoveries: `retention_reason` is `new_probe` or `new_hit_count`, and
+`new_count_features` contains `{PortableProbeIdentity, BucketLowerBound}` pairs.
+Count-only discoveries have an empty `new_probes` list and nonempty feature delta.
+The EFZC envelope version remains 1; readers validate the record version and its
+specific shape. Existing v1 records still load unchanged. Older binaries reject
+v2 entries explicitly; use a separate corpus directory if an older EFZ must read it.
+
+The feedback mode is not part of target/build compatibility: raw inputs are
+reusable in either mode, and every restored input is recalibrated. Historical
+bucket deltas are not imported into the new campaign's global feature set.
 
 An EFZC file contains magic `EFZC`, envelope version 1, a 32-bit payload length,
 a 32-byte SHA-256 of the payload, and uncompressed ETF metadata. Loading checks

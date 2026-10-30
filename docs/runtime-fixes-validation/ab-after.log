@@ -1,0 +1,22 @@
+=INFO REPORT==== 21-Sep-2026::08:40:40.851973 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:40:40.994812 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:40:41.157284 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:40:41.298183 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+AB random before_off_on_equal=true
+AB staged before_off_on_equal=true

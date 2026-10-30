@@ -13,9 +13,11 @@ backend_test_() ->
          {"prepared capability lifetime and empty-snapshot validation", fun()->plan_lifetime(S) end},
          {"two explicitly separate contexts", fun()->contexts(S) end},
          {"caller death releases execution storage", fun()->caller_death(S) end},
-         {"deadline boundary and repeated resource cleanup", fun()->boundary(S) end},
+         %% Four independent variants previously shared one 5s throughput gate.
+         [{"deadline boundary and repeated resource cleanup",fun()->boundary(S,V) end}||V<-variants()],
          {"campaign and application cancellation", fun()->cancel(S) end},
-         {"seeded real and prerecorded corpus decisions", fun()->campaigns(S) end},
+         %% Eight complete campaigns; compare decisions, not host throughput.
+         {"seeded real and prerecorded corpus decisions", {timeout,30,fun()->campaigns(S) end}},
          {"invalid config and missing instrumentation", fun()->preflight(S) end}]
     end}.
 variants() -> [{ets,per_execution},{ets_member,per_execution},{ets,prepared},{ets_member,prepared}].
@@ -185,9 +187,9 @@ caller_death(S)->
         receive {'DOWN',OMon,process,Owner,normal}->ok after 3000->error(owner_leak) end,
         ?assertEqual(Before,tables())
     end).
-boundary(S)->
+boundary(S,V)->
     Before=tables(),
-    with_options(S,fun(O)->
+    O=options(S,V),try
         Expected=canonical(execute({clauses,0},O)),
         lists:foreach(fun(N)->
             R=efz_executor:run(efz_fixture,{clauses,0},N rem 2,O),
@@ -195,7 +197,7 @@ boundary(S)->
             ?assertEqual(ok,maps:get(coverage_status,R)),
             ?assertEqual(Expected,canonical(execute({clauses,0},O)))
         end,lists:seq(1,50))
-    end),?assertEqual(Before,tables()).
+    after release(O) end,?assertEqual(Before,tables()).
 cancel(S)->
     Before=tables(),true=register(efz_backend_observer,self()),
     try lists:foreach(fun({B,V})->lists:foreach(fun(Stop)->

@@ -1,0 +1,8 @@
+name = "efz_semantic"
+version = "1.1.0"
+target = "erlang"
+gleam = "== 1.10.0"
+description = "Bounded query-string model for optional EFZ BEAM callbacks"
+licences = ["Apache-2.0"]
+
+[dependencies]

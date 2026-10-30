@@ -1,0 +1,3 @@
+COMPARE map_keys=2 key_bytes=1025 repeats=100 elapsed_us=31 result=not_comparable
+COMPARE map_keys=2 key_bytes=1048577 repeats=100 elapsed_us=74 result=not_comparable
+COMPARE map_keys=2 key_bytes=16777217 repeats=100 elapsed_us=44 result=not_comparable

@@ -1,0 +1,890 @@
+===> Verifying dependencies...
+===> Analyzing applications...
+===> Compiling efz
+===> Performing EUnit tests...
+======================== EUnit ========================
+file "efz.app"
+  application 'efz'
+    module 'efz'
+    module 'efz_app'
+    module 'efz_cli'
+      module 'efz_cli_tests'
+        efz_cli_tests: -cli_test_/0-fun-22- (help in a fresh VM)...[0.344 s] ok
+        efz_cli_tests: -cli_test_/0-fun-21- (external harness, raw seeds, real automatic campaign)...[0.493 s] ok
+        efz_cli_tests: -cli_test_/0-fun-20- (durable inputs reused by a second launcher VM)...[1.037 s] ok
+        efz_cli_tests: -cli_test_/0-fun-19- (legacy random campaign through the same launcher)...[0.450 s] ok
+        efz_cli_tests: -cli_test_/0-fun-18- (disconnected campaign diagnostic and strict exit in fresh VMs)...[1.251 s] ok
+        efz_cli_tests: -cli_test_/0-fun-17- (missing target module)...[0.409 s] ok
+        efz_cli_tests: -cli_test_/0-fun-16- (canonical run/1 is required)...[0.440 s] ok
+        efz_cli_tests: -cli_test_/0-fun-15- (missing seed directory)...[0.372 s] ok
+        efz_cli_tests: -cli_test_/0-fun-14- (empty corpus directory)...[0.366 s] ok
+        efz_cli_tests: -cli_test_/0-fun-13- (unreadable seed file)...[0.355 s] ok
+        efz_cli_tests: -cli_test_/0-fun-12- (invalid instrumented BEAM)...[0.372 s] ok
+        efz_cli_tests: -cli_test_/0-fun-11- (invalid paired manifest)...[0.438 s] ok
+        efz_cli_tests: -cli_test_/0-fun-10- (missing paired manifest)...[0.366 s] ok
+        efz_cli_tests: -cli_test_/0-fun-9- (missing artifact directory)...[0.407 s] ok
+        efz_cli_tests: -cli_test_/0-fun-8- (unknown and malformed options)...[3.186 s] ok
+        efz_cli_tests: -cli_test_/0-fun-7- (output path must be writable)...[0.357 s] ok
+        efz_cli_tests: -cli_test_/0-fun-6- (zero-byte CLI limit accepts empty files in both modes)...[0.900 s] ok
+        efz_cli_tests: -cli_test_/0-fun-5- (staged input bound is enforced)...[0.364 s] ok
+        efz_cli_tests: -cli_test_/0-fun-4- (random mode cannot silently ignore input bound)...[0.354 s] ok
+        efz_cli_tests: -cli_test_/0-fun-3- (target crash is saved and does not fail the launcher)...[0.479 s] ok
+        efz_cli_tests: -cli_test_/0-fun-2- (timeout is passed to the real executor)...[0.492 s] ok
+        efz_cli_tests: -cli_test_/0-fun-1- (real infrastructure failure gives nonzero exit)...[0.435 s] ok
+        efz_cli_tests: -cli_test_/0-fun-0- (report write failure gives nonzero exit)...[0.458 s] ok
+        [done in 14.194 s]
+      [done in 14.422 s]
+    module 'efz_config'
+      module 'efz_config_tests'
+        efz_config_tests: unknown_keys_test...[0.002 s] ok
+        efz_config_tests: schema_test...[0.003 s] ok
+        efz_config_tests: target_contract_test...[0.004 s] ok
+        efz_config_tests: empty_persistent_test...[0.002 s] ok
+        [done in 0.023 s]
+      [done in 0.023 s]
+    module 'efz_corpus'
+    module 'efz_corpus_store'
+      module 'efz_corpus_store_tests'
+        efz_corpus_store_tests: roundtrip_test...[0.013 s] ok
+        efz_corpus_store_tests: duplicate_test...[0.005 s] ok
+        efz_corpus_store_tests: corrupt_metadata_test...[0.004 s] ok
+        efz_corpus_store_tests: metadata_shape_test...[0.004 s] ok
+        efz_corpus_store_tests: missing_input_test...[0.004 s] ok
+        efz_corpus_store_tests: missing_metadata_test...[0.004 s] ok
+        efz_corpus_store_tests: input_hash_test...[0.004 s] ok
+        efz_corpus_store_tests: content_name_test...[0.004 s] ok
+        efz_corpus_store_tests: truncated_input_test...[0.004 s] ok
+        efz_corpus_store_tests: truncated_metadata_test...[0.004 s] ok
+        efz_corpus_store_tests: schema_test...[0.005 s] ok
+        efz_corpus_store_tests: build_policy_test...[0.004 s] ok
+        efz_corpus_store_tests: interrupted_write_test...[0.008 s] ok
+        efz_corpus_store_tests: failed_write_preserves_queue_test...[0.009 s] ok
+        [done in 0.118 s]
+      [done in 0.118 s]
+    module 'efz_cov'
+    module 'efz_cov_integrity'
+    module 'efz_cov_manifest'
+    module 'efz_cov_rt'
+    module 'efz_crash'
+      module 'efz_crash_tests'
+        efz_crash_tests: -crash_test_/0-fun-11- (different inputs are separate occurrences of one signature)...=INFO REPORT==== 21-Sep-2026::08:31:52.833065 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.071 s] ok
+        efz_crash_tests: -crash_test_/0-fun-10- (reason policy is configurable and runtime identities are normalized)...=INFO REPORT==== 21-Sep-2026::08:31:52.885863 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.028 s] ok
+        efz_crash_tests: -crash_test_/0-fun-9- (same bug after real source relocation has the same signature)...=INFO REPORT==== 21-Sep-2026::08:31:52.903586 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:31:52.940604 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.056 s] ok
+        efz_crash_tests: -crash_test_/0-fun-8- (1000 real staged crashes keep reports and disk bounded)...=INFO REPORT==== 21-Sep-2026::08:32:01.640317 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[8.694 s] ok
+        efz_crash_tests: -crash_test_/0-fun-7- (fresh VM raw and recipe execution verify identities and reproduce)...=INFO REPORT==== 21-Sep-2026::08:32:01.669778 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.828 s] ok
+        efz_crash_tests: -crash_test_/0-fun-6- (raw input survives a missing or corrupt recipe and raw diagnostics)...=INFO REPORT==== 21-Sep-2026::08:32:02.499706 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[1.201 s] ok
+        efz_crash_tests: -crash_test_/0-fun-5- (invalid recipe still persists exact raw input and reports infrastructure)...[0.423 s] ok
+        efz_crash_tests: -crash_test_/0-fun-4- (target build mismatch and harness mismatch reject before execution)...=INFO REPORT==== 21-Sep-2026::08:32:04.131610 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.787 s] ok
+        efz_crash_tests: -crash_test_/0-fun-3- (not reproduced and infrastructure failures use different CLI exits)...=INFO REPORT==== 21-Sep-2026::08:32:04.921020 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[1.204 s] ok
+        efz_crash_tests: -crash_test_/0-fun-2- (missing expectation and corrupted raw bytes reject)...=INFO REPORT==== 21-Sep-2026::08:32:06.127677 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[1.890 s] ok
+        efz_crash_tests: -crash_test_/0-fun-1- (real coordinator death remains primary despite a disposed plan)...[0.005 s] ok
+        efz_crash_tests: -crash_test_/0-fun-0- (worker death reports infrastructure count and triggering bytes)...=SUPERVISOR REPORT==== 21-Sep-2026::08:32:08.007353 ===
+    supervisor: {local,efz_worker_sup}
+    errorContext: child_terminated
+    reason: killed
+    offender: [{pid,<0.3429.0>},
+               {id,efz_worker},
+               {mfargs,
+                {efz_worker,start_link,
+                 [#{timeout => 3000,workers => 1,
+                    artifacts =>
+                     [#{module => efz_crash_target,
+                        beam =>
+                         "/tmp/efz-acceptance-20260921/baseline/_build/crash-test-c778c4826f90/instrumented/efz_crash_target.beam",
+                        warnings => [],
+                        manifest =>
+                         "/tmp/efz-acceptance-20260921/baseline/_build/crash-test-c778c4826f90/instrumented/efz_crash_target.efz-manifest",
+                        build_id =>
+                         <<4,50,128,75,215,193,218,165,208,148,163,82,196,24,
+                           115,18,249,45,11,38,229,128,68,177,45,161,47,82,
+                           243,255,63,72>>}],
+                    coverage => automatic,target => efz_crash_harness,
+                    seeds => [<<"WAIT">>],
+                    mutation_mode => random,max_iterations => 0,
+                    max_input_bytes => 4096,coverage_policy => diagnostic,
+                    crash_dir =>
+                     "/tmp/efz-acceptance-20260921/baseline/_build/crash-test-c778c4826f90/worker-down",
+                    execution_identities =>
+                     #{modules =>
+                        #{efz_crash_target =>
+                           #{compile =>
+                              [{version,"8.5"},
+                               {options,
+                                [{error_location,column},
+                                 {parse_transform,efz_instrument_pt},
+                                 {efz_modules,[efz_crash_target]},
+                                 {efz_source_root,
+                                  "/tmp/efz-acceptance-20260921/baseline/."},
+                                 {efz_identity_options,[]},
+                                 {efz_strict,true}]},
+                               {source,
+                                "/tmp/efz-acceptance-20260921/baseline/fixtures/efz_crash_target.erl"}],
+                             module => efz_crash_target,
+                             build_id =>
+                              <<4,50,128,75,215,193,218,165,208,148,163,82,196,
+                                24,115,18,249,45,11,38,229,128,68,177,45,161,
+                                47,82,243,255,63,72>>,
+                             attributes_sha256 =>
+                              <<58,124,79,166,58,218,136,240,73,213,24,240,69,
+                                134,112,82,220,244,132,199,119,39,171,179,101,
+                                73,192,73,203,69,198,30>>,
+                             beam_md5 =>
+                              <<220,105,177,236,197,92,31,231,193,44,220,139,
+                                43,153,225,141>>}},
+                       harness =>
+                        #{compile =>
+                           [{version,"8.5"},
+                            {options,[debug_info]},
+                            {source,
+                             "/tmp/efz-acceptance-20260921/baseline/fixtures/efz_crash_harness.erl"}],
+                          module => efz_crash_harness,build_id => undefined,
+                          attributes_sha256 =>
+                           <<84,65,46,28,106,116,188,97,139,123,157,155,41,208,
+                             215,193,150,37,35,125,184,61,95,172,108,34,79,159,
+                             97,64,76,21>>,
+                          beam_md5 =>
+                           <<37,40,127,15,202,30,12,169,12,147,94,61,118,231,
+                             132,3>>}},
+                    crash_policy =>
+                     #{reason => category,max_representatives => 3,
+                       max_frames => 5},
+                    coverage_backend => ets,coverage_validation => prepared,
+                    mutator => efz_mutator_random,
+                    manifests =>
+                     [#{module => efz_crash_target,
+                        build_id =>
+                         <<4,50,128,75,215,193,218,165,208,148,163,82,196,24,
+                           115,18,249,45,11,38,229,128,68,177,45,161,47,82,243,
+                           255,63,72>>,
+                        probes =>
+                         [#{arity => 1,function => parse,line => 8,
+                            column => 1,kind => function_clause,
+                            source_file => "fixtures/efz_crash_target.erl",
+                            structural_location => [{function,parse,1},1],
+                            probe_id => 1},
+                          #{arity => 1,function => parse,line => 9,
+                            column => 1,kind => function_clause,
+                            source_file => "fixtures/efz_crash_target.erl",
+                            structural_location => [{function,parse,1},2],
+                            probe_id => 2},
+                          #{arity => 1,function => parse,line => 10,
+                            column => 56,kind => receive_clause,
+                            source_file => "fixtures/efz_crash_target.erl",
+                            structural_location =>
+                             [{function,parse,1},2,body,2,receive_clauses,1],
+                            probe_id => 3},
+                          #{arity => 1,function => parse,line => 11,
+                            column => 1,kind => function_clause,
+                            source_file => "fixtures/efz_crash_target.erl",
+                            structural_location => [{function,parse,1},3],
+                            probe_id => 4}],
+                        instrumentation_version => 1,limitations => [],
+                        metric => clause_outcome_probe,schema_version => 1,
+                        toolchain =>
+                         #{otp => "27",
+                           compiler =>
+                            <<110,69,143,245,161,128,1,158,11,122,57,46,63,
+                              79,67,189>>}}],
+                    coordinator => <0.3425.0>}]}},
+               {restart_type,temporary},
+               {significant,false},
+               {shutdown,5000},
+               {child_type,worker}]
+
+=INFO REPORT==== 21-Sep-2026::08:32:08.012348 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.008 s] ok
+        efz_crash_tests: stats_primary (secondary failures cannot replace primary stats reason)...ok
+        [done in 15.234 s]
+      [done in 15.322 s]
+    module 'efz_crash_store'
+    module 'efz_dictionary'
+    module 'efz_example_parser'
+    module 'efz_example_target'
+    module 'efz_executor'
+      module 'efz_executor_tests'
+        efz_executor_tests:3: -executor_test_/0-fun-7-...[0.005 s] ok
+        efz_executor_tests:3: -executor_test_/0-fun-5-...[0.003 s] ok
+        efz_executor_tests:3: -executor_test_/0-fun-3-...[0.004 s] ok
+        efz_executor_tests:3: -executor_test_/0-fun-1-...[0.014 s] ok
+        [done in 0.038 s]
+      [done in 0.038 s]
+    module 'efz_feedback'
+    module 'efz_fs'
+    module 'efz_fuzzer'
+    module 'efz_guardian'
+    module 'efz_input'
+    module 'efz_instrument'
+    module 'efz_instrument_pt'
+    module 'efz_mutation'
+      module 'efz_mutation_tests'
+        efz_mutation_tests: operators_test...ok
+        efz_mutation_tests: limits_test...ok
+        efz_mutation_tests: bit_model_test...[0.024 s] ok
+        efz_mutation_tests: block_model_test...[0.003 s] ok
+        efz_mutation_tests: boundaries_test...ok
+        efz_mutation_tests: dictionary_test...[0.004 s] ok
+        efz_mutation_tests: configuration_test...ok
+        efz_mutation_tests: enumeration_test...ok
+        efz_mutation_tests: fairness_test...ok
+        efz_mutation_tests: finite_test...ok
+        efz_mutation_tests: idle_256_seeds_test...[0.001 s] ok
+        efz_mutation_tests: unproductive_lane_test...ok
+        efz_mutation_tests: deterministic_progress_test...ok
+        efz_mutation_tests: empty_deterministic_space_test...ok
+        efz_mutation_tests: idle_guard_test...ok
+        efz_mutation_tests: productive_random_lane_test...ok
+        efz_mutation_tests: idle_growth_test...ok
+        efz_mutation_tests: mixed_exhaustion_test...ok
+        efz_mutation_tests: exhausted_growth_test...ok
+        efz_mutation_tests: random_state_test...[0.003 s] ok
+        efz_mutation_tests: noop_stack_test...ok
+        efz_mutation_tests: growing_corpus_test...ok
+        efz_mutation_tests: duplicate_donors_test...ok
+        efz_mutation_tests: internal_selection_test...[0.002 s] ok
+        [done in 0.109 s]
+      [done in 0.109 s]
+    module 'efz_mutation_plan'
+    module 'efz_mutator'
+      module 'efz_mutator_tests'
+        efz_mutator_tests: mutator_test...ok
+        efz_mutator_tests: empty_test...ok
+        [done in 0.006 s]
+      [done in 0.006 s]
+    module 'efz_mutator_random'
+    module 'efz_recipe'
+      module 'efz_recipe_tests'
+        efz_recipe_tests: all_operations_test...[0.026 s] ok
+        efz_recipe_tests: negative_test...ok
+        efz_recipe_tests: fresh_vm_test...[0.382 s] ok
+        efz_recipe_tests: fresh_vm_limit_test...[0.765 s] ok
+        [done in 1.185 s]
+      [done in 1.185 s]
+    module 'efz_replay'
+    module 'efz_replay_cli'
+    module 'efz_stats'
+    module 'efz_sup'
+    module 'efz_target'
+    module 'efz_worker'
+    module 'efz_worker_sup'
+    [done in 31.386 s]
+  [done in 31.387 s]
+module 'efz_backend_tests'
+  efz_backend_tests: -backend_test_/0-fun-12- (canonical outcomes, exact probes and novelty)...[0.512 s] ok
+  efz_backend_tests: -backend_test_/0-fun-11- (published coverage survives external kill)...[0.022 s] ok
+  efz_backend_tests: -backend_test_/0-fun-10- (published coverage survives timeout)...[4.039 s] ok
+  efz_backend_tests: -backend_test_/0-fun-9- (kill while repeatedly publishing probes)...[0.239 s] ok
+  efz_backend_tests: -backend_test_/0-fun-8- (broken backend cannot hide behind repeated observations)...[0.064 s] ok
+  efz_backend_tests: -backend_test_/0-fun-7- (invalid or mismatched validation plans)...[0.011 s] ok
+  efz_backend_tests: -backend_test_/0-fun-6- (prepared capability lifetime and empty-snapshot validation)...[0.089 s] ok
+  efz_backend_tests: -backend_test_/0-fun-5- (two explicitly separate contexts)...[0.010 s] ok
+  efz_backend_tests: -backend_test_/0-fun-4- (caller death releases execution storage)...[0.027 s] ok
+  efz_backend_tests: -backend_test_/0-fun-3- (deadline boundary and repeated resource cleanup)...[2.480 s] ok
+  efz_backend_tests: -backend_test_/0-fun-2- (campaign and application cancellation)...=INFO REPORT==== 21-Sep-2026::08:32:17.217175 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:32:17.228279 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:32:17.238247 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:32:17.247721 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:32:17.258507 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:32:17.271027 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:32:17.279457 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:32:17.286653 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.077 s] ok
+  efz_backend_tests: -backend_test_/0-fun-1- (seeded real and prerecorded corpus decisions)...=INFO REPORT==== 21-Sep-2026::08:32:17.340830 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:32:17.382915 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:32:17.424060 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:32:17.467824 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:32:18.454720 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:32:19.483553 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:32:20.479441 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:32:21.474280 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[4.183 s] ok
+  efz_backend_tests: -backend_test_/0-fun-0- (invalid config and missing instrumentation)...[0.001 s] ok
+=INFO REPORT==== 21-Sep-2026::08:32:21.481791 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+  [done in 11.796 s]
+module 'efz_coverage_SUITE'
+module 'efz_crash_retention_tests'
+  efz_crash_retention_tests: -retention_test_/0-fun-5- (disk cap, duplicates, exact representative Reason and counter)...[0.040 s] ok
+  efz_crash_retention_tests: -retention_test_/0-fun-4- (disk policy survives a fresh VM and campaign restart)...=INFO REPORT==== 21-Sep-2026::08:32:21.596035 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.371 s] ok
+  efz_crash_retention_tests: -retention_test_/0-fun-3- (corrupt summary or representative cannot reset the cap)...[0.030 s] ok
+  efz_crash_retention_tests: -retention_test_/0-fun-2- (summary commit failure preserves the committed raw artifact)...[0.007 s] ok
+  efz_crash_retention_tests: -retention_test_/0-fun-1- (interrupted and concurrent writers fail closed)...[0.008 s] ok
+  efz_crash_retention_tests: -retention_test_/0-fun-0- (late guardian death preserves primary result, report, stats and retirement)...[0.598 s] ok
+  [done in 1.072 s]
+module 'efz_durable_tests'
+  efz_durable_tests: durable (saved successful inputs become parents in a new VM)...[2.328 s] ok
+  [done in 2.331 s]
+module 'efz_feedback_loop_tests'
+  efz_feedback_loop_tests: feedback_loop (discovered inputs become mutation parents and replay in a fresh VM)...=INFO REPORT==== 21-Sep-2026::08:32:25.119894 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.479 s] ok
+  [done in 0.483 s]
+module 'efz_integrity_tests'
+  efz_integrity_tests: -integrity_test_/0-fun-21- (normal automatic probes and pinned harness/build identities)...[0.004 s] ok
+  efz_integrity_tests: -integrity_test_/0-fun-20- (valid zero hits from a real unmatched instrumented clause)...[0.004 s] ok
+  efz_integrity_tests: -integrity_test_/0-fun-19- (disconnected harness is diagnostic, strict campaign fails closed)...=WARNING REPORT==== 21-Sep-2026::08:32:25.547571 ===
+EFZ automatic coverage: calibration emitted no probes; mutation will continue. #{status =>
+                                                                                     no_probes_observed,
+                                                                                 unused_artifacts =>
+                                                                                     [#{module =>
+                                                                                            efz_integrity_target,
+                                                                                        build_id =>
+                                                                                            <<21,179,
+                                                                                              78,171,
+                                                                                              210,112,
+                                                                                              101,151,
+                                                                                              172,252,
+                                                                                              235,223,
+                                                                                              2,184,
+                                                                                              212,51,
+                                                                                              38,141,
+                                                                                              221,209,
+                                                                                              30,145,
+                                                                                              5,249,
+                                                                                              65,111,
+                                                                                              38,253,
+                                                                                              83,76,
+                                                                                              207,179>>}],
+                                                                                 broken_observations =>
+                                                                                     0,
+                                                                                 empty_executions =>
+                                                                                     1,
+                                                                                 observed_modules =>
+                                                                                     [],
+                                                                                 policy =>
+                                                                                     diagnostic,
+                                                                                 unstarted_executions =>
+                                                                                     0}
+=INFO REPORT==== 21-Sep-2026::08:32:25.550470 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=WARNING REPORT==== 21-Sep-2026::08:32:25.556140 ===
+EFZ automatic coverage: calibration emitted no probes; mutation will continue. #{status =>
+                                                                                     no_probes_observed,
+                                                                                 unused_artifacts =>
+                                                                                     [#{module =>
+                                                                                            efz_integrity_target,
+                                                                                        build_id =>
+                                                                                            <<21,179,
+                                                                                              78,171,
+                                                                                              210,112,
+                                                                                              101,151,
+                                                                                              172,252,
+                                                                                              235,223,
+                                                                                              2,184,
+                                                                                              212,51,
+                                                                                              38,141,
+                                                                                              221,209,
+                                                                                              30,145,
+                                                                                              5,249,
+                                                                                              65,111,
+                                                                                              38,253,
+                                                                                              83,76,
+                                                                                              207,179>>}],
+                                                                                 broken_observations =>
+                                                                                     0,
+                                                                                 empty_executions =>
+                                                                                     1,
+                                                                                 observed_modules =>
+                                                                                     [],
+                                                                                 policy =>
+                                                                                     strict,
+                                                                                 unstarted_executions =>
+                                                                                     0}
+=INFO REPORT==== 21-Sep-2026::08:32:25.558300 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.015 s] ok
+  efz_integrity_tests: -integrity_test_/0-fun-18- (unused selected artifact is reported separately)...=INFO REPORT==== 21-Sep-2026::08:32:25.570014 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.011 s] ok
+  efz_integrity_tests: -integrity_test_/0-fun-17- (crashing execution with probes is not a disconnected campaign)...=INFO REPORT==== 21-Sep-2026::08:32:25.594334 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.019 s] ok
+  efz_integrity_tests: -integrity_test_/0-fun-16- (strict mode waits through zero-hit calibration for real staged discovery)...=WARNING REPORT==== 21-Sep-2026::08:32:25.602304 ===
+EFZ automatic coverage: calibration emitted no probes; mutation will continue. #{status =>
+                                                                                     no_probes_observed,
+                                                                                 unused_artifacts =>
+                                                                                     [#{module =>
+                                                                                            efz_integrity_target,
+                                                                                        build_id =>
+                                                                                            <<21,179,
+                                                                                              78,171,
+                                                                                              210,112,
+                                                                                              101,151,
+                                                                                              172,252,
+                                                                                              235,223,
+                                                                                              2,184,
+                                                                                              212,51,
+                                                                                              38,141,
+                                                                                              221,209,
+                                                                                              30,145,
+                                                                                              5,249,
+                                                                                              65,111,
+                                                                                              38,253,
+                                                                                              83,76,
+                                                                                              207,179>>}],
+                                                                                 broken_observations =>
+                                                                                     0,
+                                                                                 empty_executions =>
+                                                                                     1,
+                                                                                 observed_modules =>
+                                                                                     [],
+                                                                                 policy =>
+                                                                                     strict,
+                                                                                 unstarted_executions =>
+                                                                                     0}
+=INFO REPORT==== 21-Sep-2026::08:32:25.608381 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.011 s] ok
+  efz_integrity_tests: -integrity_test_/0-fun-15- (erased, malformed, detached and restored dictionaries cannot hide)...[0.047 s] ok
+  efz_integrity_tests: -integrity_test_/0-fun-14- (caught hook exceptions remain infrastructure failures)...=INFO REPORT==== 21-Sep-2026::08:32:25.676207 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.015 s] ok
+  efz_integrity_tests: -integrity_test_/0-fun-13- (lost ETS observations are independent of attached context)...[0.003 s] ok
+  efz_integrity_tests: -integrity_test_/0-fun-12- (controlled child context failure invalidates the execution)...[0.003 s] ok
+  efz_integrity_tests: -integrity_test_/0-fun-11- (erase followed by kill still fails integrity)...[0.003 s] ok
+  efz_integrity_tests: -integrity_test_/0-fun-10- (plain hot reload before execution is rejected)...[0.006 s] ok
+  efz_integrity_tests: -integrity_test_/0-fun-9- (different instrumented build before execution is rejected)...[0.005 s] ok
+  efz_integrity_tests: -integrity_test_/0-fun-8- (harness identity is independently pinned)...[0.006 s] ok
+  efz_integrity_tests: -integrity_test_/0-fun-7- (prepared plan keeps the original loaded BEAM identity)...[0.007 s] ok
+  efz_integrity_tests: -integrity_test_/0-fun-6- (preflight rejects changed code even with a copied original manifest)...[0.006 s] ok
+  efz_integrity_tests: -integrity_test_/0-fun-5- (plain hot reload during execution is detected)...[0.016 s] ok
+  efz_integrity_tests: -integrity_test_/0-fun-4- (different build during execution is detected)...[0.011 s] ok
+  efz_integrity_tests: -integrity_test_/0-fun-3- (harness hot reload during execution is detected)...[0.011 s] ok
+  efz_integrity_tests: -integrity_test_/0-fun-2- (transient plain replacement followed by original build is detected)...[0.018 s] ok
+  efz_integrity_tests: -integrity_test_/0-fun-1- (atomic load prepared before execution is detected)...[0.018 s] ok
+  efz_integrity_tests: -integrity_test_/0-fun-0- (transient direct ERTS commit cannot evade the code-server guard)...[0.016 s] ok
+  [done in 0.324 s]
+module 'efz_isolation_tests'
+  efz_isolation_tests: -isolation_test_/0-fun-15- (normal root)...[0.006 s] ok
+  efz_isolation_tests: -isolation_test_/0-fun-14- (crashed root)...[0.005 s] ok
+  efz_isolation_tests: -isolation_test_/0-fun-12- (root timeout)...[0.037 s] ok
+  efz_isolation_tests: -isolation_test_/0-fun-11- (root traps exit but kill still terminates)...[0.037 s] ok
+  efz_isolation_tests: -isolation_test_/0-fun-10- (linked child with trap_exit is reaped)...[0.006 s] ok
+  efz_isolation_tests: -isolation_test_/0-fun-9- (unlinked child is reaped)...[0.005 s] ok
+  efz_isolation_tests: -isolation_test_/0-fun-8- (nested descendants share exact coverage context)...[0.005 s] ok
+  efz_isolation_tests: -isolation_test_/0-fun-7- (caller killed: guardian survives and drains DOWN)...[0.006 s] ok
+  efz_isolation_tests: -isolation_test_/0-fun-6- (campaign and application cancellation reap descendants)...=INFO REPORT==== 21-Sep-2026::08:32:26.066526 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:32:26.076149 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.018 s] ok
+  efz_isolation_tests: -isolation_test_/0-fun-5- (coordinator killed: result waits for guardian cleanup)...[0.005 s] ok
+  efz_isolation_tests: -isolation_test_/0-fun-4- (descendants created during timeout are reaped)...[0.368 s] ok
+  efz_isolation_tests: -isolation_test_/0-fun-2- (owned ETS, registered names, dictionary and mailbox do not leak)...[0.018 s] ok
+  efz_isolation_tests: -isolation_test_/0-fun-1- (dirty VM policies and ordinary spawn rejection)...[2.851 s] ok
+  [done in 3.408 s]
+module 'efz_limits_tests'
+  efz_limits_tests: -limits_test_/0-fun-14- (campaign schema and seed boundaries)...[0.002 s] ok
+  efz_limits_tests: -limits_test_/0-fun-13- (explicit campaign limit above default reaches every boundary)...=INFO REPORT==== 21-Sep-2026::08:32:29.396716 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:32:29.403649 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.068 s] ok
+  efz_limits_tests: -limits_test_/0-fun-12- (real random mutator honors zero and full inputs)...=INFO REPORT==== 21-Sep-2026::08:32:31.054576 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:32:32.607347 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[3.159 s] ok
+  efz_limits_tests: -limits_test_/0-fun-11- (staged limit and recipe are derived from campaign)...=INFO REPORT==== 21-Sep-2026::08:32:32.615892 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:32:32.629079 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.019 s] ok
+  efz_limits_tests: -limits_test_/0-fun-10- (oversized random callback cannot reach target)...=INFO REPORT==== 21-Sep-2026::08:32:32.639357 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.007 s] ok
+  efz_limits_tests: -limits_test_/0-fun-9- (restored inputs and active corpus obey campaign limit)...=INFO REPORT==== 21-Sep-2026::08:32:32.667755 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:32:32.683990 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:32:32.697097 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.056 s] ok
+  efz_limits_tests: -limits_test_/0-fun-8- (raw replay and recipe boundaries)...[0.032 s] ok
+  efz_limits_tests: -limits_test_/0-fun-7- (executor refuses oversized campaign inputs)...ok
+  efz_limits_tests: -limits_test_/0-fun-6- (crash persistence boundaries)...[0.024 s] ok
+  efz_limits_tests: -limits_test_/0-fun-5- (storage failure preserves exact input and primary reason)...=INFO REPORT==== 21-Sep-2026::08:32:32.779881 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.014 s] ok
+  efz_limits_tests: -limits_test_/0-fun-4- (permission denied is a structured infrastructure result)...=INFO REPORT==== 21-Sep-2026::08:32:32.798698 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.016 s] ok
+  efz_limits_tests: -limits_test_/0-fun-3- (missing parent is created and artifact group is immutable)...[0.014 s] ok
+  efz_limits_tests: -limits_test_/0-fun-2- (failure after first file rolls back unpublished group)...[0.002 s] ok
+  efz_limits_tests: -limits_test_/0-fun-1- (partial committed group is rejected without overwriting)...[0.009 s] ok
+  efz_limits_tests: -limits_test_/0-fun-0- (interrupted staging never becomes a committed crash)...[0.019 s] ok
+  [done in 3.487 s]
+module 'efz_phase2_tests'
+  efz_phase2_tests: -phase2_test_/0-fun-13- (plain and instrumented semantics)...[0.189 s] ok
+  efz_phase2_tests: -phase2_test_/0-fun-12- (all required probe kinds and same-line clauses)...[0.031 s] ok
+  efz_phase2_tests: -phase2_test_/0-fun-11- (repeatability, empty contexts, inactive runtime)...[0.029 s] ok
+  efz_phase2_tests: -phase2_test_/0-fun-10- (separate processes and contexts)...[0.012 s] ok
+  efz_phase2_tests: -phase2_test_/0-fun-9- (exceptions retain coverage)...[0.020 s] ok
+  efz_phase2_tests: -phase2_test_/0-fun-8- (external kill retains coverage)...[0.005 s] ok
+  efz_phase2_tests: -phase2_test_/0-fun-7- (timeout retains coverage)...[1.009 s] ok
+  efz_phase2_tests: -phase2_test_/0-fun-6- (completion deadline boundary and resource lifetime)...[0.710 s] ok
+  efz_phase2_tests: -phase2_test_/0-fun-5- (owner death cleans target and table)...[0.006 s] ok
+  efz_phase2_tests: -phase2_test_/0-fun-4- (caught backend failure is infrastructure failure)...[0.006 s] ok
+  efz_phase2_tests: -phase2_test_/0-fun-3- (build reproducibility and changed code)...[0.398 s] ok
+  efz_phase2_tests: -phase2_test_/0-fun-2- (build mismatch and uninstrumented preflight)...[0.136 s] ok
+  efz_phase2_tests: sidecar_encoding (sidecar map ordering and preflight in a fresh VM)...[0.227 s] ok
+  efz_phase2_tests: -phase2_test_/0-fun-1- (tail position preserved)...[0.020 s] ok
+  efz_phase2_tests: skipped (skipped syntax, strict mode, unknown AST, double transform)...EFZ incomplete instrumentation efz_skipped: [#{line => 4,
+                                               reason =>
+                                                   preserved_without_internal_probes,
+                                               source_file =>
+                                                   "fixtures/efz_skipped.erl",
+                                               construct => lc,
+                                               structural_location =>
+                                                   [{function,run,1},
+                                                    1,body,1]},
+                                             #{line => 5,
+                                               reason =>
+                                                   preserved_without_internal_probes,
+                                               source_file =>
+                                                   "fixtures/efz_skipped.erl",
+                                               construct => bc,
+                                               structural_location =>
+                                                   [{function,run,1},
+                                                    2,body,1]},
+                                             #{line => 6,
+                                               reason =>
+                                                   preserved_without_internal_probes,
+                                               source_file =>
+                                                   "fixtures/efz_skipped.erl",
+                                               construct => mc,
+                                               structural_location =>
+                                                   [{function,run,1},
+                                                    3,body,1]},
+                                             #{line => 7,
+                                               reason =>
+                                                   preserved_without_internal_probes,
+                                               source_file =>
+                                                   "fixtures/efz_skipped.erl",
+                                               construct => 'maybe',
+                                               structural_location =>
+                                                   [{function,run,1},
+                                                    4,body,1]}]
+EFZ incomplete instrumentation efz_record_default: [#{line => 3,
+                                                      reason =>
+                                                          preserved_without_internal_probes,
+                                                      source_file =>
+                                                          "fixtures/efz_record_default.erl",
+                                                      construct =>
+                                                          record_default,
+                                                      structural_location =>
+                                                          [{record,r}]}]
+[0.094 s] ok
+  efz_phase2_tests: build_options (build facade safety and option handling)...[0.052 s] ok
+  efz_phase2_tests: campaign (automatic campaign decisions and crash continuation)...=INFO REPORT==== 21-Sep-2026::08:32:36.329574 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.063 s] ok
+  efz_phase2_tests: -phase2_test_/0-fun-0- (cancellation and restart)...=INFO REPORT==== 21-Sep-2026::08:32:36.342980 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:32:36.350246 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:32:36.358587 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:32:36.363561 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:32:36.370698 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.042 s] ok
+  [done in 3.106 s]
+module 'efz_phase3_tests'
+  efz_phase3_tests: -phase3_test_/0-fun-6- (real deterministic operator discoveries and crash continuation)...=INFO REPORT==== 21-Sep-2026::08:32:37.481221 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[1.074 s] ok
+  efz_phase3_tests: -phase3_test_/0-fun-5- (bounded trace does not change mutation choices)...=INFO REPORT==== 21-Sep-2026::08:32:37.826357 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:32:38.149121 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:32:38.444675 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+=INFO REPORT==== 21-Sep-2026::08:32:38.728832 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[1.244 s] ok
+  efz_phase3_tests: -phase3_test_/0-fun-4- (fresh VM regeneration and actual crash replay)...[0.293 s] ok
+  efz_phase3_tests: -phase3_test_/0-fun-3- (replay rejects incompatible builds and disposed plan options)...[0.015 s] ok
+  efz_phase3_tests: exhaustion (no candidate is not a target execution)...=INFO REPORT==== 21-Sep-2026::08:32:39.053959 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.008 s] ok
+  efz_phase3_tests: -phase3_test_/0-fun-2- (256 seeds reach productive bitflip after an unavailable dictionary lane)...=INFO REPORT==== 21-Sep-2026::08:32:41.568136 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[2.516 s] ok
+  efz_phase3_tests: -phase3_test_/0-fun-1- (finite deterministic exhaustion differs from the idle guard)...=INFO REPORT==== 21-Sep-2026::08:33:06.579852 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+*failed*
+in function gen_server:call/3 (gen_server.erl, line 1126)
+in call from efz_phase3_tests:run_campaign/2 (/tmp/efz-acceptance-20260921/baseline/test/efz_phase3_tests.erl, line 29)
+in call from efz_phase3_tests:scheduler_exhaustion/1 (/tmp/efz-acceptance-20260921/baseline/test/efz_phase3_tests.erl, line 115)
+in call from eunit_test:run_testfun/1 (eunit_test.erl, line 72)
+in call from eunit_proc:run_test/1 (eunit_proc.erl, line 544)
+in call from eunit_proc:with_timeout/3 (eunit_proc.erl, line 369)
+in call from eunit_proc:handle_test/2 (eunit_proc.erl, line 527)
+in call from eunit_proc:tests_inorder/3 (eunit_proc.erl, line 469)
+**exit:{timeout,{gen_server,call,[efz_fuzzer,await,25000]}}
+  output:<<"">>
+
+  efz_phase3_tests: -phase3_test_/0-fun-0- (mutator exceptions are infrastructure failures)...=INFO REPORT==== 21-Sep-2026::08:33:06.585174 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+[0.002 s] ok
+  [done in 30.180 s]
+module 'efz_scripted_mutator'
+efz_smoke_tests: smoke_test (module 'efz_smoke_tests')...=INFO REPORT==== 21-Sep-2026::08:33:06.595910 ===
+    application: efz
+    exited: stopped
+    type: temporary
+
+*failed*
+in function efz_smoke_tests:smoke_test/0 (/tmp/efz-acceptance-20260921/baseline/test/efz_smoke_tests.erl, line 9)
+in call from eunit_test:'-mf_wrapper/2-fun-0-'/2 (eunit_test.erl, line 274)
+in call from eunit_test:run_testfun/1 (eunit_test.erl, line 72)
+in call from eunit_proc:run_test/1 (eunit_proc.erl, line 544)
+in call from eunit_proc:with_timeout/3 (eunit_proc.erl, line 369)
+in call from eunit_proc:handle_test/2 (eunit_proc.erl, line 527)
+in call from eunit_proc:tests_inorder/3 (eunit_proc.erl, line 469)
+in call from eunit_proc:with_timeout/3 (eunit_proc.erl, line 359)
+**error:{assertEqual,[{module,efz_smoke_tests},
+              {line,9},
+              {expression,"maps : get ( executions , maps : get ( stats , Report ) )"},
+              {expected,10},
+              {value,0}]}
+  output:<<"">>
+
+=======================================================
+  Failed: 2.  Skipped: 0.  Passed: 184.
+===> Error running tests

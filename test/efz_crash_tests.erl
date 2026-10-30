@@ -11,7 +11,9 @@ crash_test_()->{setup,fun setup/0,fun cleanup/1,fun(S)->[
     {"invalid recipe still persists exact raw input and reports infrastructure",fun()->bad_recipe(S) end},
     {"target build mismatch and harness mismatch reject before execution",fun()->mismatch(S) end},
     {"not reproduced and infrastructure failures use different CLI exits",fun()->classifications(S) end},
-    {"missing expectation and corrupted raw bytes reject",fun()->corruption(S) end},
+    %% Three fresh VM invocations each have a 5s deadline; the group must
+    %% permit all three while retaining the individual process deadlines.
+    {"missing expectation and corrupted raw bytes reject",{timeout,20,fun()->corruption(S) end}},
     {"real coordinator death remains primary despite a disposed plan",fun()->coordinator_down(S) end},
     {"worker death reports infrastructure count and triggering bytes",fun()->worker_down(S) end},
     {"secondary failures cannot replace primary stats reason",fun stats_primary/0}

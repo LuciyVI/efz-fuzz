@@ -1,0 +1,26 @@
+#{timeout => 1000,artifacts => [],coverage_backend => none,
+  mutation_mode => staged,
+  mutation => #{seed => {17,23,41},stages => [havoc]},
+  random_seed => {17,23,41},
+  selection_seed => {29,31,37},
+  max_input_bytes => 4096,max_iterations => 100,
+  target => efz_term_tuple_target,
+  seeds =>
+      [<<69,70,90,84,1,0,2,7,0,1,8,0,0,2,0,0,0,0,0,0,0,9,6,0,2,8,0,0,2,0,0,0,
+         0,0,0,0,4>>],
+  gleam_layer =>
+      #{adapter => efz_term_api_adapter,
+        adapter_options =>
+            #{arguments =>
+                  [#{value => #{kind => integer},
+                     key => #{values => [a,b],kind => atom},
+                     kind => map},
+                   #{items =>
+                         [#{values => [a,b],kind => atom},#{kind => integer}],
+                     kind => tuple}],
+              entrypoint => {efz_term_tuple_library,combine,2}},
+        structured_fraction => 10,feedback => guided,oracle => disabled,
+        oracle_budget => 64,
+        limits =>
+            #{nodes => 128,depth => 8,bytes => 4096,collection => 32,
+              operations => 1}}}.

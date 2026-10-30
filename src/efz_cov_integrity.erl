@@ -3,7 +3,7 @@
 -module(efz_cov_integrity).
 -export([identity/1, selected/1, pin/2, validate/1, options/2,
          open/2, admit/2, close/0, expected/0, check/1, fail/2,
-         trace_setup/3, trace_event/3, observation/3]).
+         trace_setup/3, trace_event/3, observation/3, observation_count/3]).
 -define(REGISTRY, efz_coverage_observers).
 -define(KEY, '$efz_execution_context').
 
@@ -22,6 +22,11 @@ identity(M) ->
     catch error:badarg -> {error,{module_unavailable,M}} end.
 selected(Ms) -> selected(Ms,#{}).
 selected([],Acc) -> {ok,Acc};
+selected([#{module:=M,beam_md5:=MD5,coverage_kind:=otp_native_line}|Rest],Acc) ->
+    case identity(M) of
+        {ok,#{beam_md5:=MD5}=I} -> selected(Rest,Acc#{M=>I});
+        Other -> {error,{native_identity_mismatch,M,MD5,Other}}
+    end;
 selected([#{module:=M,build_id:=B}|Rest],Acc) ->
     case identity(M) of
         {ok,#{build_id:=B}=I} -> selected(Rest,Acc#{M=>I});
@@ -141,3 +146,14 @@ observation(Hits,{error,Why},Attached) ->
     State=case Why of detached_coverage_context->detached;invalid_coverage_context->invalid;_->failed end,
     #{classification=>broken_coverage_observation,state=>State,reason=>Why,
       attached_processes=>Attached,probe_count=>length(Hits)}.
+
+%% Compact bitmap observations carry a count, not a decoded probe list.
+observation_count(0,ok,[]) -> observation([],ok,[]);
+observation_count(Count,ok,Attached) when is_integer(Count), Count >= 0 ->
+    #{classification=>case Count of 0->valid_empty_coverage;_->observed_coverage end,
+      state=>case Count of 0->attached;_->observed end,
+      attached_processes=>Attached,probe_count=>Count};
+observation_count(Count,{error,Why},Attached) when is_integer(Count), Count >= 0 ->
+    State=case Why of detached_coverage_context->detached;invalid_coverage_context->invalid;_->failed end,
+    #{classification=>broken_coverage_observation,state=>State,reason=>Why,
+      attached_processes=>Attached,probe_count=>Count}.

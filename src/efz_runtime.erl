@@ -1,7 +1,52 @@
 %% Guardian lifecycle hooks. Sampling never runs in the deadline owner.
 -module(efz_runtime).
 -export([start/1, admit/2, down/4, stop/1, sampler_down/2, finish/3, categories/1,
-         timeout/3, process_sample/2, table_sample/2]).
+         timeout/3, process_sample/2, table_sample/2, memory_before/1, memory_after/3]).
+
+%% Outside the guardian: the post observation starts only after its normal DOWN.
+%% A bounded helper isolates erlang:memory/1 latency from execution/cleanup.
+memory_before(#{runtime_oracles:=#{enabled:=true,resources:=#{enabled:=true}=P}})->
+    memory_measure(0,maps:get(memory_observation_timeout_ms,P));
+memory_before(_)->disabled.
+memory_after(disabled,R,_)->R;
+memory_after(Before,R,#{runtime_oracles:=#{resources:=P}})->
+    case {maps:get(runner_reusable,R,false),maps:get(status,maps:get(cleanup,R,#{}),unknown),
+          maps:find(runtime_observations,R)} of
+        {true,confirmed,{ok,Rt}}->
+            Post=memory_measure(maps:get(quiescence_ms,P),maps:get(memory_observation_timeout_ms,P)),
+            Complete=is_integer(Before) andalso is_integer(Post),
+            Delta=case Complete of true->Post-Before;false->unavailable end,
+            Threshold=maps:get(residual_memory_bytes,P),
+            Cats=case Complete andalso Delta>=Threshold of
+                true->[vm_memory_growth_suspected];false->[] end,
+            Evidence=#{scope=>vm_global,metric=>binary_memory,units=>bytes,
+                attribution=>unattributed_includes_efz_retained_return_and_other_vm_activity,
+                baseline_memory=>Before,peak_memory=>maps:get(vm_binary_bytes,maps:get(peak,Rt),not_sampled),
+                post_execution_memory=>Post,residual_delta=>Delta,threshold=>Threshold,
+                completeness=>case Complete of true->complete;false->incomplete end,
+                cleanup_status=>confirmed,quiescence_ms=>maps:get(quiescence_ms,P),
+                observation_timeout_ms=>maps:get(memory_observation_timeout_ms,P),defect=>unproven},
+            Owned=#{scope=>target_owned,units=>bytes,baseline_memory=>0,
+                peak_memory=>maps:get(memory_bytes,maps:get(peak,Rt),not_sampled),
+                post_execution_memory=>not_applicable,residual_delta=>not_applicable,
+                reason=>owners_terminated,cleanup_status=>confirmed},
+            R#{runtime_observations=>Rt#{post_execution_memory=>Evidence,owned_memory=>Owned,
+                categories=>lists:usort(Cats++maps:get(categories,Rt))}};
+        _->R
+    end.
+memory_measure(Delay,Timeout)->
+    Alias=alias(),Ref=make_ref(),Caller=self(),
+    {Pid,Mon}=spawn_monitor(fun()->
+        CM=monitor(process,Caller),
+        receive {'DOWN',CM,process,Caller,_}->ok
+        after Delay->Alias!{Ref,erlang:memory(binary)} end
+    end),
+    Value=receive
+        {Ref,N}->N;
+        {'DOWN',Mon,process,Pid,_}->unavailable
+    after Timeout->unavailable end,
+    unalias(Alias),exit(Pid,kill),demonitor(Mon,[flush]),
+    receive {Ref,_}->ok after 0->ok end,Value.
 start(#{runtime_oracles:=#{enabled:=true}=P}=Options)->
     Tab=ets:new(efz_runtime_buffer,[public,set]),
     Base=#{scope=>target_owned,known_processes=>0,memory_bytes=>0,ets_tables=>0,
@@ -57,6 +102,7 @@ finish(R=#{tab:=T,policy:=P},Outcome,Cleanup)->
     Activity=case maps:get(created,R)>1 of true->[descendant_activity];false->[] end,
     Hang=case {Outcome,maps:get(enabled,maps:get(hangs,P))} of
         {{timeout,_},true}->timeout(Samples,maps:get(cutoff_ms,R,now_ms()),maps:get(hangs,P));
+        {{timeout,_},false}->#{categories=>[timeout_unknown],reason=>diagnostics_disabled};
         _->#{categories=>[]}
     end,
     #{runtime_observations=>S#{schema_version=>1,origin=>maps:get(origin,R),scope=>target_owned,baseline=>maps:get(baseline,R),
@@ -104,11 +150,12 @@ sampler(T,P,GM,NextETS)->
                 S0=#{at_ms=>Time,known_processes=>Known,observed_processes=>length(Ps),
                     processes=>Ps,memory_bytes=>sum(memory,Ps),mailbox_messages=>sum(message_queue_len,Ps),
                     ets=>ETS,partial=>length(Ps)<Known orelse maps:get(partial,ETS,false)},
-                S=case ETS of #{memory_bytes:=E}->S0#{ets_memory_bytes=>E};_->S0 end,
+                S1=case ETS of #{memory_bytes:=E}->S0#{ets_memory_bytes=>E};_->S0 end,
+                S=case maps:get(enabled,R) of true->S1#{vm_binary_bytes=>erlang:memory(binary),vm_binary_scope=>vm_global};false->S1 end,
                 [{summary,Old}]=ets:lookup(T,summary),
                 Samples=lists:sublist([S|maps:get(samples,Old)],maps:get(max_samples,R)),
                 Peak=maps:fold(fun(K,V,A)->case is_integer(V) of true->A#{K=>max(V,maps:get(K,A,0))};false->A end end,
-                    maps:get(peak,Old),maps:with([memory_bytes,mailbox_messages,ets_memory_bytes],S)),
+                    maps:get(peak,Old),maps:with([memory_bytes,mailbox_messages,ets_memory_bytes,vm_binary_bytes],S)),
                 New=Old#{samples=>Samples,peak=>Peak,sample_count=>maps:get(sample_count,Old)+1,
                     ets_scans=>maps:get(ets_scans,Old)+case DoETS of true->1;false->0 end,
                     sampling_us=>maps:get(sampling_us,Old)+erlang:monotonic_time(microsecond)-Start},
@@ -134,7 +181,7 @@ tables(Owned,Limit)->
     Rows=[X||X<-Measured,is_map(X)],
     #{status=>sampled,scope=>target_owned,known_vm_tables=>length(All),scanned_vm_tables=>length(Candidates),
       observed_tables=>length(Rows),tables=>Rows,memory_bytes=>sum(memory_bytes,Rows),size=>sum(size,Rows),
-      partial=>length(All)>Limit orelse lists:member(unavailable,Measured) orelse lists:any(fun(T)->ets:info(T)=:=undefined end,Candidates)}.
+      partial=>length(All)>Limit orelse lists:member(unavailable,Measured) orelse lists:any(fun(T)->ets:info(T,owner)=:=undefined end,Candidates)}.
 table_sample(T,Owners)->
     try
         Owner=ets:info(T,owner),

@@ -1,0 +1,24 @@
+#{environment =>
+      #{input => "01-get-root.http",otp => "27",schedulers => 16,
+        erts => "15.0",architecture => "x86_64-pc-linux-gnu",
+        cowboy_modules => [cowboy_http,cowboy_req,cowboy_router,cowboy_stream],
+        schema =>
+            <<116,220,153,19,147,235,37,123,128,205,239,21,240,132,41,82,236,
+              69,187,6,142,174,176,19,15,122,188,131,111,154,237,85>>,
+        total_lines => 1089,warmup_samples => 2,timed_samples => 10,
+        iterations_per_sample => 100},
+  summary =>
+      #{reset => #{median_ns => 498.42,min_ns => 441.59,max_ns => 606.92},
+        merge => #{median_ns => 4971.05,min_ns => 4543.64,max_ns => 5307.27},
+        get_coverage =>
+            #{median_ns => 5631.4,min_ns => 4406.76,max_ns => 21771.74},
+        execute =>
+            #{median_ns => 15081.28,min_ns => 11646.04,max_ns => 17493.57},
+        conversion =>
+            #{median_ns => 30773.66,min_ns => 23484.11,max_ns => 41474.98},
+        novelty_true =>
+            #{median_ns => 254.83,min_ns => 184.96,max_ns => 287.88},
+        novelty_false =>
+            #{median_ns => 3368.69,min_ns => 3107.98,max_ns => 3574.37},
+        full_cycle =>
+            #{median_ns => 68676.75,min_ns => 64099.63,max_ns => 76057.34}}}.

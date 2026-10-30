@@ -1,20 +1,5 @@
 # P0 validation — 2026-09-16
 
-## Состав PR в dev
-
-PR содержит только P0, перенесённый на `205e18b` (текущий remote main).
-Предшествующие незакоммиченные hit-count/coverage/corpus изменения исключены;
-исходное рабочее дерево сохранено без изменений. Ветка dev на remote отсутствовала
-и создаётся от того же main; feature branch — `feat/p0-runtime-diagnostics`.
-
-Именно изолированный состав PR повторно проверен: **compile PASS, 201 EUnit passed
-(включая все 15 P0 cases), 3 CT passed, Dialyzer и xref PASS**. Свежие логи этого состава находятся в
-[runtime-validation/pr/](runtime-validation/pr/).
-Описанные ниже 199/214 tests и benchmarks относятся к первоначальному смешанному
-checkout, а не к этому выделенному commit. Их сохраняем как историческое evidence;
-они не заменяют повторную проверку PR. Отдельный performance benchmark выделенного
-PR не запускался; прежняя оценка performance остаётся PARTIAL.
-
 ## Checkout и environment
 
 - Начальный commit: `205e18ba172d74bd6c652a68abfc73e02e4a1f86`.
@@ -26,7 +11,7 @@ PR не запускался; прежняя оценка performance остаё
 - Checkout изначально содержал изменения coverage/hit-count, corpus, CLI и docs:
   [полный исходный status](runtime-validation/preexisting-status.txt).
   Исходный diff сохранён в `/tmp/efz-p0-baseline/preexisting.diff`.
-  На этапе реализации reset/clean, обновления ветки, commit/push не выполнялись.
+  Reset/clean, обновления ветки, commit/push не выполнялись.
 - Существующие harness/target files не редактировались. Новые targets только в
   `fixtures/runtime/`. 11 файлов с посторонними изменениями, не затронутых P0,
   побайтно совпали с сохранённым исходным состоянием.

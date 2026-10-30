@@ -1,0 +1,18 @@
+#{timeout => 1000,artifacts => [],coverage_backend => none,
+  mutation_mode => staged,
+  mutation => #{seed => {17,23,41},stages => [havoc]},
+  random_seed => {17,23,41},
+  selection_seed => {29,31,37},
+  max_input_bytes => 4096,max_iterations => 100,target => efz_xmlrpc_target,
+  seeds =>
+      [<<"<methodCall><methodName>echo</methodName><params><param><value><int>42</int></value></param></params></methodCall>">>],
+  gleam_layer =>
+      #{adapter => efz_xmlrpc_adapter,
+        adapter_options =>
+            #{methods => [<<"echo">>,<<"efz_missing_name">>],
+              string_bytes => 128},
+        structured_fraction => 10,feedback => guided,oracle => inline,
+        oracle_budget => 64,
+        limits =>
+            #{nodes => 128,depth => 8,bytes => 4096,collection => 16,
+              operations => 1}}}.

@@ -23,7 +23,8 @@ runtime_oracles => #{
   resources => #{enabled => true, sample_interval_ms => 20, max_samples => 64,
     max_sampled_processes => 128, ets_interval_ms => 100, max_ets_tables => 256,
     memory_bytes => 67108864, mailbox_messages => 1000,
-    ets_memory_bytes => 16777216},
+    ets_memory_bytes => 16777216, residual_memory_bytes => 67108864,
+    quiescence_ms => 1, memory_observation_timeout_ms => 50},
   hangs => #{enabled => true, max_stack_frames => 8,
     busy_reductions => 1000, max_sample_age_ms => 100},
   storage => #{max_groups => 128, max_representatives => 3,
@@ -43,6 +44,9 @@ runtime_oracles => #{
 | `ets_interval_ms` | 10..60 000 ms; первый ETS scan только по истечении интервала |
 | `max_ets_tables` | 1..4096 проверяемых VM table IDs за scan |
 | Resource thresholds | 1..2^40; process/ETS memory в bytes, mailbox в messages |
+| `residual_memory_bytes` | 1..2^40 bytes, порог VM-global binary-memory delta после cleanup |
+| `quiescence_ms` | 0..100 ms, фиксированное ожидание после guardian DOWN |
+| `memory_observation_timeout_ms` | 1..1000 ms, больше quiescence; общий deadline одного измерения, включая ожидание |
 | `max_stack_frames` | 0..32, только MFA, без arguments/locals |
 | `busy_reductions` | 1..10^9 за последний интервал, не CPU utilization |
 | `max_sample_age_ms` | 1..60 000, не меньше sample interval при включённых hangs |
@@ -71,7 +75,7 @@ BEAM в code path. CLI по-прежнему не исполняет Erlang expr
 
 ## Calibration и verification
 
-Повторяются seeds, новые successful coverage discoveries, target failures
+Повторяются seeds, новые successful coverage/count discoveries, target failures
 и подозрительные runtime inputs. Одно `descendant_activity` само по себе не запускает
 дополнительные проверки. Каждый повтор — **новый штатный executor/guardian/root** с
 полным cleanup. Рекурсивной verification нет. Повторы не вызывают mutator, corpus
@@ -93,7 +97,11 @@ exit или timeout, впервые увиденный на повторе, со
 Outcome signature сравнивает `ok`, тип исключения и bounded category причины,
 exit category либо timeout. Произвольный успешный return **не сравнивается**.
 Опциональный return comparator принимает atoms, signed 64-bit integers, binaries,
-списки, tuples/maps в общем бюджете 1024 nodes/bytes. PID, refs, ports, functions,
+списки, tuples/maps с независимыми бюджетами 1024 nodes, 1024 binary bytes,
+1024 container elements и глубиной 64. Map обходится unordered iterator без
+сортировки/копирования keys; byte_size проверяется до чтения binary содержимого.
+Только полностью прошедший validation term сериализуется deterministic ETF.
+PID, refs, ports, functions,
 floats, большие/deep terms получают `not_comparable`. Он не угадывает семантику
 integer timestamps: при явном compare_return такие значения могут отличаться.
 
@@ -124,6 +132,7 @@ counters. Coverage integrity errors никогда не становятся `un
 | `unstable_return` | Различные comparable successful values, только opt-in | Семантический дефект |
 | `memory_pressure` | Наблюдавшаяся сумма process memory ≥ threshold bytes | Утечка; полная память VM/бинарных ресурсов |
 | `memory_growth_suspected` | Рост между первым и последним сохранённым sample ≥ threshold | Остаточный рост между inputs / memory leak |
+| `vm_memory_growth_suspected` | VM-global binary memory после cleanup/quiescence минус baseline ≥ residual threshold | Target attribution или подтверждённая утечка |
 | `mailbox_pressure` | Наблюдавшаяся сумма message_queue_len ≥ threshold | Потеря сообщений |
 | `ets_growth_suspected` | Наблюдавшийся owned ETS memory peak ≥ threshold | Утечка таблиц после cleanup |
 | `descendant_activity` | Guardian admit count и observed peak live | Process leak |
@@ -147,6 +156,29 @@ summary заменены portable placeholders; `process_id`/`owner_id` — admi
 
 Baseline фиксируется **до admission**: target-owned processes/ETS равны нулю;
 VM counters имеют `scope=vm_global`. Это не снимок памяти уже работающего target.
+
+Отдельный post-execution путь измеряет `erlang:memory(binary)` до execution и
+после подтверждённого cleanup **и normal DOWN guardian**, с bounded quiescence.
+Измерения выполняются в короткоживущих monitored helpers с отдельным deadline;
+они не выполняются в guardian и не задерживают kill/cleanup. Неудачное измерение
+даёт `incomplete`, не ноль. Failed cleanup сохраняет infrastructure failure и
+не проходит residual observation. P0 off и resources off этот путь не вызывают.
+
+`post_execution_memory` содержит scope=vm_global, metric=binary_memory, units=bytes,
+baseline_memory, sampled peak_memory (или not_sampled), post_execution_memory,
+residual_delta, threshold, completeness, cleanup_status, quiescence и deadline.
+`owned_memory` отдельно сохраняет target-owned peak; после уничтожения owners
+post memory/residual помечены not_applicable, а не выдуманным точным измерением.
+GC чужих процессов, shared-state writes и изменение ownership не используются.
+
+Attribution явно ограничена: VM delta включает EFZ-retained return и другую
+активность VM. Обычный return большого ref-counted binary — поддержанный fixture
+остаточной VM allocation после root cleanup. Это не утечка target. Verification
+хранит фактическое M/N; replay может получить другое M/N, поскольку освобождение
+предыдущих EFZ-held returns/VM activity компенсирует новый рост. Отсутствие
+остаточного finding у временного allocation проверяется отдельно от peak.
+Такие findings имеют scope=vm_global также в artifact/signature; старые schema-v1
+artifacts остаются читаемыми, недостающие поля policy получают defaults.
 Snapshots во время execution измеряют observed peaks; последние доступные samples
 сохраняются отдельно от after-cleanup lifecycle evidence. При отсутствии опроса
 живого PID — `not_sampled`, не нулевое потребление.
@@ -158,6 +190,9 @@ IDs через `ets:all()`, но проверяет лишь первые `max_e
 Показываются known VM tables / scanned VM tables / observed owned tables, и
 `partial=true`, если обход неполный или ресурс исчез. Число всех owned tables при
 усечённом scan неизвестно. Это не утверждение, что partial sum равна расходу target.
+Проверка исчезновения запрашивает только `ets:info(Tab, owner)`, без построения
+полного списка table metadata. Сам `ets:all()` остаётся O(числа таблиц VM);
+cap ограничивает последующие проверки, а не это перечисление.
 Старые shared-state snapshots guardian (`ets:all()` до/после case) сохранены как часть
 контракта cleanup; новый sampler не добавляет ETS scan на каждую быструю итерацию.
 

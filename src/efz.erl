@@ -1,5 +1,5 @@
 -module(efz).
--export([start/1, stop/0, stats/0, await/1]).
+-export([start/1, stop/0, request_stop/0, stats/0, await/1]).
 start(C) ->
     {ok, _} = application:ensure_all_started(efz),
     supervisor:start_child(efz_sup, #{id => efz_fuzzer,
@@ -8,5 +8,6 @@ start(C) ->
 stop() ->
     case whereis(efz_fuzzer) of undefined -> ok; _ -> efz_fuzzer:stop() end,
     application:stop(efz).
+request_stop()->efz_fuzzer:request_stop().
 stats() -> efz_fuzzer:stats().
 await(Timeout) -> efz_fuzzer:await(Timeout).

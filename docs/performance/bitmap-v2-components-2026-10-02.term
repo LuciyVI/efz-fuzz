@@ -1,0 +1,79 @@
+#{rows =>
+      [#{name => reset_full_clear,iterations_per_sample => 100,
+         us_per_call =>
+             [14.68,13.04,15.01,13.02,13.09,19.15,17.3,17.21,17.04,17.0],
+         median_us => 15.01,min_us => 13.02,max_us => 19.15},
+       #{name => hit_context_lookup,iterations_per_sample => 10000,
+         us_per_call =>
+             [0.0076,0.0075,0.0089,0.0075,0.0074,0.0074,0.0074,0.0074,0.0074,
+              0.0073],
+         median_us => 0.0074,min_us => 0.0073,max_us => 0.0089},
+       #{name => hit_integrity_lookup,iterations_per_sample => 10000,
+         us_per_call =>
+             [0.1891,0.1769,0.2644,0.2103,0.2093,0.2327,0.2133,0.2155,0.1986,
+              0.2123],
+         median_us => 0.2103,min_us => 0.1769,max_us => 0.2644},
+       #{name => hit_slot_lookup,iterations_per_sample => 10000,
+         us_per_call =>
+             [0.116,0.1007,0.0974,0.1046,0.1009,0.1017,0.1003,0.0935,0.0962,
+              0.0949],
+         median_us => 0.1003,min_us => 0.0935,max_us => 0.116},
+       #{name => hit_atomic_read,iterations_per_sample => 10000,
+         us_per_call =>
+             [0.0238,0.0235,0.0341,0.0208,0.0208,0.0211,0.0207,0.0208,0.0236,
+              0.0237],
+         median_us => 0.0211,min_us => 0.0207,max_us => 0.0341},
+       #{name => hit_repeated_10000,iterations_per_sample => 10000,
+         us_per_call =>
+             [0.3559,0.3655,0.4299,0.5734,0.4644,0.4332,0.4425,0.447,0.4214,
+              0.4312],
+         median_us => 0.4312,min_us => 0.3559,max_us => 0.5734},
+       #{name => count_sparse,iterations_per_sample => 1000,
+         us_per_call =>
+             [24.793,28.599,25.827,27.746,24.495,28.398,46.185,37.523,23.551,
+              24.857],
+         median_us => 25.827,min_us => 23.551,max_us => 46.185},
+       #{name => count_dense,iterations_per_sample => 1000,
+         us_per_call =>
+             [53.132,53.279,53.959,56.058,52.2,52.892,53.731,54.579,58.936,
+              53.388],
+         median_us => 53.388,min_us => 52.2,max_us => 58.936},
+       #{name => novelty_false_sparse,iterations_per_sample => 1000,
+         us_per_call =>
+             [23.51,26.025,23.997,24.083,23.459,23.231,24.746,23.999,37.552,
+              24.479],
+         median_us => 23.999,min_us => 23.231,max_us => 37.552},
+       #{name => novelty_false_dense,iterations_per_sample => 1000,
+         us_per_call =>
+             [23.473,23.463,23.551,23.635,23.344,23.167,23.469,23.785,23.378,
+              23.604],
+         median_us => 23.469,min_us => 23.167,max_us => 23.785},
+       #{name => novelty_first_word,iterations_per_sample => 1000,
+         us_per_call =>
+             [0.077,0.085,0.083,0.086,0.084,0.084,0.084,0.084,0.084,0.085],
+         median_us => 0.084,min_us => 0.077,max_us => 0.086},
+       #{name => novelty_256_after_128,iterations_per_sample => 1000,
+         us_per_call =>
+             [0.195,0.192,0.201,0.188,0.214,0.206,0.196,0.198,0.204,0.197],
+         median_us => 0.197,min_us => 0.188,max_us => 0.214},
+       #{name => novelty_last_word,iterations_per_sample => 1000,
+         us_per_call =>
+             [23.767,23.495,23.656,23.228,23.262,23.505,23.785,23.252,23.273,
+              23.248],
+         median_us => 23.273,min_us => 23.228,max_us => 23.785},
+       #{name => commit_256,iterations_per_sample => 100,
+         us_per_call =>
+             [44.2,42.01,44.75,43.72,45.36,45.05,41.53,42.7,48.06,42.49],
+         median_us => 43.72,min_us => 41.53,max_us => 48.06},
+       #{name => commit_sparse,iterations_per_sample => 100,
+         us_per_call =>
+             [43.83,45.48,46.85,43.28,44.52,47.76,44.33,42.63,44.2,46.5],
+         median_us => 44.33,min_us => 42.63,max_us => 47.76},
+       #{name => commit_dense,iterations_per_sample => 100,
+         us_per_call =>
+             [59.57,54.99,53.92,46.87,47.54,51.11,54.13,49.9,49.18,46.85],
+         median_us => 49.9,min_us => 46.85,max_us => 59.57}],
+  environment =>
+      #{otp => "27",schedulers => 4,erts => "15.0",
+        architecture => "x86_64-pc-linux-gnu",warmup => 2,samples => 10,
+        bitmap_bits => 65536,manifest_probes => 1024}}.

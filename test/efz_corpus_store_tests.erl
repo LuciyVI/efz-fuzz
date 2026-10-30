@@ -37,6 +37,18 @@ duplicate_test()->with_store(fun(S)->
     ?assertEqual({ok,R},efz_corpus_store:save(S,<<0,255,10>>,99,#{})),
     {ok,[_],[]}=restore(S),{ok,Names}=file:list_dir(maps:get(dir,S)),?assertEqual(1,length(Names))
 end).
+count_provenance_test()->with_store(fun(S)->
+    _=initial(S,<<>>),P={durable_fixture,<<1:256>>,2},
+    Meta=#{parent=>1,parent_content=>crypto:hash(sha256,<<>>),retention_reason=>new_hit_count,
+           new_probes=>[],new_count_features=>[{P,4}],coverage_feedback=>hit_count},
+    {ok,R}=efz_corpus_store:save(S,<<"AAAA">>,2,Meta),
+    ?assertEqual(2,maps:get(schema_version,R)),
+    {ok,Rows,[]}=restore(S),?assertEqual(2,length(Rows)),
+    ?assertEqual({ok,R},efz_corpus_store:save(S,<<"AAAA">>,99,Meta)),
+    ?assertMatch({error,invalid_count_bucket},efz_corpus_store:save(S,<<"invalid">>,3,Meta#{new_count_features=>[{P,3}]})),
+    alter_metadata(S,<<"AAAA">>,fun(Rec)->D=maps:get(discovery,Rec),Rec#{discovery=>D#{new_count_features=>[]}} end),
+    ?assertMatch({error,{invalid_corpus_metadata,_,invalid_discovery}},restore(S))
+end).
 corrupt_metadata_test()->with_store(fun(S)->
     _=initial(S,<<1>>),P=filename:join(entry(S,<<1>>),"metadata"),
     {ok,B}=file:read_file(P),N=byte_size(B)-1,<<Head:N/binary,Last>>=B,

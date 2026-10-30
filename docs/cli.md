@@ -4,6 +4,11 @@
 location, so it can be invoked from another working directory. Argument paths are
 relative to the caller's working directory. Run `rebar3 compile` first.
 
+`--coverage-feedback presence|hit_count` selects coverage feedback. The default
+is `presence`; `hit_count` is an experimental exact-counter mode described in
+[the measured prototype report](hit-count-experiment.md). It changes which
+successful inputs are retained, and uses the same launcher and fuzzing engine.
+
 The launcher calls `efz:start/1` once, waits with `efz:await/1`, saves the report,
 and stops EFZ in an `after` block. Configuration, instrumentation preflight,
 calibration, mutation, scheduling, execution, coverage, retention and crash
@@ -113,7 +118,8 @@ loading artifacts or targets. The input schema is:
 | `max_input_bytes` | Campaign binary limit, inclusive 0..1,048,576; default 4,096; applies to both modes, ingestion, restore and execution |
 | `mutation` | Staged-only map validated by `efz_mutation_plan:prepare/2`; see [mutation limits](mutations.md) |
 | `coverage` | `automatic` (default) or explicit API-only `manual` compatibility mode |
-| `coverage_backend` | `ets` (default) or `ets_member` |
+| `coverage_backend` | `ets` (default), `ets_member`, or `bitmap` (automatic presence only) |
+| `coverage_bitmap_bits` | Bitmap capacity in bits, default `65536`; positive multiple of 64 |
 | `coverage_validation` | `prepared` (default) or `per_execution` |
 | `coverage_policy` | `diagnostic` (default) or `strict`: fail a campaign with no observed automatic probes |
 | `artifacts` | List of artifact descriptor maps; automatic mode requires nonempty, valid artifacts |
@@ -162,3 +168,33 @@ Runtime observations are independent of crashes. Use `scripts/replay.escript
 `--code-path` for an ordinary harness. Artifact content cannot select target code.
 CLI resolves module names from trusted local BEAMs without interning argument text.
 See [full schema and limits](runtime-diagnostics.md).
+
+## External worker VM
+
+On Linux, add `--supervised` to the ordinary fuzz command. This delegates before
+the CLI loads the harness or target. The external controller computes identities
+from local files and launches the real CLI/campaign in a separate BEAM OS process.
+All target executions, including calibration and P0 verification, pass through a
+durable input barrier in `efz_executor`.
+
+Additional bounded options are `--restart-budget` (default 8),
+`--supervised-runs` (10000), `--campaign-ms` (3600000), `--startup-ms` (10000),
+`--ipc-grace-ms` (1000), and `--journal-bytes` (268435456). They are accepted only
+by supervised mode. Output includes `external-report.json`, an `external-runs/`
+journal, worker-generation directories, and external finding indexes under
+`crashes/external/`. Recheck a finding with:
+
+```sh
+escript scripts/replay.escript \
+  --external-finding OUT/external-runs/CAMPAIGN/RUN \
+  --target MODULE --artifacts ARTIFACTS --code-path HARNESS_EBIN \
+  --out RECHECK_OUT --reproduce-runs 3
+```
+
+The artifact never selects executable code. Local target/artifact identities
+must match. A supervised campaign returns 0 only for normal/budget completion
+(recheck also returns 0 with its explicit reproduction verdict), 2 for argument
+errors, and 1 for startup, protocol, storage, hard-timeout-without-recovery or
+restart-budget failure. The controller reports `observed N/M`, `not_observed` or
+`inconclusive`; it never treats one successful run as disproving a flaky crash.
+See [P1-01 External supervisor](p1-01-external-supervisor.md).

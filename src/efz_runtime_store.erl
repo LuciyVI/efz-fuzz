@@ -28,7 +28,7 @@ save_locked(Dir,Input,Record,Policy,S0)->
     end.
 save_loaded(Dir,B,R,P,S)->
     Category=maps:get(category,R),
-    Id=crypto:hash(sha256,term_to_binary({1,Category,target_owned,maps:get(harness,R),maps:get(target_builds,R)},[deterministic])),
+    Id=crypto:hash(sha256,term_to_binary({1,Category,maps:get(scope,R),maps:get(harness,R),maps:get(target_builds,R)},[deterministic])),
     H=crypto:hash(sha256,B),Groups=maps:get(groups,S),
     G=maps:get(Id,Groups,#{category=>Category,occurrences=>0,representatives=>[]}),
     Reps=maps:get(representatives,G),
@@ -102,7 +102,7 @@ load(Dir)->
             {ok,B}->try
                 <<131,116,_/binary>>=B,R=binary_to_term(B,[safe]),
                 #{schema_version:=1,input_hash:=H,policy:=P,category:=C,
-                  coverage_mode:=Mode,scope:=target_owned,origin:=Origin,harness:=Harness,target_builds:=Builds,
+                  coverage_mode:=Mode,scope:=Scope,origin:=Origin,harness:=Harness,target_builds:=Builds,
                   original_outcome:=_,evidence:=_,mutation:=_,timeout:=Timeout,signature_id:=Sig,max_input_bytes:=_}=R,
                 true=map_size(R)=:=15,
                 true=lists:member(Mode,[automatic,manual]),
@@ -110,12 +110,13 @@ load(Dir)->
                 true=is_map(Harness) andalso is_list(Builds),
                 true=is_integer(Timeout) andalso Timeout>=0,
                 true=is_binary(Sig) andalso byte_size(Sig)=:=32,
-                true=lists:member(C,[unstable_outcome,unstable_coverage,unstable_return,memory_pressure,
+                true=Scope=:=case C of vm_memory_growth_suspected->vm_global;_->target_owned end,
+                true=lists:member(C,[vm_memory_growth_suspected,unstable_outcome,unstable_coverage,unstable_return,memory_pressure,
                     memory_growth_suspected,mailbox_pressure,ets_growth_suspected,descendant_activity,
                     child_abnormal_exit,timeout_busy,timeout_waiting,timeout_unknown]),
-                {ok,P}=efz_runtime_config:prepare(P),
+                {ok,PreparedPolicy}=efz_runtime_config:prepare(P),
                 {ok,Input}=efz_input:read_file(filename:join(Dir,"artifact.input"),maps:get(max_input_bytes,R),runtime_replay),
-                true=crypto:hash(sha256,Input)=:=H,{ok,R,Input}
+                true=crypto:hash(sha256,Input)=:=H,{ok,R#{policy=>PreparedPolicy},Input}
             catch _:_->{error,invalid_runtime_finding} end;
             Error->Error end;
         Error->Error

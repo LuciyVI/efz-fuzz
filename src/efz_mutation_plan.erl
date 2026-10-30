@@ -1,6 +1,6 @@
 %% Lazy staged planning. All randomness is state-threaded and owned by this state.
 -module(efz_mutation_plan).
--export([prepare/2, defaults/0, new/1, next/2, deterministic/4, config_identity/1]).
+-export([prepare/2, defaults/0, new/1, next/2, next_continuous/2, deterministic/4, config_identity/1]).
 
 defaults()->#{max_input_bytes=>efz_input:default_limit(),max_block_bytes=>128,max_token_bytes=>128,
     max_tokens=>256,max_dictionary_bytes=>16384,max_delta=>8,attempts_per_visit=>8,
@@ -69,6 +69,29 @@ next(S=#{config:=C,corpus_size:=Size},Entries) ->
             end
         end
     end.
+%% Finite planning stays unchanged. A continuous idle sweep yields a guaranteed
+%% real mutation, preserving RNG, all content cursors and admission history.
+next_continuous(S=#{config:=#{max_input_bytes:=0}},_)->
+    {error,continuous_requires_nonzero_input_limit,S};
+next_continuous(S,Entries)->
+    case next(S,Entries) of
+        {done,Why,Next} when Why=:=idle_budget_exhausted;Why=:=mutation_exhausted ->
+            continuous_fallback(Next,Entries);
+        Other->Other
+    end.
+continuous_fallback(S=#{config:=C,rng:=R},Entries)->
+    {E,R1}=choose(Entries,R),B=maps:get(input,E),
+    {Op,R2}=case B of
+        <<>>->{Byte,RR}=zero(255,R1),{{insert,0,<<Byte>>},RR};
+        _->{Bit,RR}=zero(bit_size(B)-1,R1),{{flip_bits,Bit,1},RR}
+    end,
+    {ok,Out}=efz_mutation:apply_operation(B,Op,C),
+    P=#{primary=>B,primary_id=>efz_mutation:hash(B),parent=>maps:get(id,E),stage=>havoc,
+        operations=>[Op],config_id=>maps:get(config_id,C),dictionary_id=>maps:get(dictionary_id,C)},
+    Next=inc(continuous_fallbacks,inc(generated_candidates,inc(mutation_attempts,
+        inc(operation_attempts,progress(S#{rng=>R2}))))),
+    {candidate,Out,P,Next}.
+
 random_stage(Stage)->Stage=:=havoc orelse Stage=:=splice.
 deterministic_pending(#{config:=C,cursors:=Cs},Es)->
     lists:any(fun(E)->B=maps:get(input,E),Key={efz_mutation:hash(B),maps:get(config_id,C)},
@@ -96,6 +119,11 @@ visit(S=#{pending_entries:=Pending,config:=C,cursors:=Cs},Entries)->
     S0=inc(visits,S#{pending_entries=>Rest,cursors=>Cs#{Key=>Cur#{lane=>Lane+1}}}),
     {Result,S1}=attempts(maps:get(attempts_per_visit,C),Stage,B,Entries,Key,S0),
     case Result of
+        {ok,Candidate,Ops,Structured}->
+            P=#{primary=>B,primary_id=>efz_mutation:hash(B),parent=>maps:get(id,E),stage=>Stage,
+                operations=>Ops,config_id=>maps:get(config_id,C),dictionary_id=>maps:get(dictionary_id,C),
+                source_kind=>structured,structured=>Structured},
+            {candidate,Candidate,P,inc(generated_candidates,progress(S1))};
         {ok,Candidate,Ops}->
             P=#{primary=>B,primary_id=>efz_mutation:hash(B),parent=>maps:get(id,E),stage=>Stage,
                 operations=>Ops,config_id=>maps:get(config_id,C),dictionary_id=>maps:get(dictionary_id,C)},
@@ -112,7 +140,13 @@ visit(S=#{pending_entries:=Pending,config:=C,cursors:=Cs},Entries)->
         {error,Why}->{error,Why,S1}
     end.
 attempts(0,_,_,_,_,S)->{{skip,visit_budget},S};
-attempts(N,Stage,B,Es,Key,S=#{config:=C,cursors:=Cs})->
+attempts(N,Stage,B,Es,Key,S=#{config:=C})->
+    case structured(B,C,S) of
+        {ordinary,SOrdinary}->ordinary_attempts(N,Stage,B,Es,Key,SOrdinary);
+        Result->Result
+    end.
+ordinary_attempts(0,_,_,_,_,S)->{{skip,visit_budget},S};
+ordinary_attempts(N,Stage,B,Es,Key,S=#{config:=C,cursors:=Cs})->
     case Stage=:=havoc orelse Stage=:=splice of
         true->random_attempts(min(N,maps:get(random_retries,C)),Stage,B,Es,S);
         false->Cur=maps:get(Key,Cs),Index=maps:get(Stage,Cur,0),
@@ -122,11 +156,56 @@ attempts(N,Stage,B,Es,Key,S=#{config:=C,cursors:=Cs})->
                     S0=inc(operation_attempts,inc(mutation_attempts,S#{cursors=>Cs#{Key=>Cur#{Stage=>Index+1}}})),
                     case efz_mutation:apply_operation(B,Op,C) of
                         {ok,Next}->{{ok,Next,[Op]},S0};
-                        {skip,Why}->attempts(N-1,Stage,B,Es,Key,skip(Why,S0));
+                        {skip,Why}->ordinary_attempts(N-1,Stage,B,Es,Key,skip(Why,S0));
                         Error->{Error,S0}
                     end
             end
     end.
+%% Off/fraction-zero is a single lookup, with no additional random draws.
+structured(B,#{gleam_layer:=#{structured_fraction:=F}=P},S=#{rng:=R}) when F>0 ->
+    {Branch,R1}=uniform(100,R),S1=S#{rng=>R1},
+    case Branch=<F of
+        false->{ordinary,S1};
+        true ->
+            Catalogue=efz_gleam_adapter:operations(P),
+            {Index,R2}=zero(length(Catalogue)-1,R1),Operation=lists:nth(Index+1,Catalogue),
+            Legacy=maps:get(legacy_qs,P,not maps:is_key(adapter,P)),
+            {Params,R3}=case Legacy of true->{#{choice=>0},R2};false->
+                {Choice,NextR}=zero(65535,R2),{#{choice=>Choice},NextR} end,
+            S2=semantic_operation(Operation,semantic_count(attempts,inc(mutation_attempts,S1#{rng=>R3}))),
+            Limits=efz_gleam_adapter:limits(P),
+            Start=erlang:monotonic_time(microsecond),
+            Result=case Legacy of true->efz_gleam_adapter:mutate(B,Operation,Limits);
+                false->efz_gleam_adapter:mutate(B,Operation,Params,P) end,
+            Timed=semantic_time(callback_us,erlang:monotonic_time(microsecond)-Start,S2),
+            case Result of
+                {ok,B,_} -> {ordinary,semantic_count(fallbacks,semantic_count(no_change,Timed))};
+                {ok,Out,Recipe} ->
+                    {Replacement,Provenance}=case Legacy of
+                        true->V=efz_gleam_adapter:versions(),LL=efz_qs_legacy:provider_limits(Limits),
+                            {{structured_replace,1,V,Operation,Out},
+                                #{schema_version=>1,versions=>V,operation=>Operation,limits=>LL,
+                                    fraction=>F,rng_before=>rng_words(R),rng_after=>rng_words(R3)}};
+                        false->Identity=efz_gleam_adapter:identity(P),
+                            {{structured_replace,2,Identity,Operation,Out},
+                                #{schema_version=>2,identity=>Identity,operation=>Operation,
+                                    params=>Params,recipe=>term_to_binary(Recipe,[deterministic]),limits=>maps:get(limits,P),fraction=>F,
+                                    rng_before=>rng_words(R),rng_after=>rng_words(R3)}}
+                    end,
+                    {{ok,Out,[Replacement],Provenance},
+                        semantic_time(generated_bytes,byte_size(Out),semantic_count(successes,Timed))};
+                {skip,Why}->{ordinary,semantic_count(fallbacks,semantic_count(Why,Timed))};
+                {error,Why}->{{error,{semantic_layer_error,Why}},semantic_count(errors,Timed)}
+            end
+    end;
+structured(_,_,S)->{ordinary,S}.
+semantic_count(K,S)->Cs=maps:get(structured_counts,S,#{}),S#{structured_counts=>Cs#{K=>maps:get(K,Cs,0)+1}}.
+semantic_time(K,V,S)->Cs=maps:get(structured_counts,S,#{}),S#{structured_counts=>Cs#{K=>maps:get(K,Cs,0)+V}}.
+semantic_operation(Op,S)->Cs=maps:get(structured_counts,S,#{}),Ops=maps:get(operations,Cs,#{}),
+    S#{structured_counts=>Cs#{operations=>Ops#{Op=>maps:get(Op,Ops,0)+1}}}.
+%% OTP exsplus exports two 58-bit words as an improper list. Persist a proper
+%% bounded list, retaining the exact state rather than reseeding from a triplet.
+rng_words(R)->{exsplus,[A|B]}=rand:export_seed_s(R),[A,B].
 random_attempts(0,_,_,_,S)->{{skip,random_retry_budget},S};
 random_attempts(N,Stage,B,Es,S=#{config:=C,rng:=R})->
     {Depth,R1}=case Stage of havoc->uniform(maps:get(havoc_depth,C),R);splice->{1,R} end,
@@ -221,6 +300,6 @@ det_op(dictionary_overwrite,N,I,C)->{Token,Off}=locate([{T,max(0,N-byte_size(T)+
     {dictionary_overwrite,Off,Token}.
 locate([{Key,N}|_],I) when I<N->{Key,I};
 locate([{_,N}|Rest],I)->locate(Rest,I-N).
-inc(K,S=#{counts:=Counts})->S#{counts=>Counts#{K=>maps:get(K,Counts)+1}}.
+inc(K,S=#{counts:=Counts})->S#{counts=>Counts#{K=>maps:get(K,Counts,0)+1}}.
 reason(Why,S=#{counts:=Counts})->Rs=maps:get(skip_reasons,Counts),S#{counts=>Counts#{skip_reasons=>Rs#{Why=>maps:get(Why,Rs,0)+1}}}.
 skip(Why,S)->reason(Why,inc(skipped_operations,S)).

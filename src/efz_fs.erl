@@ -27,7 +27,8 @@ atomic_group(Dir0, Name, Files = [{IdentityFile, IdentityBytes} | _]) -> protect
     staged(Temp, fun() ->
         lists:foreach(fun({File, B}) -> write_synced(filename:join(Temp, File), B) end, Files),
         Manifest = [{File, byte_size(B), crypto:hash(sha256, B)} || {File, B} <- Files],
-        write_synced(filename:join(Temp, "manifest"), term_to_binary({efz_artifacts, 1, Manifest})),
+        ManifestVersion=case lists:keymember("artifact.semantic",1,Manifest) of true->2;false->1 end,
+        write_synced(filename:join(Temp, "manifest"), term_to_binary({efz_artifacts, ManifestVersion, Manifest})),
         sync_dir(Temp),
         case file:rename(Temp, Dest) of
             ok -> ok;
@@ -48,10 +49,12 @@ verify_group(Dir, IdentityFile, IdentityBytes) ->
     Path = filename:join(Dir, "manifest"),
     Encoded = need(read_bounded(Path, 8192), read_manifest, Path),
     Manifest = try
-        {efz_artifacts, 1, Ms} = binary_to_term(Encoded, [safe]),
-        true = is_list(Ms) andalso length(Ms) >= 2 andalso length(Ms) =< 4,
+        {efz_artifacts, Version, Ms} = binary_to_term(Encoded, [safe]),
+        true = is_list(Ms) andalso length(Ms) >= 2 andalso
+            ((Version=:=1 andalso length(Ms)=<4 andalso not lists:keymember("artifact.semantic",1,Ms))
+             orelse (Version=:=2 andalso length(Ms)=<5 andalso lists:keymember("artifact.semantic",1,Ms))),
         true = lists:all(fun({F,N,H}) ->
-            lists:member(F, ["artifact.input", "artifact.term", "artifact.recipe", "artifact.replay"]) andalso
+            lists:member(F, ["artifact.input", "artifact.term", "artifact.recipe", "artifact.replay", "artifact.semantic"]) andalso
             is_integer(N) andalso N >= 0 andalso is_binary(H) andalso byte_size(H) =:= 32;
             (_) -> false end, Ms),
         true = length(Ms) =:= length(lists:usort([F || {F,_,_} <- Ms])),

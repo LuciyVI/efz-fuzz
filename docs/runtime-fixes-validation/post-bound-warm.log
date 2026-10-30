@@ -1,0 +1,20 @@
+POST_BOUND cleanup_ms=66 return_ms=167 observation=#{scope => vm_global,
+                                                     quiescence_ms => 80,
+                                                     post_execution_memory =>
+                                                         unavailable,
+                                                     completeness =>
+                                                         incomplete,
+                                                     attribution =>
+                                                         unattributed_includes_efz_retained_return_and_other_vm_activity,
+                                                     baseline_memory => 947888,
+                                                     cleanup_status =>
+                                                         confirmed,
+                                                     defect => unproven,
+                                                     metric => binary_memory,
+                                                     observation_timeout_ms =>
+                                                         100,
+                                                     peak_memory => 949648,
+                                                     residual_delta =>
+                                                         unavailable,
+                                                     threshold => 67108864,
+                                                     units => bytes} helper_alive=false

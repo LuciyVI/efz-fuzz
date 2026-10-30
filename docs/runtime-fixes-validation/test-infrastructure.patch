@@ -1,0 +1,79 @@
+--- a/test/efz_backend_tests.erl
++++ b/test/efz_backend_tests.erl
+@@ -13,7 +13,8 @@
+          {"prepared capability lifetime and empty-snapshot validation", fun()->plan_lifetime(S) end},
+          {"two explicitly separate contexts", fun()->contexts(S) end},
+          {"caller death releases execution storage", fun()->caller_death(S) end},
+-         {"deadline boundary and repeated resource cleanup", fun()->boundary(S) end},
++         %% Four independent variants previously shared one 5s throughput gate.
++         [{"deadline boundary and repeated resource cleanup",fun()->boundary(S,V) end}||V<-variants()],
+          {"campaign and application cancellation", fun()->cancel(S) end},
+          %% Eight complete campaigns; compare decisions, not host throughput.
+          {"seeded real and prerecorded corpus decisions", {timeout,30,fun()->campaigns(S) end}},
+@@ -186,9 +187,9 @@
+         receive {'DOWN',OMon,process,Owner,normal}->ok after 3000->error(owner_leak) end,
+         ?assertEqual(Before,tables())
+     end).
+-boundary(S)->
++boundary(S,V)->
+     Before=tables(),
+-    with_options(S,fun(O)->
++    O=options(S,V),try
+         Expected=canonical(execute({clauses,0},O)),
+         lists:foreach(fun(N)->
+             R=efz_executor:run(efz_fixture,{clauses,0},N rem 2,O),
+@@ -196,7 +197,7 @@
+             ?assertEqual(ok,maps:get(coverage_status,R)),
+             ?assertEqual(Expected,canonical(execute({clauses,0},O)))
+         end,lists:seq(1,50))
+-    end),?assertEqual(Before,tables()).
++    after release(O) end,?assertEqual(Before,tables()).
+ cancel(S)->
+     Before=tables(),true=register(efz_backend_observer,self()),
+     try lists:foreach(fun({B,V})->lists:foreach(fun(Stop)->
+--- a/test/efz_limits_tests.erl
++++ b/test/efz_limits_tests.erl
+@@ -9,7 +9,10 @@
+ limits_test_() -> {setup,fun setup/0,fun cleanup/1,fun(S)->[
+     {"campaign schema and seed boundaries",fun()->seeds(S) end},
+     {"explicit campaign limit above default reaches every boundary",fun()->above_default(S) end},
+-    {"real random mutator honors zero and full inputs",fun()->random(S) end},
++    %% Each campaign already has a 10s await bound. The old aggregate had a
++    %% 5s EUnit bound for both 300-execution cases and could cancel healthy work.
++    [{"real random mutator honors zero and full inputs",{timeout,12,
++        fun()->random_case(S,Max,Seeds) end}}||{Max,Seeds}<-[{0,[<<>>]},{3,[<<>>,<<"ABC">>]}]],
+     {"staged limit and recipe are derived from campaign",fun()->staged(S) end},
+     {"oversized random callback cannot reach target",fun()->oversized_random(S) end},
+     {"restored inputs and active corpus obey campaign limit",fun()->restore(S) end},
+@@ -75,16 +78,14 @@
+     {ok,H}=efz_replay:harness_identity(efz_limits_target),
+     #{max_input_bytes=>Max,expected_harness=>H}.
+ 
+-random(S)->
+-    lists:foreach(fun({Max,Seeds})->
++random_case(S,Max,Seeds)->
+         {R,Bs}=observe(fun()->campaign((base(S))#{seeds=>Seeds,max_input_bytes=>Max,
+             max_iterations=>300,random_seed=>{17,23,41}}) end),
+         ?assertEqual(completed,maps:get(status,R)),
+         ?assertEqual(300,maps:get(executions,maps:get(stats,R))),
+         ?assertEqual(300+length(Seeds),length(Bs)),
+         ?assert(lists:all(fun(B)->is_binary(B) andalso byte_size(B)=<Max end,Bs)),
+-        ?assertEqual(Seeds,lists:sublist(Bs,length(Seeds)))
+-    end,[{0,[<<>>]},{3,[<<>>,<<"ABC">>]}]).
++        ?assertEqual(Seeds,lists:sublist(Bs,length(Seeds))).
+ staged(S)->
+     lists:foreach(fun(Max)->
+         {R,Bs}=observe(fun()->campaign((base(S))#{mutation_mode=>staged,max_input_bytes=>Max,
+--- a/test/efz_phase3_tests.erl
++++ b/test/efz_phase3_tests.erl
+@@ -8,7 +8,9 @@
+     {"fresh VM regeneration and actual crash replay",fun()->fresh_replay(A) end},
+     {"replay rejects incompatible builds and disposed plan options",fun()->replay_boundaries(A) end},
+     {"no candidate is not a target execution",fun exhaustion/0},
+-    {"256 seeds reach productive bitflip after an unavailable dictionary lane",fun()->scheduler_progress(A) end},
++    %% 512 guarded executions with a 10s campaign await; allow that existing
++    %% bound to fire before EUnit, while retaining all 256-parent assertions.
++    {"256 seeds reach productive bitflip after an unavailable dictionary lane",{timeout,12,fun()->scheduler_progress(A) end}},
+     %% 5376 guarded executions (calibration + mutations), not a speed benchmark.
+     {"finite deterministic exhaustion differs from the idle guard",{timeout,75,fun()->scheduler_exhaustion(A) end}},
+     {"mutator exceptions are infrastructure failures",fun()->mutator_failure(A) end}

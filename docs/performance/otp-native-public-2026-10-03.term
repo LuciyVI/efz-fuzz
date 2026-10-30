@@ -1,0 +1,59 @@
+#{rows =>
+      [#{requested_lines => 1,covered_lines => 2,iterations_per_sample => 100,
+         summary =>
+             #{reset => #{median_ns => 45.59,min_ns => 45.05,max_ns => 55.23},
+               merge => #{median_ns => 103.52,min_ns => 99.2,max_ns => 143.41},
+               get_coverage =>
+                   #{median_ns => 50.24,min_ns => 47.78,max_ns => 56.93},
+               execute => #{median_ns => 35.1,min_ns => 34.56,max_ns => 72.83},
+               conversion =>
+                   #{median_ns => 146.5,min_ns => 134.35,max_ns => 184.95},
+               novelty_true =>
+                   #{median_ns => 50.13,min_ns => 48.91,max_ns => 184.24},
+               novelty_false =>
+                   #{median_ns => 47.19,min_ns => 46.78,max_ns => 106.25},
+               full_cycle =>
+                   #{median_ns => 476.46,min_ns => 471.78,max_ns => 716.69}}},
+       #{requested_lines => 100,covered_lines => 101,
+         iterations_per_sample => 100,
+         summary =>
+             #{reset => #{median_ns => 33.66,min_ns => 32.91,max_ns => 35.14},
+               merge =>
+                   #{median_ns => 231.94,min_ns => 220.83,max_ns => 238.58},
+               get_coverage =>
+                   #{median_ns => 166.99,min_ns => 158.34,max_ns => 197.19},
+               execute =>
+                   #{median_ns => 427.78,min_ns => 424.13,max_ns => 435.37},
+               conversion =>
+                   #{median_ns => 1270.87,min_ns => 1209.73,max_ns => 1312.73},
+               novelty_true =>
+                   #{median_ns => 39.38,min_ns => 31.56,max_ns => 81.26},
+               novelty_false =>
+                   #{median_ns => 165.72,min_ns => 154.0,max_ns => 174.18},
+               full_cycle =>
+                   #{median_ns => 2363.28,min_ns => 2299.15,
+                     max_ns => 2389.04}}},
+       #{requested_lines => 1000,covered_lines => 1001,
+         iterations_per_sample => 20,
+         summary =>
+             #{reset => #{median_ns => 60.05,min_ns => 57.65,max_ns => 69.6},
+               merge =>
+                   #{median_ns => 1795.05,min_ns => 1706.4,max_ns => 2089.85},
+               get_coverage =>
+                   #{median_ns => 2669.5,min_ns => 1330.55,max_ns => 4094.4},
+               execute =>
+                   #{median_ns => 5161.25,min_ns => 4753.45,max_ns => 5976.5},
+               conversion =>
+                   #{median_ns => 13534.6,min_ns => 12893.15,
+                     max_ns => 16573.75},
+               novelty_true =>
+                   #{median_ns => 35.75,min_ns => 31.25,max_ns => 215.25},
+               novelty_false =>
+                   #{median_ns => 1291.4,min_ns => 1238.3,max_ns => 1524.55},
+               full_cycle =>
+                   #{median_ns => 24636.85,min_ns => 23614.45,
+                     max_ns => 29670.4}}}],
+  environment =>
+      #{otp => "27",schedulers => 16,erts => "15.0",
+        architecture => "x86_64-pc-linux-gnu",warmup_samples => 2,
+        timed_samples => 10}}.

@@ -1,2 +1,2 @@
-Missing build artifact: /home/fbogoslavskii/erl:fuzz/efz/../cowboy/ebin/cowboy_req.beam
+Missing build artifact: /erl:fuzz/efz/../cowboy/ebin/cowboy_req.beam
 Run make in COWBOY_DIR first.

@@ -9,7 +9,10 @@ mutate(B,_) -> <<B/binary,0>>.
 limits_test_() -> {setup,fun setup/0,fun cleanup/1,fun(S)->[
     {"campaign schema and seed boundaries",fun()->seeds(S) end},
     {"explicit campaign limit above default reaches every boundary",fun()->above_default(S) end},
-    {"real random mutator honors zero and full inputs",fun()->random(S) end},
+    %% Each campaign already has a 10s await bound. The old aggregate had a
+    %% 5s EUnit bound for both 300-execution cases and could cancel healthy work.
+    [{"real random mutator honors zero and full inputs",{timeout,12,
+        fun()->random_case(S,Max,Seeds) end}}||{Max,Seeds}<-[{0,[<<>>]},{3,[<<>>,<<"ABC">>]}]],
     {"staged limit and recipe are derived from campaign",fun()->staged(S) end},
     {"oversized random callback cannot reach target",fun()->oversized_random(S) end},
     {"restored inputs and active corpus obey campaign limit",fun()->restore(S) end},
@@ -75,16 +78,14 @@ replay_options(Max)->
     {ok,H}=efz_replay:harness_identity(efz_limits_target),
     #{max_input_bytes=>Max,expected_harness=>H}.
 
-random(S)->
-    lists:foreach(fun({Max,Seeds})->
+random_case(S,Max,Seeds)->
         {R,Bs}=observe(fun()->campaign((base(S))#{seeds=>Seeds,max_input_bytes=>Max,
             max_iterations=>300,random_seed=>{17,23,41}}) end),
         ?assertEqual(completed,maps:get(status,R)),
         ?assertEqual(300,maps:get(executions,maps:get(stats,R))),
         ?assertEqual(300+length(Seeds),length(Bs)),
         ?assert(lists:all(fun(B)->is_binary(B) andalso byte_size(B)=<Max end,Bs)),
-        ?assertEqual(Seeds,lists:sublist(Bs,length(Seeds)))
-    end,[{0,[<<>>]},{3,[<<>>,<<"ABC">>]}]).
+        ?assertEqual(Seeds,lists:sublist(Bs,length(Seeds))).
 staged(S)->
     lists:foreach(fun(Max)->
         {R,Bs}=observe(fun()->campaign((base(S))#{mutation_mode=>staged,max_input_bytes=>Max,

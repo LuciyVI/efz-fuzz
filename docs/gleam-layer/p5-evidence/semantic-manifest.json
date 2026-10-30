@@ -1,0 +1,349 @@
+{
+  "schema_version": 1,
+  "head": "b8f538e0877cb707e6a52312dc60921dc5f56364",
+  "tracked_diff_sha256": "569b05d9c53459feb698f207ca250344c29a569ca6b1b0ffc045acc09c957ebb",
+  "source_sha256": {
+    "examples/semantic_configs/cow_qs.term": "5327d08e69ec7ebfb7048626107847e6ff6ad2631ac1b38b228b3143a4d876aa",
+    "examples/semantic_configs/cow_qs_legacy.term": "e626b286e58596bb186417efdaf333ab84dfe75a810298f762200d54be987f00",
+    "examples/semantic_configs/lists_reverse.term": "f933ce9e0301a8c26b4a7d87793ed65ce682ce98a264ec89e153ee8b0fc7e3e7",
+    "examples/semantic_configs/maps_find.term": "ad1366c34c2626034275f4ca7c207e9ee7582bb40f2b4e57415bf2da353f3097",
+    "examples/semantic_configs/stateful.term": "9e4e1a8558a12322e749e7d8c32b437b5735edd967b74e6452569a0e0a6e19fc",
+    "examples/semantic_configs/tuple_api.term": "8a41d592ec81e23f4e39da635af38a0bcd17e329ea5a4537c4a7cb0ccdbf4d14",
+    "examples/semantic_configs/xmlrpc.term": "99125ea2bad68b06a14b0841a4d7a8395a2dcc6bfbbdc192f4e46c8d723ef70b",
+    "examples/stateful/efz_stateful_counter.erl": "c097a776f8378f16a4348b19715f5379da45e525c56bf0319b477dcc4c8c7594",
+    "examples/stateful/efz_stateful_target.erl": "09a28539f128f1d97ccae18c4642ed14695359f4afd80e9f7e577ec70d165c07",
+    "examples/term_api/efz_term_maps_target.erl": "69a67e43b355cade00300627b74c88be297477a1eb57b673d10e20617a04b8f4",
+    "examples/term_api/efz_term_reverse_target.erl": "554d3a9bfca12250d8251750ef9267b5a680c2d6a6bff2cc4dbb121badf32759",
+    "examples/term_api/efz_term_tuple_library.erl": "6e20c2f96553b646117e2936950044c7fd8a2c28293f1a80556994ef29dec59e",
+    "examples/term_api/efz_term_tuple_target.erl": "3431cd35df9136d406af6545e0fd0db79198a8099969687b0bd7f262e700fefa",
+    "examples/xmlrpc/benchmark_callbacks.escript": "7a2ce840ab59d7d3fcf4b0b11792a25d39a4fd2d0a9c6ff6833292d51c5f5ca0",
+    "examples/xmlrpc/efz_xmlrpc_target.erl": "a20d4d824677e1451c8e15315d3dec703f2f6a7e2a7cb6c73b6adaf68978625d",
+    "examples/xmlrpc/prepare.escript": "3fffc04a414596e8de8137a6997cfa291c02b0ed6a7ebcfbe82ac0b56540e41a",
+    "gleam/efz_semantic/src/efz_qs_model.gleam": "0a3594905305508496d74c16b22f8deef664d6cc0da6d13d163da04f4be3e287",
+    "gleam/efz_semantic/src/efz_term_model.gleam": "bd4ba71496227037ac35c3447e91e1d8b91f6a53d3c37e30172dcff303f29242",
+    "gleam/efz_semantic/src/efz_xmlrpc_model.gleam": "28ee175705854eebf2260cdceb4b2d1dc8e5c85379b5fe00706151e065c63b71",
+    "src/efz.erl": "b6ea846a228597b59b653d94888c8d8fdfa67be7636db0f205560b41c21a40dd",
+    "src/efz_app.erl": "6de2764fc7556915f3a3f1fef4a4d302896e463f402bb373ca5022c8b85a3684",
+    "src/efz_cli.erl": "4620179d7afe373e0df8bd20e531c52aa7e671d99c581dd1cf84026f20254775",
+    "src/efz_config.erl": "5f78897c6db015c044259a12717eb6c2af0d1d24e7a665eacf992d19f49dff57",
+    "src/efz_corpus.erl": "19f133ff3f87f8dddf53ac9d2be705991ac0994efa979d6c870545ac264e741e",
+    "src/efz_corpus_store.erl": "5b52a3c91d072356d72d1d8fdb925b18572bd86b88a5d425cdaa44357a924fde",
+    "src/efz_cov.erl": "7629b28e44fe1f6e83ca7910d45110efee332d9a03e65b7da518079bcfb0ad6d",
+    "src/efz_cov_bitmap.erl": "2c328e7fd18cd345c5d58a95b59fdb313e6fcb7d6b022c7671489fe43d135817",
+    "src/efz_cov_count.erl": "dbd75d0f73bee5e1dd9e203ed2dc857af1897e0804726dc52a4f074ed3f9f379",
+    "src/efz_cov_ets.erl": "a121da5b79cb5a87c1e8772ff0ef366291306bbf8e2fe0ffffa9785999b6b39b",
+    "src/efz_cov_integrity.erl": "c74acfe256406ffedbe33c54b4d9689e96d9fdd7e111df7a7911564b2cf3f28f",
+    "src/efz_cov_manifest.erl": "c6db75ecc6ffb7b9c9ae3794747560d4f2cf1c97dc68b007b4eae97ea6d6397d",
+    "src/efz_cov_native_public.erl": "2a1274e502e4f77ef93d3391e75e6125dc8d253660d3b95719d6f0c68e8a904e",
+    "src/efz_cov_rt.erl": "59e1c7bdcce3eece49dc001f328e4f74142aa2f1662257de41a151a7377e5e96",
+    "src/efz_coverage.erl": "a3e4f775bd6553f93151c6637147be1d16f98dec1f19337afb9c28a087614f04",
+    "src/efz_crash.erl": "0bf96c9aaefe00afce6d99ac387e9aacce1f9dd17205011a34a2a985bae648fc",
+    "src/efz_crash_store.erl": "6f266fb3590fc7c8390cc6a73e740dd588e3208db486ebba10bfacd5bfe09072",
+    "src/efz_dictionary.erl": "8f6e3efb940cf93edc5c866a92576a1f98787e10585058f914f1e7640c8c8ddd",
+    "src/efz_executor.erl": "ac911157e9fcd8ad9a0bb47c8ccb7afe1ce44f3ff2a02258cecb81d06d2d913f",
+    "src/efz_external.erl": "6f4b2dbf4ca5aa380048c1131236552722492750cc466f12b6ffd9d58980c883",
+    "src/efz_external_worker.erl": "bc3db7b787a95f7079900103d3f970a0d90c1496604b9e5d2dbf6b3dc16de068",
+    "src/efz_feedback.erl": "90547db9211fedd3f72f6186187d928c4cfab99a4cb5cec2bbe1fe3649666881",
+    "src/efz_finding_minimize.erl": "5d1ab81e14c141c6b4c36ae4943d2a8b5ae4e385eeae215c654afe2709a85c2a",
+    "src/efz_fs.erl": "ab87d36105a527633cfd6ab9e2886a39defc51887db8963c897dfe194203fe2a",
+    "src/efz_fuzzer.erl": "b454b45b9d6be23a5e067a94e7c8de18eb0f195a0d23f1ec7c9abbfedba99de5",
+    "src/efz_gleam_adapter.erl": "ca1b4f873bf01081c9bc9c7206559d68761ee700cc94a338da4f9b92678c0c86",
+    "src/efz_guardian.erl": "aa648fb39c097c208bf87c852fb97f99e2e9bbdf51b397e880a07d4f50392d70",
+    "src/efz_input.erl": "da76333fefb799962e5c6b9fa251e5e80637d631d1be4cdc6917d9e6e73c262c",
+    "src/efz_instrument.erl": "7effe7def3925c43e4133ac0d0597dc8911437887baad7cae2c88d6485c1aae8",
+    "src/efz_instrument_pt.erl": "e2eeae3c09887c90afd2b92a8af869d97be7f505b1a3bb618da1613b950a8610",
+    "src/efz_mutation.erl": "2efd727d37d071d10e88cfd977c13638f2d83c4b3ff49bd9d53b894024d3f0b9",
+    "src/efz_mutation_plan.erl": "ad9022180fc7cf00a6a75605b6654f315c45b44fe757e6e1c1610b89fb8ab012",
+    "src/efz_mutator.erl": "660afda0f884560fe02c3f1dd94283640dc19f50a82b79cdcad1285084b9f47b",
+    "src/efz_mutator_random.erl": "2c920f0eb5dbe533d8c2d7e5529c59ccfa5f83a1abc100a16ae13a45a93b45d2",
+    "src/efz_perf_profile.erl": "bc85719858463fea5d515f46d68b5a4926940b091e785b324aa72ba05f0ac890",
+    "src/efz_qs_adapter.erl": "d9e186edaf0fbb3b763a1bcba552d1ef9da755c9d10a0860a67b74c5ffd0b6fa",
+    "src/efz_qs_legacy.erl": "049aadc9f34071528eb3fe03b14e8578a9bd72337830045016c5dced311cbb3a",
+    "src/efz_recipe.erl": "2ce69acd99522560889d257ecbb1b050ace6a6d69b541a9d1bcddec2e45dd00b",
+    "src/efz_replay.erl": "1234ed395f4ee685b526fcab1217c8a154a7e38681fa52b16c84d3e16a3cebbc",
+    "src/efz_replay_cli.erl": "0b67043c30a7b642bba84144273be2fded4f493f1d4104565b15c3fb5934f1a0",
+    "src/efz_runtime.erl": "e6216ef7e7fdc2f76407fc4e6b23a3c4cdaec3f2f0b0d482f960335b9256a409",
+    "src/efz_runtime_config.erl": "d864ad95862fd16b2fe7198a66ea8678e3a42335b5c2bc369baa1aa46d2519b0",
+    "src/efz_runtime_replay.erl": "2d20da2fd3875d246f0a44df2b8d98e6b62667593c4b6362fd83236b87d6afe2",
+    "src/efz_runtime_store.erl": "fafc50066aefe0cfaceefd5a8d80f493c8c6b624381d670717d8e93459fa2c32",
+    "src/efz_semantic.erl": "aa9bb32727631971a18ea7ea7c1503c98f14da4b74f0c5e5ed46c51b85c3e274",
+    "src/efz_semantic_adapter.erl": "488e8cf9dada9bcc851b91eaa1bf317089ff007584d0f4dd93b5d55495aca211",
+    "src/efz_semantic_corpus.erl": "b7db64cebbb43856390f8a257a6be3979c65586434bbc2d018c5d4d6bb2eb3fe",
+    "src/efz_semantic_replay.erl": "a8b7979fd047408e40263d3ac06ae00d71b46d4fce5dfa39b18a18421cb58e66",
+    "src/efz_stability.erl": "07c3f9226661ce363f2404b877eef83fec58bd250c8705522cd6b9e9a66580a3",
+    "src/efz_stats.erl": "e70b383d562ca248250cb8a454e0a04261cf455a655b541c22c6fa5db9486c9d",
+    "src/efz_sup.erl": "df7db26164a61d4a44ab3ad79baa3935b13cf3981340db8be4949bfc88c5ed3a",
+    "src/efz_target.erl": "4e69efa1f6af8b9179088bc10191979473c47675d56de108e1b833480c6ab82f",
+    "src/efz_term_api_adapter.erl": "f07d536695d3d7548a3f7adaf9f3ed287715fa2d2f34f49bdbf38af8559bc887",
+    "src/efz_term_codec.erl": "b09c5b8e5af3610852c4a37914deee5014cdb25503e2e925cb1d21c0ec37c07c",
+    "src/efz_worker.erl": "ccb9f748808f6831a5e5de0d9a2b3c5f569f7d562b7eecc5bafa5d44cc85a372",
+    "src/efz_worker_sup.erl": "1a1f574cf4f228ed44ae9e3d8e032092f56c33a2b825cbef049ea757de8c27ea",
+    "src/efz_xmlrpc_adapter.erl": "4f5808529e93fbb638e59341aeb8770fc7142447a8d65c5d600fdd138b2fcedd"
+  },
+  "configuration_sha256": {
+    "rebar.config": "85a74f687c0ff51c717c57aa15e114f2659eef8c717eb932c757bf5a56cd70dd",
+    "rebar.lock": "d85cb12af11ff8370866e67fc032709f4c1f4df48b2ea362e61da7c0a51520b0",
+    "gleam/efz_semantic/gleam.toml": "832e108331c69b3e3db303bca54681971d45040980bb6c7692fadeb3f205826b"
+  },
+  "driver_sha256": {
+    "scripts/semantic_bench.escript": "de5fc8b838d3be0e7a084f29d24e9050fe9123bcd6d02899120c1974db780e0a",
+    "scripts/run_semantic_bench.py": "7be3dfc815e07733963ad14e5fe3b24620e9130b6408c2f19cb0e6fc27b76fae"
+  },
+  "platform": "Linux-6.18.44-x86_64-with-glibc2.41",
+  "cpu_affinity": [
+    0,
+    1
+  ],
+  "cpu_models": [
+    "AMD EPYC 9V74 80-Core Processor"
+  ],
+  "scheduler_flags": "+S 2:2",
+  "rng_seeds": [
+    [
+      17,
+      23,
+      41
+    ],
+    [
+      29,
+      35,
+      53
+    ],
+    [
+      43,
+      49,
+      67
+    ]
+  ],
+  "mutation_executions_per_campaign": 500,
+  "repetitions": 2,
+  "target_timeout_ms": 1000,
+  "campaign_deadline_ms": 30000,
+  "driver_run_timeout_s": 90,
+  "jobs": [
+    [
+      "generic",
+      "on",
+      2,
+      17
+    ],
+    [
+      "xmlrpc",
+      "on",
+      1,
+      43
+    ],
+    [
+      "stateful",
+      "off",
+      1,
+      43
+    ],
+    [
+      "generic",
+      "on",
+      1,
+      29
+    ],
+    [
+      "generic",
+      "on",
+      2,
+      29
+    ],
+    [
+      "generic",
+      "off",
+      2,
+      17
+    ],
+    [
+      "xmlrpc",
+      "on",
+      2,
+      43
+    ],
+    [
+      "xmlrpc",
+      "off",
+      1,
+      43
+    ],
+    [
+      "generic",
+      "on",
+      2,
+      43
+    ],
+    [
+      "stateful",
+      "on",
+      1,
+      29
+    ],
+    [
+      "generic",
+      "on",
+      1,
+      17
+    ],
+    [
+      "stateful",
+      "on",
+      2,
+      29
+    ],
+    [
+      "stateful",
+      "off",
+      1,
+      17
+    ],
+    [
+      "xmlrpc",
+      "on",
+      1,
+      29
+    ],
+    [
+      "xmlrpc",
+      "on",
+      1,
+      17
+    ],
+    [
+      "generic",
+      "off",
+      1,
+      43
+    ],
+    [
+      "stateful",
+      "on",
+      2,
+      43
+    ],
+    [
+      "stateful",
+      "on",
+      1,
+      43
+    ],
+    [
+      "xmlrpc",
+      "on",
+      2,
+      17
+    ],
+    [
+      "xmlrpc",
+      "off",
+      2,
+      43
+    ],
+    [
+      "generic",
+      "off",
+      2,
+      29
+    ],
+    [
+      "generic",
+      "off",
+      1,
+      17
+    ],
+    [
+      "stateful",
+      "off",
+      2,
+      43
+    ],
+    [
+      "generic",
+      "off",
+      2,
+      43
+    ],
+    [
+      "generic",
+      "on",
+      1,
+      43
+    ],
+    [
+      "stateful",
+      "on",
+      1,
+      17
+    ],
+    [
+      "xmlrpc",
+      "off",
+      2,
+      29
+    ],
+    [
+      "xmlrpc",
+      "off",
+      2,
+      17
+    ],
+    [
+      "stateful",
+      "on",
+      2,
+      17
+    ],
+    [
+      "stateful",
+      "off",
+      2,
+      17
+    ],
+    [
+      "generic",
+      "off",
+      1,
+      29
+    ],
+    [
+      "xmlrpc",
+      "on",
+      2,
+      29
+    ],
+    [
+      "stateful",
+      "off",
+      1,
+      29
+    ],
+    [
+      "xmlrpc",
+      "off",
+      1,
+      17
+    ],
+    [
+      "xmlrpc",
+      "off",
+      1,
+      29
+    ],
+    [
+      "stateful",
+      "off",
+      2,
+      29
+    ]
+  ],
+  "order_seed": 20261010,
+  "campaign_warmup_executions": 0,
+  "scope": "finite integration smoke; no acceleration or discovery superiority claim",
+  "coverage": {
+    "generic": "ETS tuple library only",
+    "xmlrpc": "ETS decoder/util only",
+    "stateful": "ETS admitted counter child only; OTP gen_server internals excluded"
+  }
+}

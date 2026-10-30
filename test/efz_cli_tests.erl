@@ -6,6 +6,7 @@ cli_test_() -> {setup, fun setup/0, fun cleanup/1, fun(S) -> [
     {"external harness, raw seeds, real automatic campaign", fun() -> campaign(S) end},
     {"durable inputs reused by a second launcher VM", fun() -> durable_campaign(S) end},
     {"legacy random campaign through the same launcher", fun() -> random_campaign(S) end},
+    {"opt-in hit count mode through the same launcher",fun()->hit_count_campaign(S) end},
     {"disconnected campaign diagnostic and strict exit in fresh VMs",fun()->coverage_policy(S) end},
     {"missing target module", fun() -> invalid(S, missing_module,
         #{"--target" => "efz_nonexistent_cli_harness"}, <<"could not be loaded">>) end},
@@ -129,6 +130,13 @@ random_campaign(S) ->
     ?assertEqual(4, maps:get(executions, maps:get(stats, R))),
     ?assertEqual(7,maps:get(max_input_bytes,R)),
     ?assert(lists:all(fun(#{input:=B})->byte_size(B)=<7 end,maps:get(corpus,R))).
+hit_count_campaign(S) ->
+    {0,_}=invoke(S,args(S,hit_count,#{"--coverage-feedback"=>"hit_count"})),
+    R=report(S,hit_count),?assertEqual(hit_count,maps:get(coverage_feedback,R)),
+    ?assert(maps:get(count_features,R)=/=[]),
+    [E]=[X||X<-maps:get(corpus,R),maps:get(input,X)=:=<<128>>],
+    ?assertEqual(new_probe,maps:get(retention_reason,maps:get(metadata,E))),
+    invalid(S,bad_feedback,#{"--coverage-feedback"=>"bitmap"},<<"--coverage-feedback must be presence or hit_count">>).
 coverage_policy(S) ->
     Changes=#{"--target"=>"efz_cli_disconnected","--max-iterations"=>"0"},
     {0,Output}=invoke(S,args(S,disconnected,Changes)),contains(Output,<<"no_probes_observed">>),

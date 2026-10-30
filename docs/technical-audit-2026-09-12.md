@@ -34,7 +34,7 @@ corpus id=4: <<"ABC">>     новое покрытие; parent=3
 
 ### Проверенный checkout и область аудита
 
-Основной репозиторий: /home/fbogoslavskii/erl:fuzz/efz, ветка main, HEAD ac09c1f3e938c3a79b369fc6a87d61c1ae739db4, «chore: initialize efz OTP project». Родительский workspace не является рабочим Git repository.
+Основной репозиторий: /home/anonymous_usr/erl:fuzz/efz, ветка main, HEAD ac09c1f3e938c3a79b369fc6a87d61c1ae739db4, «chore: initialize efz OTP project». Родительский workspace не является рабочим Git repository.
 
 HEAD не описывает проверенную реализацию: большинство src/*.erl, test/, docs/, examples/, fixtures/, bench/, scripts/ — уже существовавшие untracked файлы; README.md, rebar.config, src/efz.app.src изменены. Зафиксированы [исходный status](audit-2026-09-12/status-before.txt) и [SHA-256 всех 83 исходных файлов](audit-2026-09-12/before-sha256.json). Соседний efz.worktrees/agents-condemned-silverfish содержит те же 83 файла с идентичными байтами: это отдельный checkout, а не второй engine в runtime.
 
@@ -703,7 +703,7 @@ Raw saved input можно выполнить через recipe:execute_file/5 �
 Точная ошибка Cowboy launcher:
 
 ~~~text
-Missing build artifact: /home/fbogoslavskii/erl:fuzz/efz/../cowboy/ebin/cowboy_req.beam
+Missing build artifact: /home/anonymous_usr/erl:fuzz/efz/../cowboy/ebin/cowboy_req.beam
 Run make in COWBOY_DIR first.
 ~~~
 
