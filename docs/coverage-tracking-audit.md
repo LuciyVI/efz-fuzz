@@ -1,48 +1,50 @@
-# Coverage tracking EFZ: аудит и сравнение с AFL++
+# EFZ coverage tracking: audit and comparison with AFL++
 
-Дата: 15 сентября 2026. Проверяемый production snapshot:
+**English** · [Русский](i18n/ru/coverage-tracking-audit.md) · [Español](i18n/es/coverage-tracking-audit.md) · [简体中文](i18n/zh-CN/coverage-tracking-audit.md) · [All languages](i18n/README.md)
+
+Date: September 15, 2026. Production snapshot under review:
 [`205e18ba172d74bd6c652a68abfc73e02e4a1f86`](https://github.com/LuciyVI/efz-fuzz/commit/205e18ba172d74bd6c652a68abfc73e02e4a1f86).
-Среда экспериментов: OTP 27 / ERTS 15.0, Linux x86_64, `+S 4:4`.
-Production implementation не изменялась. Новые диагностические targets и runner
-находятся в [coverage-audit-2026-09-15](coverage-audit-2026-09-15/).
+Experimental environment: OTP 27 / ERTS 15.0, Linux x86_64, `+S 4:4`.
+The production implementation was not changed. New diagnostic targets and the
+runner are in [coverage-audit-2026-09-15](coverage-audit-2026-09-15/).
 
-Этот документ описывает указанный snapshot и default presence semantics.
-Последующий opt-in прототип со счётчиками и его отдельные измерения описаны в
-[hit-count experiment](hit-count-experiment.md); исторические результаты ниже
-не являются описанием нового режима.
+This document describes that snapshot and default presence semantics.
+The subsequent opt-in counter prototype and its separate measurements are in the
+[hit-count experiment](hit-count-experiment.md); historical results below do not
+describe the new mode.
 
 ## 1. Executive conclusion
 
 **RESULT B — AFL++-like feedback semantics implemented, different representation.**
 
-Ответы на два разных вопроса:
+Answers to two different questions:
 
-* **Coverage feedback exists? YES.** Автоматические hooks записывают coverage
-  конкретного execution; worker сравнивает его с accumulated coverage и добавляет
-  успешные discoveries в настоящий corpus, доступный следующему scheduling.
-* **AFL++-style bitmap/hit-count map exists? NO.** Нет byte-indexed trace bitmap,
-  hit counters, buckets, `virgin_bits`, предыдущего edge или call-context hashing.
+* **Coverage feedback exists? YES.** Automatic hooks record coverage for a
+  particular execution; the worker compares it with accumulated coverage and adds
+  successful discoveries to the real corpus available to subsequent scheduling.
+* **AFL++-style bitmap/hit-count map exists? NO.** There is no byte-indexed trace
+  bitmap, hit counter, bucket, `virgin_bits`, previous edge or call-context hashing.
 
-Корректное название текущей структуры: **execution coverage set / exact probe set**.
-Можно говорить «разреженная карта присутствия probes», если явно оговорены set
-semantics. Называть её bitmap или edge-hit-count map неправильно.
+The correct name for the current structure is **execution coverage set / exact probe set**.
+“Sparse probe-presence map” is acceptable if set semantics are explicit.
+Calling it a bitmap or edge-hit-count map is incorrect.
 
-Представление EFZ не эквивалентно AFL++ по чувствительности feedback: **новый probe
-обнаруживается; новая кратность старого probe и новая комбинация старых probes — нет**.
-Идентификаторы относятся к source clause/outcome points, а не CFG edges.
+EFZ's representation is not equivalent to AFL++ in feedback sensitivity: **a new
+probe is detected; new multiplicity of an old probe and new combinations of old
+probes are not**. Identities denote source clause/outcome points, not CFG edges.
 
-Основания: [hook](../src/efz_cov_rt.erl#L43), [snapshot](../src/efz_cov.erl#L31),
+Evidence: [hook](../src/efz_cov_rt.erl#L43), [snapshot](../src/efz_cov.erl#L31),
 [novelty](../src/efz_feedback.erl#L16), [retention](../src/efz_worker.erl#L122),
-[scheduler](../src/efz_mutation_plan.erl#L54), независимые runtime experiments
-в разделе 13 и реальный [parent-reuse integration test](../test/efz_feedback_loop_tests.erl).
+[scheduler](../src/efz_mutation_plan.erl#L54), independent runtime experiments in
+section 13 and the real [parent-reuse integration test](../test/efz_feedback_loop_tests.erl).
 
 ## 2. AFL++ reference model
 
-Reference зафиксирован на AFL++ `stable` commit
+The reference is pinned to AFL++ `stable` commit
 [`dbaf11913c1b2702dee5b4d3dcfffd52f1defe50`](https://github.com/AFLplusplus/AFLplusplus/commit/dbaf11913c1b2702dee5b4d3dcfffd52f1defe50),
-commit date 2026-09-02. AFL++ здесь не собирался и не запускался: сравнение выполнено
-по официальному source. Это модель обычного coverage-guided режима; дополнительные
-value-profile/CmpLog/path/sanitizer channels и crash-only mode не подменяют её.
+commit date 2026-09-02. AFL++ was neither built nor run here: the comparison uses
+official source. This models ordinary coverage-guided mode; additional
+value-profile/CmpLog/path/sanitizer channels and crash-only mode do not replace it.
 
 ```text
 target execution
@@ -55,30 +57,30 @@ target execution
   → clear current trace before next run
 ```
 
-| Понятие | Смысл в reference |
+| Concept | Meaning in the reference |
 |---|---|
-| Edge coverage | Сведения о переходах control flow; способы размещения instrumentation зависят от compiler/backend. Это не просто множество строк source. |
-| Bitmap slot | Числовая позиция в trace buffer. Slot не обязательно тождествен одному уникальному edge. |
-| Hit counter | Обычно byte, обновляемый на каждом попадании; это не точное неограниченное число вызовов. |
-| Count bucket | Класс значений counter. Новая bucket для известного slot может дать novelty. |
-| Per-execution trace | `fsrv.trace_bits`, текущие наблюдения target в shared memory. |
-| Virgin map | Биты ещё не наблюдавшихся bucket features; накопление логически хранится в обратном виде. |
-| Novelty | Пересечение classified current bits с virgin bits. Новая slot и новая bucket старой slot различаются. |
-| Reset | Очистка current trace между runs; virgin state при этом сохраняется. |
-| Collisions | В hashed instrumentation несколько edges могут разделить slot и смешать counts. LTO и PCGUARD могут использовать непересекающиеся IDs. |
-| Context | Обычная edge identity не включает call chain. Дополнительные instrumentation modes могут учитывать caller/context; это отдельная настройка. |
+| Edge coverage | Information about control-flow transitions; instrumentation placement depends on compiler/backend. It is not merely a set of source lines. |
+| Bitmap slot | A numeric position in the trace buffer. A slot need not correspond to one unique edge. |
+| Hit counter | Usually a byte updated on every hit; not an exact unbounded call count. |
+| Count bucket | A counter-value class. A new bucket for a known slot can yield novelty. |
+| Per-execution trace | `fsrv.trace_bits`, current target observations in shared memory. |
+| Virgin map | Bits for bucket features not yet observed; accumulation is logically stored in inverse form. |
+| Novelty | Intersection of classified current bits with virgin bits. A new slot and a new bucket of an old slot are distinguished. |
+| Reset | Clearing the current trace between runs while preserving virgin state. |
+| Collisions | In hashed instrumentation, multiple edges may share a slot and mix counts. LTO and PCGUARD can use nonoverlapping IDs. |
+| Context | Ordinary edge identity excludes the call chain. Additional instrumentation modes can account for caller/context; that is a separate setting. |
 
-Историческая схема AFL использует индекс из `cur_location XOR prev_location`, а
-`prev_location` обновляется с учётом текущей точки. Это **не универсальное описание
-всех современных backend'ов AFL++**. Reference runtime PCGUARD обновляет
-`__afl_area_ptr[*guard]`; LTO документирует уникальные IDs и требования к диапазонам
-при нескольких instrumented libraries. [Историческая модель](https://aflplus.plus/docs/technical_details/),
+The historical AFL scheme indexes `cur_location XOR prev_location`, with
+`prev_location` updated using the current point. This **does not universally
+describe all modern AFL++ backends**. The PCGUARD reference runtime updates
+`__afl_area_ptr[*guard]`; LTO documents unique IDs and range requirements for
+multiple instrumented libraries. [Historical model](https://aflplus.plus/docs/technical_details/),
 [runtime PCGUARD](https://github.com/AFLplusplus/AFLplusplus/blob/dbaf11913c1b2702dee5b4d3dcfffd52f1defe50/instrumentation/afl-compiler-rt.o.c#L2692),
 [LTO](https://github.com/AFLplusplus/AFLplusplus/blob/dbaf11913c1b2702dee5b4d3dcfffd52f1defe50/instrumentation/README.lto.md).
 
-**Версионная деталь:** активная `count_class_lookup8` в выбранной ревизии имеет
-следующие классы; традиционная таблица с отдельным классом для 3 оставлена в source
-как `OLD` comment:
+**Version detail:** active `count_class_lookup8` in the selected revision has
+the following classes; the traditional table with a separate class for 3 remains
+in source as an `OLD` comment:
 
 | Raw byte count | Classified bit |
 |---|---:|
@@ -92,34 +94,34 @@ target execution
 | 64–127 | 64 |
 | 128–255 | 128 |
 
-`classify_counts` выполняет преобразование byte counts, а `discover_word`
-проверяет `current & virgin` и применяет `virgin &= ~current`. `has_new_bits`
-возвращает 0 без novelty, 1 при новой count-class известной slot, 2 при новой slot.
-Это не сохранение каждого уникального полного trace vector.
-[Таблица и has_new_bits](https://github.com/AFLplusplus/AFLplusplus/blob/dbaf11913c1b2702dee5b4d3dcfffd52f1defe50/src/afl-fuzz-bitmap.c#L46),
+`classify_counts` transforms byte counts; `discover_word` checks
+`current & virgin` and applies `virgin &= ~current`. `has_new_bits` returns 0
+without novelty, 1 for a new count-class of a known slot, and 2 for a new slot.
+This does not retain every unique full trace vector.
+[Table and has_new_bits](https://github.com/AFLplusplus/AFLplusplus/blob/dbaf11913c1b2702dee5b4d3dcfffd52f1defe50/src/afl-fuzz-bitmap.c#L46),
 [classify_counts/discover_word](https://github.com/AFLplusplus/AFLplusplus/blob/dbaf11913c1b2702dee5b4d3dcfffd52f1defe50/include/coverage-64.h#L77).
 
-Byte counters могут переполняться. Показанный PCGUARD runtime использует NeverZero:
-после 255 переходит к 1. Это **не saturation**. Режим thread-safe instrumentation
-отдельный; обычный increment сам по себе не гарантирует точный count при конкуренции.
-Shared-memory buffer может быть общим у instrumented threads/fork descendants,
-но boundaries input требуют согласованного lifecycle target.
-[Counters и thread safety](https://github.com/AFLplusplus/AFLplusplus/blob/dbaf11913c1b2702dee5b4d3dcfffd52f1defe50/instrumentation/README.llvm.md#L200),
+Byte counters can overflow. The shown PCGUARD runtime uses NeverZero:
+255 is followed by 1. This is **not saturation**. Thread-safe instrumentation is
+a separate mode; ordinary increment alone does not guarantee exact counts under
+concurrency. Instrumented threads/fork descendants may share a shared-memory
+buffer, but input boundaries require a coordinated target lifecycle.
+[Counters and thread safety](https://github.com/AFLplusplus/AFLplusplus/blob/dbaf11913c1b2702dee5b4d3dcfffd52f1defe50/instrumentation/README.llvm.md#L200),
 [mapping runtime](https://github.com/AFLplusplus/AFLplusplus/blob/dbaf11913c1b2702dee5b4d3dcfffd52f1defe50/instrumentation/afl-compiler-rt.o.c).
 
-Размер trace buffer фиксирован на время использования конкретной map, но его
-ёмкость выбирается/согласуется с target. Неверно считать любой AFL++ map неизменно
-64 KiB. Обычный forkserver path обнуляет `trace_bits` перед execution.
-[Map resize и run/reset](https://github.com/AFLplusplus/AFLplusplus/blob/dbaf11913c1b2702dee5b4d3dcfffd52f1defe50/src/afl-forkserver.c#L2410).
+Trace-buffer size is fixed while a particular map is in use, but capacity is
+chosen/negotiated with the target. It is incorrect to assume every AFL++ map is
+always 64 KiB. The ordinary forkserver path zeroes `trace_bits` before execution.
+[Map resize and run/reset](https://github.com/AFLplusplus/AFLplusplus/blob/dbaf11913c1b2702dee5b4d3dcfffd52f1defe50/src/afl-forkserver.c#L2410).
 
-`save_if_interesting` добавляет кандидатов в queue. Crash/hang dedup использует
-отдельные `virgin_crash`/`virgin_tmout` после упрощения trace, которое убирает counts;
-это отличается от обычной successful queue novelty.
-[Queue и crash/hang paths](https://github.com/AFLplusplus/AFLplusplus/blob/dbaf11913c1b2702dee5b4d3dcfffd52f1defe50/src/afl-fuzz-bitmap.c).
+`save_if_interesting` adds candidates to the queue. Crash/hang dedup uses
+separate `virgin_crash`/`virgin_tmout` after simplifying the trace to remove
+counts; this differs from ordinary successful-queue novelty.
+[Queue and crash/hang paths](https://github.com/AFLplusplus/AFLplusplus/blob/dbaf11913c1b2702dee5b4d3dcfffd52f1defe50/src/afl-fuzz-bitmap.c).
 
 ## 3. Actual EFZ coverage architecture
 
-Фактический default staged/prepared path:
+Actual default staged/prepared path:
 
 ```text
 efz_cli:launch/1 → efz:start/1
@@ -161,44 +163,46 @@ efz_cli:launch/1 → efz:start/1
 
 Source anchors: [worker](../src/efz_worker.erl#L47), [planner](../src/efz_mutation_plan.erl#L54),
 [executor](../src/efz_executor.erl#L11), [guardian](../src/efz_guardian.erl#L33).
-Random mode использует `efz_corpus:select/0 → Mu:mutate/2`, затем тот же execution,
-coverage и feedback path. `coverage_validation => per_execution` вызывает
-`validate_observed/3` вместо prepared membership. Новый engine для эксперимента не создавался.
+Random mode uses `efz_corpus:select/0 → Mu:mutate/2`, followed by the same
+execution, coverage and feedback path. `coverage_validation => per_execution`
+calls `validate_observed/3` instead of prepared membership. No new engine was
+created for the experiment.
 
-Ключевые сообщения между процессами:
+Key interprocess messages:
 
-| Сообщение | Отправитель → получатель | Значение |
+| Message | Sender → receiver | Meaning |
 |---|---|---|
-| `{coordinate,Root,Context}` / `{coordinator_ready,Coordinator}` | guardian ↔ coordinator | Установить root monitor перед стартом кода |
-| `{start_owned,Capability}` | guardian/helper → target | Открыть gate после регистрации ownership |
-| `{target_result,Ref,Root,Outcome}` | root → coordinator | Return/exception классификация |
-| `{coordinator_done,Coordinator,Outcome}` | coordinator → guardian | Перейти к cleanup |
-| `{efz_cov_observed,Ref,Identity}` | первый insert hook → guardian | Независимое свидетельство первого hit |
-| `{efz_cov_failure,Ref,Reason}` | integrity/hook → guardian | Ошибка observation не должна исчезнуть при caught exception |
-| `DOWN`, `trace_delivered` | runtime → guardian | Подтверждение termination и обработки trace |
-| `{Request,Guardian,Result}` | guardian → executor caller | Готовый snapshot и lifecycle status |
-| `gen_server:call(...,{add,Binary,Meta},infinity)` | worker → corpus | Подтверждённая вставка entry |
+| `{coordinate,Root,Context}` / `{coordinator_ready,Coordinator}` | guardian ↔ coordinator | Install the root monitor before code starts |
+| `{start_owned,Capability}` | guardian/helper → target | Open the gate after ownership registration |
+| `{target_result,Ref,Root,Outcome}` | root → coordinator | Return/exception classification |
+| `{coordinator_done,Coordinator,Outcome}` | coordinator → guardian | Enter cleanup |
+| `{efz_cov_observed,Ref,Identity}` | first insert hook → guardian | Independent evidence of the first hit |
+| `{efz_cov_failure,Ref,Reason}` | integrity/hook → guardian | An observation error must survive a caught exception |
+| `DOWN`, `trace_delivered` | runtime → guardian | Confirmation of termination and trace processing |
+| `{Request,Guardian,Result}` | guardian → executor caller | Completed snapshot and lifecycle status |
+| `gen_server:call(...,{add,Binary,Meta},infinity)` | worker → corpus | Confirmed entry insertion |
 
-Аргументы input — `binary()`. `Provenance`/`Recipe` содержат primary bytes/hash,
-parent ID, операции и output hash. `Result` — map с `outcome`, `coverage` (list of
-identities), `coverage_status`, `coverage_observation`, `builds`, `cleanup`.
-В global set передаётся coverage list; сами bytes остаются у worker/corpus.
+Input arguments are `binary()`. `Provenance`/`Recipe` contain primary bytes/hash,
+parent ID, operations and output hash. `Result` is a map with `outcome`,
+`coverage` (list of identities), `coverage_status`, `coverage_observation`,
+`builds`, `cleanup`. The global set receives the coverage list; input bytes
+remain with the worker/corpus.
 
 ## 4. Coverage data structures
 
-| State | Физическое представление | Owner / lifetime |
+| State | Physical representation | Owner / lifetime |
 |---|---|---|
-| Per-execution hits | Неназванная public ETS `set`, internal name `efz_execution_coverage` | Guardian; один execution до snapshot/close |
-| Target context | Process dictionary key `'$efz_execution_context'` → context tuple | Root/controlled child; до смерти процесса |
-| Independent observation evidence | Guardian state `observed_probes => sets:set()` | Тот же execution; первый hit каждой identity |
-| Attachment/integrity registry | Named protected ETS `efz_coverage_observers`, `{Pid,Context}`, `{identities,Pins}` | Guardian; одна одновременно активная execution в VM |
-| Allowed coverage identities | Protected ETS `efz_coverage_plan` | Worker; campaign, до release/смерти owner |
+| Per-execution hits | Unnamed public ETS `set`, internal name `efz_execution_coverage` | Guardian; one execution until snapshot/close |
+| Target context | Process dictionary key `'$efz_execution_context'` → context tuple | Root/controlled child; until process death |
+| Independent observation evidence | Guardian state `observed_probes => sets:set()` | Same execution; first hit of each identity |
+| Attachment/integrity registry | Named protected ETS `efz_coverage_observers`, `{Pid,Context}`, `{identities,Pins}` | Guardian; one execution active in the VM at a time |
+| Allowed coverage identities | Protected ETS `efz_coverage_plan` | Worker; campaign, until release/owner death |
 | Successful global coverage | `S.feedback.global`, Erlang `sets:set()` | Worker; campaign |
-| Campaign diagnostics | `coverage_seen`, empty/broken/unstarted counts | Worker; campaign; **не** novelty state |
-| Dirty marker | `persistent_term` `{efz_guardian,dirty_runner}` | VM; **не** coverage map |
-| Persistence | Source manifests; historical metadata в corpus/crash/report | Файловая система; не per-execution trace buffer |
+| Campaign diagnostics | `coverage_seen`, empty/broken/unstarted counts | Worker; campaign; **not** novelty state |
+| Dirty marker | `persistent_term` `{efz_guardian,dirty_runner}` | VM; **not** a coverage map |
+| Persistence | Source manifests; historical metadata in corpus/crash/report | Filesystem; not a per-execution trace buffer |
 
-Точный context и row format:
+Exact context and row format:
 
 ```erlang
 {efz_context, 1, ExecutionRef, Table, GuardianPid}
@@ -210,103 +214,108 @@ identities), `coverage_status`, `coverage_observation`, `builds`, `cleanup`.
 {probe, {Module, BuildId, ProbeId}}
 ```
 
-Один row означает присутствие одного exact probe. Value/counter отдельным полем
-не хранится. Fixed-size slot space, binary bitmap, shared-memory byte array,
-`counters`/`atomics` coverage backend отсутствуют. `ProbeId` — numeric ID внутри
-tuple key, но не индекс массива. ETS сам разрешает внутренние hash collisions
-сравнением ключей; он не объединяет разные identities в один coverage bit.
+One row means the presence of one exact probe. No separate value/counter field
+is stored. There is no fixed-size slot space, binary bitmap, shared-memory byte
+array or `counters`/`atomics` coverage backend. `ProbeId` is a numeric ID inside
+a tuple key, not an array index. ETS resolves its internal hash collisions by
+comparing keys; it does not combine distinct identities into one coverage bit.
 [open/attach/snapshot](../src/efz_cov.erl), [insert](../src/efz_cov_rt.erl#L43).
 
-В **проверенном OTP 27** `sets:new()` возвращает version-1 tuple `{set,...}` с
-hash segments, а не native map. EFZ использует API `sets`, не зависит от private
-layout. Нельзя считать слово `map` в `S.feedback` доказательством bitmap:
-это обычная Erlang map, внутри которой находится set.
+On **the tested OTP 27**, `sets:new()` returns a version-1 tuple `{set,...}` with
+hash segments, not a native map. EFZ uses the `sets` API and does not depend on
+private layout. The word `map` in `S.feedback` is not evidence of a bitmap:
+it is an ordinary Erlang map containing a set.
 
-Prepared table содержит `{Identity}` и служебные `{'$efz_plan',{Mode,Builds}}`,
-`{'$efz_identities',PinsResult}`. Она знает все разрешённые probes, включая ни разу
-не исполненные. Это **validation allowlist**, не accumulated coverage.
-[make_plan/2](../src/efz_cov_manifest.erl#L60).
+The prepared table contains `{Identity}` and service rows
+`{'$efz_plan',{Mode,Builds}}`, `{'$efz_identities',PinsResult}`. It knows all allowed
+probes, including ones never executed. This is a **validation allowlist**, not
+accumulated coverage. [make_plan/2](../src/efz_cov_manifest.erl#L60).
 
 ## 5. Probe identity
 
-Единица — **source clause/outcome probe**, manifest metric `clause_outcome_probe`.
-`efz_instrument_pt:body/5` помещает hook в начало тела после выбора clause.
-Фактические виды: `function_clause`, `case_clause`, `if_clause`, `receive_clause`,
-`receive_after`, `try_body`, `try_of_clause`, `catch_clause`, `try_after`,
-`fun_clause`, `named_fun_clause`. Guards/patterns отдельно не инструментируются;
-short-circuit operands не получают автоматически самостоятельных true/false probes.
-Таким образом, это не полное branch coverage и не instrumentation всех BEAM basic blocks.
+The unit is a **source clause/outcome probe**, manifest metric `clause_outcome_probe`.
+`efz_instrument_pt:body/5` places a hook at the start of the body after clause
+selection. Actual kinds: `function_clause`, `case_clause`, `if_clause`,
+`receive_clause`, `receive_after`, `try_body`, `try_of_clause`, `catch_clause`,
+`try_after`, `fun_clause`, `named_fun_clause`. Guards/patterns are not separately
+instrumented; short-circuit operands do not automatically get individual
+true/false probes. This is neither full branch coverage nor instrumentation of
+all BEAM basic blocks.
 [body/probe](../src/efz_instrument_pt.erl#L106), [AST traversal](../src/efz_instrument_pt.erl#L129).
 
 Identity: `{Module :: atom(), BuildId :: binary(32), ProbeId :: pos_integer()}`.
-Transform начинает `next => 1` и выдаёт ID по порядку обхода AST, увеличивая `next`
-для каждой точки. Hook содержит эту тройку как compile-time literal.
-Manifest сопоставляет ID с module/function/arity, kind, source_file, line/column
-и structural_location. Line — metadata, **не ключ покрытия**.
+The transform starts at `next => 1` and assigns IDs in AST traversal order,
+incrementing `next` for each point. The hook contains this triple as a
+compile-time literal. The manifest maps ID to module/function/arity, kind,
+source_file, line/column and structural_location. Line is metadata,
+**not a coverage key**.
 
-BuildId вычисляется SHA-256 от `{1, OTPRelease, CompilerModuleMd5, CanonicalForms,
-IdentityOptions}`. Paths внутри `source_root` нормализуются относительно root.
-Другой module имеет отдельный namespace; другая build identity также отдельная.
-Manifest validation отвергает повторяющиеся IDs и structural paths.
+BuildId is SHA-256 of `{1, OTPRelease, CompilerModuleMd5, CanonicalForms,
+IdentityOptions}`. Paths inside `source_root` are normalized relative to root.
+Another module has a separate namespace; another build identity is separate too.
+Manifest validation rejects duplicate IDs and structural paths.
 [Build computation](../src/efz_instrument_pt.erl#L36), [validation](../src/efz_cov_manifest.erl#L4).
 
-Стабильность: executions одной сборки используют одинаковую identity; одинаковые
-canonical source/options/toolchain дают воспроизводимые IDs в проверенной среде.
-Перестановка/добавление AST points может сдвинуть числовые IDs, а изменение source,
-annotations/options/toolchain может изменить BuildId. Это не обещание стабильных
-IDs при произвольном редактировании или смене OTP. Тесты `determinism/1`,
-`build_options/0` и fresh replay проверяют конкретные границы.
+Stability: executions of one build use the same identity; identical canonical
+source/options/toolchain produce reproducible IDs in the tested environment.
+Reordering/adding AST points can shift numeric IDs, and changes to source,
+annotations/options/toolchain can change BuildId. Stable IDs are not promised
+across arbitrary edits or OTP changes. Tests `determinism/1`, `build_options/0`
+and fresh replay check specific boundaries.
 
-Ограничение identity contract: первая константа `1` — версия схемы, содержимое
-самого transform автоматически в BuildId не хэшируется. Изменение semantics
-instrumentation требует осознанного version bump. Pinning BEAM/attributes/harness
-добавляет независимую проверку текущего кода. SHA-256 collision теоретически
-возможна, но это не штатная slot compression, как в hashed bitmap.
+Identity-contract limitation: the initial constant `1` is a schema version;
+the transform's own contents are not automatically hashed into BuildId.
+Changing instrumentation semantics requires an explicit version bump.
+BEAM/attributes/harness pinning adds an independent current-code check.
+SHA-256 collisions are theoretically possible, but this is not ordinary slot
+compression as in a hashed bitmap.
 
-**EFZ ProbeId не эквивалентен AFL++ edge/slot index.** Он обозначает AST point
-в module/build namespace. Нет `(previous,current)` tuple, XOR slot mapping,
-call-stack/caller contribution. `ExecutionRef` из context отвечает за lifetime,
-а не за context-sensitive feature identity.
+**EFZ ProbeId is not an AFL++ edge/slot index.** It identifies an AST point in a
+module/build namespace. There is no `(previous,current)` tuple, XOR slot mapping
+or call-stack/caller contribution. The context's `ExecutionRef` controls lifetime,
+not context-sensitive feature identity.
 
 ## 6. Per-execution lifecycle
 
-1. `efz_executor:run_pinned/4` создаёт независимый monitored guardian.
-2. Guardian проверяет pinned modules, создаёт fresh ETS через `efz_cov:open/1`
-   и fresh execution reference. Он же — ETS owner, не root/coordinator.
-3. `admit/2` регистрирует root/child до открытия gate; затем `attach/1` кладёт
-   ссылку на общую таблицу этого case в process dictionary.
-4. Hook проверяет expected context по внешней registry и выполняет insert/member.
-5. После root outcome, timeout либо caller/coordinator DOWN guardian завершает
-   root, descendants и coordinator, ждёт monitors и trace delivery barriers.
-6. `finish/2` проверяет identities, делает snapshot/allowlist validation, сверяет
-   независимые observed probes и attachment. Затем закрывает ETS/registry/trace.
-7. Result отправляется worker; caller ждёт ещё и guardian DOWN. Feedback получает
-   самостоятельный coverage list уже после закрытия per-execution таблицы.
-8. Следующий case создаёт новую таблицу/reference; явного memset/reset bitmap нет.
+1. `efz_executor:run_pinned/4` creates an independent monitored guardian.
+2. The guardian checks pinned modules, creates fresh ETS through `efz_cov:open/1`
+   and a fresh execution reference. The guardian owns ETS, not root/coordinator.
+3. `admit/2` registers root/child before opening the gate; `attach/1` then puts a
+   reference to this case's shared table in the process dictionary.
+4. The hook checks the expected context against the external registry and performs insert/member.
+5. After root outcome, timeout or caller/coordinator DOWN, the guardian terminates
+   root, descendants and coordinator, waits for monitors and trace-delivery barriers.
+6. `finish/2` checks identities, takes a snapshot/allowlist validation, checks
+   independent observed probes and attachment, then closes ETS/registry/trace.
+7. The result is sent to the worker; the caller also waits for guardian DOWN.
+   Feedback receives an independent coverage list after the per-execution table closes.
+8. The next case creates a new table/reference; there is no explicit bitmap memset/reset.
 
 [Guardian start/admit/loop](../src/efz_guardian.erl#L33),
 [finish](../src/efz_guardian.erl#L163), [executor result protocol](../src/efz_executor.erl#L33).
 
-Crash root не уничтожает coverage table: owner — guardian. Timeout оставляет
-доступными probes, записанные до kill. Coordinator failure даёт infrastructure
-outcome; snapshot может содержать реальные hits, но они не идут в global coverage.
-Caller death запускает cleanup, хотя некому возвращать result. При потере guardian
-нельзя объявлять cleanup подтверждённым: executor маркирует runner dirty и запрещает
-reuse; поздний guardian failure сохраняет первичную infrastructure cause.
+A root crash does not destroy the coverage table: the owner is the guardian.
+Timeout preserves probes written before kill. Coordinator failure produces an
+infrastructure outcome; the snapshot may contain real hits, but these do not
+enter global coverage. Caller death triggers cleanup even though nobody can
+receive the result. Loss of the guardian cannot count as confirmed cleanup:
+the executor marks the runner dirty and prohibits reuse; a late guardian failure
+preserves the primary infrastructure cause.
 
-**Внутри supported model hits предыдущего input не переходят в следующий.**
-Это подтверждено distinct contexts, отсутствием ETS после результата и A→B→A.
-Закрытый старый context не перенаправляется на новую таблицу.
-Однако изменение VM-global состояния target способно изменить *поведение*
-следующего input: это отдельный источник недетерминизма, не смешение coverage maps.
-Persistent term/env changes диагностируются; записи в чужую существующую ETS,
-внешние services и произвольные background processes не полностью изолированы.
-Это cooperative runner, не security sandbox. [Политика](execution-isolation.md).
+**Within the supported model, hits from the previous input do not enter the next.**
+Distinct contexts, absence of ETS after the result and A→B→A confirm this.
+A closed old context is not redirected to the new table.
+However, target changes to VM-global state can alter the next input's *behavior*:
+this is a separate source of nondeterminism, not coverage-map mixing.
+Persistent-term/env changes are diagnosed; writes to another preexisting ETS,
+external services and arbitrary background processes are not fully isolated.
+This is a cooperative runner, not a security sandbox. [Policy](execution-isolation.md).
 
-Low-level/manual API не имеет сам по себе всех гарантий guardian. `reset_local/0`
-не обнуляет reused global bitmap: создаёт context либо отказывает, если context
-уже attached. `snapshot/0` и `{manual,Id}` — compatibility surface; automatic
-campaign использует `snapshot/1` и запрещает manual identities в automatic allowlist.
+The low-level/manual API alone does not provide all guardian guarantees.
+`reset_local/0` does not clear a reused global bitmap: it creates a context or
+refuses if a context is already attached. `snapshot/0` and `{manual,Id}` are
+compatibility surfaces; automatic campaigns use `snapshot/1` and prohibit manual
+identities in the automatic allowlist.
 
 ## 7. Global coverage
 
@@ -323,97 +332,100 @@ NextGlobal = efz_cov:merge(Global, Observed).
 %% efz_cov:merge/2 = sets:union(Global, sets:from_list(Observed))
 ```
 
-То есть формула `New = Current − Global`, `Global' = Global ∪ Current`
-**действительно реализована**, для exact identities и только при подходящем outcome.
+Thus `New = Current − Global`, `Global' = Global ∪ Current` **is actually
+implemented**, for exact identities and only with a suitable outcome.
 [evaluate/3](../src/efz_feedback.erl#L16).
 
-| Execution | Global меняется? | Decision / retention |
+| Execution | Does global change? | Decision / retention |
 |---|---|---|
-| Успешная mutation, coverage valid | Union с current | `new_coverage` при непустом delta; иначе `equivalent_coverage` |
-| Успешная calibration | Union с current | Всегда `seed_calibration`; seed уже в corpus |
-| `error` / `throw` / `exit` / external root kill | Нет | `target_failure`, `new_probes => []`; отдельный crash path |
-| Timeout | Нет | `target_failure`; timeout artifact/count |
-| Infrastructure / invalid coverage / build mismatch | Нет | `{error,Reason}`, остановка campaign |
-| Valid zero-hit success | Union с пустым множеством | Не discovery; observation отличается от broken coverage |
+| Successful mutation, valid coverage | Union with current | `new_coverage` for nonempty delta; otherwise `equivalent_coverage` |
+| Successful calibration | Union with current | Always `seed_calibration`; the seed is already in corpus |
+| `error` / `throw` / `exit` / external root kill | No | `target_failure`, `new_probes => []`; separate crash path |
+| Timeout | No | `target_failure`; timeout artifact/count |
+| Infrastructure / invalid coverage / build mismatch | No | `{error,Reason}`, campaign stops |
+| Valid zero-hit success | Union with the empty set | Not a discovery; observation is distinct from broken coverage |
 
-Обычное return value `{error,invalid_input}` всё ещё является successful execution:
-executor оборачивает его в `{ok,Value}`. Исключение и term-return — разные вещи.
+An ordinary returned value `{error,invalid_input}` is still a successful execution:
+the executor wraps it in `{ok,Value}`. An exception and a returned term are different.
 
-`coverage_seen`/`coverage_diagnostics` включают observation information и от failures;
-их нельзя отождествлять с successful global set. Strict policy отказывает campaign,
-если probes не наблюдались вообще; это не новый novelty criterion.
+`coverage_seen`/`coverage_diagnostics` also include observation information from
+failures; they must not be equated with the successful global set. Strict policy
+rejects the campaign if no probes were observed at all; this is not a new novelty criterion.
 
-Global принадлежит одному worker и не восстанавливается при restart. Durable
-corpus восстанавливает bytes/history, потом worker повторно calibrates inputs и
-создаёт новое accumulated coverage. Filesystem failure при retention прекращает
-campaign; `accepted/5` не подтверждает новый feedback state до успешного retain.
+Global belongs to one worker and is not restored on restart. The durable corpus
+restores bytes/history, then the worker recalibrates inputs and builds new
+accumulated coverage. A filesystem failure during retention stops the campaign;
+`accepted/5` does not confirm new feedback state before successful retention.
 
 ## 8. Hit-count analysis
 
-`efz_cov_rt:insert/4` вызывает `ets:insert_new(Table,{{probe,Id}})`:
-первый hit добавляет row и посылает guardian notification; повторный возвращает
-`false` и не меняет row. `ets_member` сначала проверяет membership, но итоговая
-вставка тоже atomic `insert_new`. Конкурирующие controlled children могут
-одновременно увидеть отсутствие row; только один insert будет новым.
+`efz_cov_rt:insert/4` calls `ets:insert_new(Table,{{probe,Id}})`:
+the first hit adds a row and sends a guardian notification; a repeat returns
+`false` and leaves the row unchanged. `ets_member` first checks membership, but
+the eventual insertion is also atomic `insert_new`. Concurrent controlled
+children can see a missing row simultaneously; only one insertion is new.
 
-Поиск по production source:
+Search of production source:
 
 ```sh
 rg -n 'counter|count_class|bucket|bitmap|update_counter|atomics|counters:|array:|prev_loc|edge' src
 ```
 
-Совпадения `counter` относятся к **crash occurrence storage**, не к probe hits.
-Ни integer/saturating/8-bit hit counter, ни lookup bucket table, ни frequency-aware
-coverage feature в production path не найдены. Compile-time `next` в transform
-считает созданные probe IDs; statistics считают executions/discoveries — это другие счётчики.
+Matches for `counter` refer to **crash occurrence storage**, not probe hits.
+No integer/saturating/8-bit hit counter, lookup bucket table or frequency-aware
+coverage feature was found in the production path. Compile-time `next` in the
+transform counts assigned probe IDs; statistics count executions/discoveries —
+these are different counters.
 
-| Число вызовов одного x/0 | EFZ row count | Snapshot | Может дать count-only novelty после первого hit? |
+| Calls to one x/0 | EFZ row count | Snapshot | Can it yield count-only novelty after the first hit? |
 |---:|---:|---|---|
-| 1 | 1 | `{X}` | Первый X может дать novelty |
-| 2 | 1 | `{X}` | Нет |
-| 3 | 1 | `{X}` | Нет |
-| 8 | 1 | `{X}` | Нет |
-| 10 | 1 | `{X}` | Нет |
-| 1000 | 1 | `{X}` | Нет |
+| 1 | 1 | `{X}` | The first X can yield novelty |
+| 2 | 1 | `{X}` | No |
+| 3 | 1 | `{X}` | No |
+| 8 | 1 | `{X}` | No |
+| 10 | 1 | `{X}` | No |
+| 1000 | 1 | `{X}` | No |
 
-Это проверено **автоматическими hooks**, не ручным `efz_cov:hit/1`. У target есть
-отдельный diagnostic invocation counter в собственной process dictionary, чтобы
-подтвердить, что цикл действительно выполнил 1000 вызовов. Он не участвует в EFZ
-coverage. Per-execution coverage counter не может переполниться, потому что его нет.
+This was checked with **automatic hooks**, not manual `efz_cov:hit/1`. The target
+has a separate diagnostic invocation counter in its own process dictionary to
+confirm that the loop really made 1000 calls. It does not participate in EFZ
+coverage. A per-execution coverage counter cannot overflow because none exists.
 
 ## 9. Novelty semantics
 
-Ниже речь об успешной mutation с valid coverage. В AFL++ A/B/C означают slots/features
-без collisions; где counts не заданы, считаем их buckets неизменными.
+The following concerns a successful mutation with valid coverage. In AFL++,
+A/B/C denote collision-free slots/features; where counts are unspecified,
+assume their buckets do not change.
 
 | Scenario | EFZ `new_probes` | EFZ result | AFL++ coverage-only reference |
 |---|---|---|---|
-| A: current `{A,B}`, global `{}` | `{A,B}` | `new_coverage`, union `{A,B}`, retain | Новые slots, novelty class 2 |
-| B: current `{A,B}`, global `{A,B}` | `{}` | `equivalent_coverage`, без retain | 0 при прежних buckets |
-| C: current `{A,B,C}`, global `{A,B}` | `{C}` | `new_coverage`, retain, union `{A,B,C}` | Новая slot C, class 2 |
-| D: известный A выполнен 100 раз | `{}` | Count сам по себе не interesting | Может дать class 1, если соответствующая bucket ранее не наблюдалась |
-| E: новая комбинация только известных points | `{}` | Не new coverage | Само сочетание известных slot/bucket features не novel; новые edges или counts могут изменить результат |
+| A: current `{A,B}`, global `{}` | `{A,B}` | `new_coverage`, union `{A,B}`, retain | New slots, novelty class 2 |
+| B: current `{A,B}`, global `{A,B}` | `{}` | `equivalent_coverage`, no retention | 0 with unchanged buckets |
+| C: current `{A,B,C}`, global `{A,B}` | `{C}` | `new_coverage`, retain, union `{A,B,C}` | New slot C, class 2 |
+| D: known A executes 100 times | `{}` | Count alone is not interesting | Can yield class 1 if that bucket was not previously observed |
+| E: new combination of only known points | `{}` | Not new coverage | The combination of known slot/bucket features is not novel itself; new edges or counts can change the result |
 
-Set также теряет порядок: `AB` и `BA` одинаковы, если instrumentation дала те же
-points. У AFL++ изменение порядка *basic blocks* может означать новые **edges**;
-это отличается от перестановки уже известных edge features. Не следует приписывать
-AFL++ полную уникальность execution signatures только из-за сохранения trace hash
-для calibration/scheduling.
+A set also loses order: `AB` and `BA` are equal if instrumentation yields the
+same points. In AFL++, reordering *basic blocks* can mean new **edges**;
+this differs from reordering already known edge features. AFL++ should not be
+credited with full execution-signature uniqueness merely because it retains
+trace hashes for calibration/scheduling.
 
 ## 10. Corpus feedback integration
 
-`efz_worker:execute_result/6 → efz_feedback:evaluate/3 → retain/2` вызывает
-`efz_corpus:add(Input,Meta)` **только** для `new_coverage`.
-`efz_corpus:add_checked/3` сравнивает bytes с entries, сохраняет durable record,
-если store включён, затем добавляет `#{id,input,metadata,added_at}` в список entries.
-Следующий `mutation_entries/0` возвращает compact `#{id,input}` и для нового entry.
-Planner читает настоящий актуальный corpus, ведёт per-content cursors и при росте
-corpus сбрасывает прежние idle observations. Donor candidates также берутся оттуда.
+`efz_worker:execute_result/6 → efz_feedback:evaluate/3 → retain/2` calls
+`efz_corpus:add(Input,Meta)` **only** for `new_coverage`.
+`efz_corpus:add_checked/3` compares bytes with entries, saves a durable record
+if the store is enabled, then adds `#{id,input,metadata,added_at}` to entries.
+The next `mutation_entries/0` also returns compact `#{id,input}` for the new entry.
+The planner reads the actual current corpus, maintains per-content cursors and
+resets previous idle observations as the corpus grows. Donor candidates also
+come from there.
 [Worker retain](../src/efz_worker.erl#L122), [corpus](../src/efz_corpus.erl#L36),
 [growing scheduler](../src/efz_mutation_plan.erl#L54).
 
-Это не telemetry-only pipeline. `efz_feedback_loop_tests:feedback_loop/0` выполняет
-реальный campaign со staged dictionary operators, tokens только A/B/C:
+This is not a telemetry-only pipeline. `efz_feedback_loop_tests:feedback_loop/0`
+runs a real campaign with staged dictionary operators and only tokens A/B/C:
 
 ```text
 ID 1: <<>>
@@ -422,69 +434,70 @@ ID 1: <<>>
   → ID 4: <<"ABC">>, parent 3
 ```
 
-Тест проверяет новые реальные probes, input delivery по execution ref, primary
-bytes/hash в recipe и fresh-VM replay. В этом запуске **30 mutation executions,
-31 harness delivery, 3 discoveries**. Scripted mutator не используется.
-Дополнительный audit experiment также передаёт retained AB настоящему planner и
-проверяет `parent => 2, primary => <<"AB">>`.
+The test checks real new probes, input delivery by execution ref, primary
+bytes/hash in the recipe and fresh-VM replay. This run has **30 mutation
+executions, 31 harness deliveries, 3 discoveries**. No scripted mutator is used.
+The additional audit experiment also feeds retained AB into the real planner
+and checks `parent => 2, primary => <<"AB">>`.
 
-Новая entry не обязана быть самой следующей: planner завершает текущий snapshot
-round. Это scheduling fairness, а не разрыв feedback loop.
+The new entry need not be the very next one: the planner finishes the current
+snapshot round. That is scheduling fairness, not a break in the feedback loop.
 
 ## 11. Cross-process limitations
 
-| Вариант | Coverage | Lifecycle/допуск |
+| Variant | Coverage | Lifecycle/admission |
 |---|---|---|
-| Root calls instrumented function | Пишет в execution ETS | Supported |
-| `efz_target:spawn/1` | Context автоматически attached до пользовательского кода; общий exact set | Supported; guardian ждёт cleanup |
-| `efz_target:spawn_link/1` | То же | Supported; link не определяет coverage identity |
-| Nested controlled child | То же, через тот же guardian | Supported в пределах admission limit |
-| Обычный `erlang:spawn` | Context автоматически не наследуется | Tracing обнаруживает uncontrolled spawn; infrastructure/dirty runner |
-| Уже существующий background process | Обычно нет attached context, hook inactive | Вне supported execution scope |
-| Ручной `efz_cov:attach/1` в произвольном child | Сам по себе не даёт lifecycle ownership | Не делает ordinary spawn поддержанным |
+| Root calls instrumented function | Writes to execution ETS | Supported |
+| `efz_target:spawn/1` | Context attached automatically before user code; shared exact set | Supported; guardian waits for cleanup |
+| `efz_target:spawn_link/1` | Same | Supported; the link does not define coverage identity |
+| Nested controlled child | Same, through the same guardian | Supported within the admission limit |
+| Ordinary `erlang:spawn` | Context is not inherited automatically | Tracing detects uncontrolled spawn; infrastructure/dirty runner |
+| Preexisting background process | Usually no attached context, hook inactive | Outside supported execution scope |
+| Manual `efz_cov:attach/1` in an arbitrary child | Does not itself grant lifecycle ownership | Does not make ordinary spawn supported |
 
-Таким образом, **ручной attach пользователю controlled API не нужен**. Но coverage
-не распространяется автоматически на любой Erlang process. Обычная process
-dictionary не наследуется при spawn; native instrumented hook вне admitted process
-с отсутствующим context остаётся inactive. [Target API](../src/efz_target.erl),
+Thus **users of the controlled API do not need manual attachment**. However,
+coverage does not automatically extend to every Erlang process. Ordinary process
+dictionaries are not inherited by spawn; a native instrumented hook outside an
+admitted process remains inactive when context is absent. [Target API](../src/efz_target.erl),
 [admission](../src/efz_guardian.erl#L51), [uncontrolled detection](../src/efz_guardian.erl#L143).
 
-Unlinked child exception сам по себе не определяет итог root: harness должен
-дождаться child и выразить его результат. Probes controlled child входят в snapshot
-до cleanup; root outcome определяет, допускается ли этот snapshot к successful feedback.
-Общий ETS не создаёт ни caller-sensitive, ни PID-sensitive coverage features.
+An unlinked child's exception alone does not determine the root outcome: the
+harness must await the child and express its result. Controlled-child probes
+enter the snapshot before cleanup; the root outcome determines whether that
+snapshot is admitted to successful feedback. Shared ETS creates neither
+caller-sensitive nor PID-sensitive coverage features.
 
 ## 12. EFZ vs AFL++ matrix
 
-`YES` означает одинаковое наличие конкретного свойства, не binary compatibility.
-`FUNCTIONALLY SIMILAR` означает одинаковую роль с другой реализацией.
+`YES` means the same specific property is present, not binary compatibility.
+`FUNCTIONALLY SIMILAR` means the same role with a different implementation.
 
-| Механизм | AFL++ | EFZ | Эквивалентность |
+| Mechanism | AFL++ | EFZ | Equivalence |
 |---|---|---|---|
 | Instrumentation | Compiler/runtime hooks | Erlang parse transform + runtime hook | FUNCTIONALLY SIMILAR |
-| Coverage granularity | Обычно CFG edges; зависит от mode | AST clauses/selected outcomes | PARTIAL |
+| Coverage granularity | Usually CFG edges; mode-dependent | AST clauses/selected outcomes | PARTIAL |
 | Per-execution coverage | Shared byte trace array | Fresh public ETS exact set | FUNCTIONALLY SIMILAR |
-| Fixed-size bitmap | Allocated numeric slot buffer | Отсутствует | NO |
+| Fixed-size bitmap | Allocated numeric slot buffer | Absent | NO |
 | Coverage slot | Numeric index | Exact tuple ETS key | NO |
-| Edge ID | Edge/guard identity согласно mode | Source point, нет previous/current edge | NO |
-| Hit counter | Byte increments, mode-specific overflow policy | Отсутствует | NO |
-| Count buckets | Classified counter classes | Отсутствуют | NO |
-| Global/virgin state | Ненаблюдавшиеся feature bits | Наблюдавшиеся successful probe identities | FUNCTIONALLY SIMILAR |
-| New coverage detection | Новая slot либо bucket | Только новая probe identity | PARTIAL |
+| Edge ID | Edge/guard identity according to mode | Source point, no previous/current edge | NO |
+| Hit counter | Byte increments, mode-specific overflow policy | Absent | NO |
+| Count buckets | Classified counter classes | Absent | NO |
+| Global/virgin state | Unobserved feature bits | Observed successful probe identities | FUNCTIONALLY SIMILAR |
+| New coverage detection | New slot or bucket | Only new probe identity | PARTIAL |
 | Reset between executions | Clear/reinitialize trace | Destroy ETS, allocate new context/table | FUNCTIONALLY SIMILAR |
-| Collision behavior | Hashed modes collide; LTO/PCGUARD могут быть exact | Нет slot aliasing; exact keys | PARTIAL |
-| Crash coverage | Trace + separate crash/hang novelty maps | Snapshot сохраняется, dedup по нормализованной crash signature | PARTIAL |
-| Corpus feedback | Novelty → queue → дальнейшие mutations | Novelty → corpus → scheduler → mutations | YES |
-| Build identity | Slots связаны с instrumented binary/mapping; нет BuildId в каждом byte | Module + BuildId в каждой identity, pinned harness/BEAM | NO |
-| Cross-process coverage | Shared mapping у участвующих instrumented processes/threads | Один ETS у root + controlled descendants | PARTIAL |
+| Collision behavior | Hashed modes collide; LTO/PCGUARD can be exact | No slot aliasing; exact keys | PARTIAL |
+| Crash coverage | Trace + separate crash/hang novelty maps | Snapshot retained, dedup by normalized crash signature | PARTIAL |
+| Corpus feedback | Novelty → queue → further mutations | Novelty → corpus → scheduler → mutations | YES |
+| Build identity | Slots tied to instrumented binary/mapping; no BuildId in every byte | Module + BuildId in every identity, pinned harness/BEAM | NO |
+| Cross-process coverage | Shared mapping among participating instrumented processes/threads | One ETS for root + controlled descendants | PARTIAL |
 
-Матрица использует source references раздела 2 и фактические EFZ paths разделов 3–11.
-`NO` в Build identity не означает, что AFL++ вообще лишён проверок target: речь
-именно о встроенном namespace каждого coverage element.
+The matrix uses the source references in section 2 and actual EFZ paths in
+sections 3–11. `NO` for Build identity does not mean AFL++ has no target checks:
+it refers specifically to an embedded namespace in every coverage element.
 
 ## 13. Runtime experiments
 
-Воспроизведение из корня EFZ:
+Reproduce from the EFZ root:
 
 ```sh
 ERL_FLAGS='+S 4:4' rebar3 compile
@@ -495,25 +508,27 @@ ERL_FLAGS='+S 4:4' rebar3 xref
 ERL_FLAGS='+S 4:4' rebar3 dialyzer
 ```
 
-[Sites](coverage-audit-2026-09-15/efz_cov_audit_sites.erl) компилируются настоящим
-`efz_instrument:compile/2`. [Harness](coverage-audit-2026-09-15/efz_cov_audit_harness.erl)
-компилируется обычным compiler. Это намеренно исключает probes dispatch/loop control:
-иначе LOOP1/LOOP10 могли бы различаться новым probe другой loop clause, что было бы
-ложным доказательством count sensitivity.
+[Sites](coverage-audit-2026-09-15/efz_cov_audit_sites.erl) are compiled with the
+real `efz_instrument:compile/2`. The
+[harness](coverage-audit-2026-09-15/efz_cov_audit_harness.erl) uses the ordinary
+compiler. This deliberately excludes dispatch/loop-control probes: otherwise
+LOOP1/LOOP10 might differ because of a new probe in another loop clause, falsely
+suggesting count sensitivity.
 
-[Runner](coverage-audit-2026-09-15/run.escript) использует настоящие executor,
-prepared validation, feedback и corpus. Для проверки algebra inputs задаются
-диагностическим драйвером; это **не утверждение, что их сгенерировал mutator**.
-Настоящий mutation→execution→parent reuse отдельно доказывает production campaign
-из `efz_feedback_loop_tests`. Никакой mock coverage/corpus и custom mutator не добавлены.
+The [runner](coverage-audit-2026-09-15/run.escript) uses the real executor,
+prepared validation, feedback and corpus. A diagnostic driver supplies inputs
+for algebra checks; this **does not claim the mutator generated them**. The
+production campaign in `efz_feedback_loop_tests` separately proves real
+mutation→execution→parent reuse. No mock coverage/corpus or custom mutator was added.
 
-Identity map данного target: A=probe 1, B=2, C=3, X=4; у всех одна module/build пара.
-Первые два diagnostic corpus entries: initial empty ID 1 и retained AB ID 2.
+This target's identity map: A=probe 1, B=2, C=3, X=4; all share one module/build
+pair. The first two diagnostic corpus entries are initial empty ID 1 and
+retained AB ID 2.
 
-| Input по порядку | Current probes | New probes | Retention reason | Global после | Corpus size |
+| Input in order | Current probes | New probes | Retention reason | Global afterward | Corpus size |
 |---|---|---|---|---|---:|
 | AB | A,B | A,B | new_coverage | A,B | 2 |
-| AB повтор | A,B | — | equivalent_coverage | A,B | 2 |
+| AB repeat | A,B | — | equivalent_coverage | A,B | 2 |
 | ABC | A,B,C | C | new_coverage | A,B,C | 3 |
 | BA | A,B | — | equivalent_coverage | A,B,C | 3 |
 | AC | A,C | — | equivalent_coverage | A,B,C | 3 |
@@ -524,84 +539,85 @@ Identity map данного target: A=probe 1, B=2, C=3, X=4; у всех одн
 | LOOP10 | X | — | equivalent_coverage | A,B,C,X | 4 |
 | LOOP1000 | X | — | equivalent_coverage | A,B,C,X | 4 |
 
-Одинаковые результаты получены для `ets` и `ets_member`. В каждом LOOP raw ETS
-содержал **один object**, diagnostic x-call count соответствовал 1/2/3/8/10/1000,
-snapshot оставался `{X}`. Память этой ETS — 324 machine words при каждом из этих
-inputs (2592 bytes при wordsize 8), включая table overhead, без guardian/registry/
-plan/result heaps. Для 2 и 3 probes наблюдались 343 и 362 words. Это локальный
-storage sample, не throughput benchmark и не универсальная формула расхода памяти.
+Results were identical for `ets` and `ets_member`. In every LOOP, raw ETS
+contained **one object**, the diagnostic x-call count matched 1/2/3/8/10/1000,
+and snapshot stayed `{X}`. ETS memory was 324 machine words for each such input
+(2592 bytes with wordsize 8), including table overhead but excluding
+guardian/registry/plan/result heaps. For 2 and 3 probes, 343 and 362 words were
+observed. This is a local storage sample, not a throughput benchmark or a
+universal memory-use formula.
 
-Дополнительно assertions проверили:
+Additional assertions verified:
 
-* все contexts серии различаются, owner — guardian, ETS закрыта после результата;
-* A→B→A: exact coverage первого и третьего runs совпадает, B не содержит A;
+* all contexts in the series differ, the owner is the guardian and ETS is closed after the result;
+* A→B→A: exact coverage of first and third runs matches; B excludes A;
 * genuine zero-hit success → `valid_empty_coverage`;
-* calibration A обновляет global, reason остаётся `seed_calibration`;
-* crash и timeout после X сохраняют `{X}`, feedback не меняет пустой global;
-* erase context + caught hook exception → infrastructure, feedback отклоняет;
-* child/linked/nested: один C probe, общий context, соответственно 2/2/3 известных
-  процессов, все уже мертвы при получении result;
-* ordinary spawn в отдельной VM: coverage пустое, infrastructure/dirty-runner,
-  два известных процесса завершены, следующий input не запускается;
-* retained AB реально выбран `efz_mutation_plan:next/2` с parent ID 2.
+* calibration A updates global, with reason still `seed_calibration`;
+* crash and timeout after X retain `{X}`, feedback leaves empty global unchanged;
+* erase context + caught hook exception → infrastructure, rejected by feedback;
+* child/linked/nested: one C probe, shared context, respectively 2/2/3 known
+  processes, all already dead when the result arrives;
+* ordinary spawn in a separate VM: empty coverage, infrastructure/dirty-runner,
+  two known processes terminated, next input not started;
+* retained AB is actually selected by `efz_mutation_plan:next/2` with parent ID 2.
 
-Сырые runtime records и command logs: `_build/coverage-audit-2026-09-15/`.
-Компактные сохранённые результаты: [results.txt](coverage-audit-2026-09-15/results.txt),
+Raw runtime records and command logs: `_build/coverage-audit-2026-09-15/`.
+Compact preserved results: [results.txt](coverage-audit-2026-09-15/results.txt),
 [validation.json](coverage-audit-2026-09-15/validation.json).
 
-Результаты проверок: compile — exit 0; EUnit — **186 passed**, exit 0;
-Common Test — **3 passed**, exit 0; xref и dialyzer — exit 0.
-Новые audit assertions выполнены отдельно, они не увеличивают число EUnit cases.
-SHA-256 всех production source files сверены до/после; изменений нет.
+Validation results: compile — exit 0; EUnit — **186 passed**, exit 0;
+Common Test — **3 passed**, exit 0; xref and dialyzer — exit 0.
+New audit assertions run separately and do not increase the EUnit case count.
+SHA-256 hashes of all production source files were checked before/after; no changes.
 
-Весь suite проверяет также paths, не дублируемые новым experiment:
+The full suite also checks paths not duplicated by the new experiment:
 
-| Test | Проверяемая часть |
+| Test | Area checked |
 |---|---|
 | `efz_phase2_tests` | AST semantics, manifest identities, repeatability, separate contexts, exceptions/timeouts, compiler options |
-| `efz_backend_tests` | Backend equivalence, prepared/per-execution validation, lifecycle и broken observations |
-| `efz_integrity_tests` | Hot reload plain/different builds, pinned harness, lost/context corruption, caught exceptions, legitimate empty coverage |
-| `efz_isolation_tests` | Caller/coordinator death, descendants during timeout, nested scope, dirty state и guardian failure |
-| `efz_crash_retention_tests` | Late guardian failure сохраняет первичную infrastructure cause |
-| `efz_feedback_loop_tests` | Real staged discovery→retain→parent reuse и fresh replay |
-| `efz_durable_tests` | Discovery восстанавливается в другой VM, recalibrates и становится parent |
-| `efz_coverage_SUITE` | Automatic campaign, crash и timeout observations |
+| `efz_backend_tests` | Backend equivalence, prepared/per-execution validation, lifecycle and broken observations |
+| `efz_integrity_tests` | Plain/different-build hot reload, pinned harness, lost/corrupted context, caught exceptions, legitimate empty coverage |
+| `efz_isolation_tests` | Caller/coordinator death, descendants during timeout, nested scope, dirty state and guardian failure |
+| `efz_crash_retention_tests` | Late guardian failure preserves the primary infrastructure cause |
+| `efz_feedback_loop_tests` | Real staged discovery→retain→parent reuse and fresh replay |
+| `efz_durable_tests` | Discovery restored in another VM, recalibrated and used as a parent |
+| `efz_coverage_SUITE` | Automatic campaign, crash and timeout observations |
 
 ## 14. Final classification
 
 **RESULT B — AFL++-like feedback semantics implemented, different representation.**
 
-Доказаны все звенья: automatic instrumentation → execution-owned observations →
+Every link is proven: automatic instrumentation → execution-owned observations →
 validated snapshot → worker global set → exact novelty delta → real corpus insert →
-future mutation parent. Поэтому результаты C/D не описывают текущий EFZ.
+future mutation parent. Results C/D therefore do not describe current EFZ.
 
-Результат A исключён: физическая trace структура — ETS set, а hit multiplicity
-теряется уже в `insert_new/2`. Добавление имени «bitmap» в документацию этого не
-изменит. Результат B описывает общую архитектуру feedback, **не равную AFL++ мощность
-наблюдения edges/counts/context**.
+Result A is ruled out: the physical trace structure is an ETS set, and hit
+multiplicity is lost at `insert_new/2`. Naming it a “bitmap” in documentation
+would not change this. Result B describes the overall feedback architecture,
+**not AFL++-equivalent observation power for edges/counts/context**.
 
 ## 15. Recommended next step
 
-**Переписывать текущую систему ради сходства с AFL++ не нужно.** Сначала следует
-разделить три независимых изменения: (1) representation, (2) count sensitivity,
-(3) granularity edge/context. Dense buffer сам по себе не создаёт ни edges, ни buckets.
+**There is no need to rewrite the current system to resemble AFL++.** First
+separate three independent changes: (1) representation, (2) count sensitivity,
+(3) edge/context granularity. A dense buffer alone creates neither edges nor buckets.
 
-| Аспект | Вывод для EFZ |
+| Aspect | Conclusion for EFZ |
 |---|---|
-| Lookup/update speed | ETS даёт hashed lookup/atomic insert, но каждый hit также проверяет registry/context. Benchmark должен отдельно измерить hook, integrity tracing и полный executor. Ускорение bitmap нельзя предполагать по названию. |
-| Memory usage | Sparse set растёт с количеством hits, но имеет overhead таблицы/tuple rows и дублирование evidence. Dense buffer занимает память по общему диапазону slots, включая неисполненные. |
-| Number of probes | При большом total N и малом hit K sparse может быть выгоден; при dense coverage компактый numeric representation может выиграть. Нужны workloads с разными N/K. |
-| ETS overhead | Можно сначала оценить compact exact keys/lookup mapping, сохраняя presence semantics. Snapshot сейчас делает tab2list + sort и copies term data. |
-| Hit-count sensitivity | Полезная самостоятельная опция для loops. Её можно прототипировать exact counters без hash collisions и без полного bitmap rewrite. |
-| Collisions | Вводить modulo/hash aliasing без доказанной необходимости — потерять нынешнюю точность. Предпочтителен collision-free dense index prepared manifest. |
-| Deterministic identity | Публичный `{M,Build,Probe}` следует сохранить; numeric slot должен быть внутренним отображением выбранного набора builds. |
-| Parallel workers | Текущая VM допускает один execution. Изменение storage не исправляет singleton registry/guardian и общую state-isolation модель. |
-| Distributed fuzzing | Сначала независимые VM, versioned identity/metric и обмен raw inputs с локальной calibration. Не объединять произвольные slot maps разных builds. |
-| Corpus compatibility | Bytes reusable; old `new_probes` остаются historical presence metadata. Bucket discoveries требуют отдельной версии metric/schema, не тихой переинтерпретации старых records. |
-| Replay | Recipe восстанавливает bytes независимо от storage. Проверки pinned build/harness сохраняются; replay coverage expectations должны знать metric/version. |
-| Backward compatibility | Presence backend оставить default/reference; новый режим opt-in. Differential tests должны сохранять старые outcomes/identities. |
+| Lookup/update speed | ETS provides hashed lookup/atomic insertion, but every hit also checks registry/context. A benchmark should separately measure hook, integrity tracing and full executor. Bitmap speedup cannot be assumed from its name. |
+| Memory usage | A sparse set grows with hit count, with table/tuple-row overhead and duplicated evidence. A dense buffer allocates for the whole slot range, including unexecuted probes. |
+| Number of probes | Sparse may benefit when total N is large and hit K small; with dense coverage a compact numeric representation may win. Workloads with different N/K are needed. |
+| ETS overhead | Compact exact keys/lookup mapping can be evaluated first while preserving presence semantics. Snapshot currently uses tab2list + sort and copies term data. |
+| Hit-count sensitivity | A useful independent option for loops. It can be prototyped with exact counters without hash collisions or a complete bitmap rewrite. |
+| Collisions | Introducing modulo/hash aliasing without a demonstrated need loses current precision. Prefer a collision-free dense index prepared from manifests. |
+| Deterministic identity | Preserve public `{M,Build,Probe}`; numeric slots should internally map the selected build set. |
+| Parallel workers | The current VM permits one execution. Changing storage does not fix the singleton registry/guardian or the shared state-isolation model. |
+| Distributed fuzzing | Begin with independent VMs, versioned identity/metric and exchange raw inputs with local calibration. Do not combine arbitrary slot maps from different builds. |
+| Corpus compatibility | Bytes are reusable; old `new_probes` remain historical presence metadata. Bucket discoveries need a separate metric/schema version, not silent reinterpretation of old records. |
+| Replay | A recipe reconstructs bytes independently of storage. Pinned build/harness checks stay; replay coverage expectations must know metric/version. |
+| Backward compatibility | Keep presence as default/reference; make a new mode opt-in. Differential tests must preserve existing outcomes/identities. |
 
-Минимальная **предлагаемая**, не реализованная архитектура при подтверждённой нужде:
+Minimal **proposed**, unimplemented architecture if need is confirmed:
 
 ```text
 existing instrumentation → {Module,BuildId,ProbeId}
@@ -613,23 +629,23 @@ existing instrumentation → {Module,BuildId,ProbeId}
   → existing feedback retention path → existing corpus/scheduler
 ```
 
-Для сравнений качества можно сохранить compatibility `coverage => [Identity]`
-и добавить отдельные `coverage_features` / `new_features`; count-only discovery
-не должен ложно сообщать новый source probe. Новый snapshot должен сохранять
-guardian lifetime, atomic updates controlled children, integrity checks, cleanup,
-build validation и правильный reset. Общая shared persistent bitmap без scoped owner
-нарушит уже доказанные гарантии.
+For quality comparisons, retain compatibility `coverage => [Identity]` and add
+separate `coverage_features` / `new_features`; a count-only discovery must not
+falsely report a new source probe. The new snapshot must preserve guardian
+lifetime, controlled-child atomic updates, integrity checks, cleanup, build
+validation and correct reset. A shared persistent bitmap without a scoped owner
+would violate guarantees already proven.
 
-Без переписывания сохраняются `efz_mutation`, `efz_mutation_plan`, raw input/recipe
-regeneration, corpus selection и большая часть `efz_worker`, `efz_executor`,
-`efz_guardian`, `efz_instrument_pt`. Изменения сосредоточатся в `efz_cov`,
-`efz_cov_rt`, prepared mapping/validation, `efz_feedback`, config и versioned
-metadata в corpus/crash/replay. Coverage integrity evidence придётся адаптировать
-к counters: нынешнее множество первых observations не подтверждает точность counts.
+`efz_mutation`, `efz_mutation_plan`, raw input/recipe regeneration, corpus
+selection and most of `efz_worker`, `efz_executor`, `efz_guardian`,
+`efz_instrument_pt` remain without rewrites. Changes would focus on `efz_cov`,
+`efz_cov_rt`, prepared mapping/validation, `efz_feedback`, config and versioned
+metadata in corpus/crash/replay. Coverage-integrity evidence must adapt to
+counters: the current first-observation set does not confirm count accuracy.
 
-Acceptance следующего experiment: presence mode даёт прежние результаты; count
-mode сохраняет LOOP1 и затем LOOP10 при новой bucket; same-bucket repetitions не
-retained; A→B→A остаётся чистым; controlled concurrent increments не теряются;
-crash/timeout cleanup не повреждает snapshot; build/metric mismatch отвергается.
-Решение о production bitmap — после измерений end-to-end cost и числа полезных
-discoveries на реальных targets, а не только скорости отдельного массива.
+Acceptance for the next experiment: presence mode gives previous results;
+count mode retains LOOP1 then LOOP10 on a new bucket; same-bucket repeats are
+not retained; A→B→A stays clean; controlled concurrent increments are not lost;
+crash/timeout cleanup does not corrupt the snapshot; build/metric mismatch is
+rejected. Decide on a production bitmap after measuring end-to-end cost and useful
+discovery counts on real targets, not merely the speed of a standalone array.

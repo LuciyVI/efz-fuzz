@@ -1,5 +1,7 @@
 # Bitmap coverage v2: implementation and measured result
 
+**English** · [Русский](i18n/ru/coverage-bitmap-v2-results.md) · [Español](i18n/es/coverage-bitmap-v2-results.md) · [简体中文](i18n/zh-CN/coverage-bitmap-v2-results.md) · [All languages](i18n/README.md)
+
 Date: 2026-10-02. This is a follow-up to the [v1 audit](coverage-bitmap-audit.md), not a replacement for its baseline. Bitmap remains explicit opt-in; `ets` remains the default.
 
 ## Changes and boundaries

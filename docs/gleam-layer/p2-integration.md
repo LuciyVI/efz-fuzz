@@ -1,5 +1,7 @@
 # P2 optional native BEAM integration
 
+**English** · [Русский](../i18n/ru/gleam-layer/p2-integration.md) · [Español](../i18n/es/gleam-layer/p2-integration.md) · [简体中文](../i18n/zh-CN/gleam-layer/p2-integration.md) · [All languages](../i18n/README.md)
+
 Current P5 acceptance is recorded in [p5-validation.md](p5-validation.md).
 The handoff and pending-status statements below describe the historical phase run.
 

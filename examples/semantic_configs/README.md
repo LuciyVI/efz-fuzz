@@ -1,5 +1,7 @@
 # Campaign configuration examples
 
+**English** · [Русский](../../docs/i18n/ru/examples/semantic_configs/README.md) · [Español](../../docs/i18n/es/examples/semantic_configs/README.md) · [简体中文](../../docs/i18n/zh-CN/examples/semantic_configs/README.md) · [All languages](../../docs/i18n/README.md)
+
 Each term file contains one trusted campaign map accepted by efz:start/1 and
 the CLI --config option. Seeds are raw binaries, not paths. Generic packets
 were encoded using the real harness argument specifications.

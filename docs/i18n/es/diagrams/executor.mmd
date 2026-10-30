@@ -1,0 +1,68 @@
+sequenceDiagram
+    accTitle: EFZ — guardian y ciclo de descendientes controlados
+    accDescr: El guardian posee procesos y cobertura al margen del coordinador. El resultado final sigue a DOWN, barreras de traza y comprobaciones de contaminación.
+    autonumber
+    participant W as Worker / caller
+    participant G as Guardián<br/>efz_guardian
+    participant C as Coordinador<br/>efz_executor
+    participant T as Objetivo raíz<br/>M:run(Input)
+    participant D as Controlados<br/>descendientes
+    participant O as ETS de observación
+    participant I as Aux. de integridad<br/>efz_cov_integrity
+    W->>G: spawn_monitor
+    G->>G: Grupo E/S propio, monitor del caller
+    G->>I: Verificar harness fijado y builds elegidos
+    G->>O: abrir contexto, nuevo Ref de ejecución
+    G->>I: Crear registro PID protegido, activar trazas de contexto/código
+    G->>C: spawn_monitor
+    G->>T: spawn_monitor, puerta cerrada
+    G->>I: Registrar contexto raíz esperado antes de puerta
+    G->>C: coordinate de raíz
+    C->>T: monitor
+    C-->>G: coordinator_ready
+    G->>T: start_owned
+    T->>T: attach contexto, invocar objetivo
+    opt Crear hijo controlado
+        T->>G: spawn_owned(Capability, Fun)
+        G->>D: spawn con puerta, monitor, trace, registrar propiedad
+        G->>I: Registrar contexto hijo esperado
+        G-->>T: PID del hijo
+        T->>D: start_owned
+        D->>D: attach contexto de cobertura común, ejecutar Fun
+        D->>O: sondas, incluidos hijos anidados
+    end
+    T->>O: sondas de raíz
+    T-->>G: Primeras sondas publicadas / fallos persistentes de hooks
+    G->>G: Recibir trazas de contexto / carga de código
+    alt Raíz finaliza o falla
+        T-->>C: target_result + DOWN
+        C-->>G: coordinator_done(Outcome)
+    else Timeout, muerte del caller o coordinador
+        G->>G: Prevalece deadline o monitor DOWN
+    end
+    G->>G: Detener admisiones, iniciar limpieza
+    G->>T: kill
+    G->>D: kill de cada proceso propio
+    G->>C: kill / esperar DOWN
+    T-->>G: DOWN
+    D-->>G: DOWN de todos los descendientes
+    G->>G: Barreras de entrega de trazas por proceso
+    Note over G,D: Un spawn tardío no controlado añade monitor y barrera, marca ejecución contaminada
+    G->>G: Barrera global de traza del loader
+    G->>I: Revisar identidades, attachment y fallos persistentes
+    G->>O: snapshot, validar sondas y observaciones, close
+    G->>I: Cerrar registro
+    G->>G: Destruir trazas, verificar estado compartido
+    alt Procesos confirmados, sin violaciones
+        alt Integridad de cobertura confirmada
+            G-->>W: Cobertura observada o vacía válida; limpieza confirmada
+        else Contexto, build u observación inválidos
+            G-->>W: Fallo de infraestructura, observación dañada
+        end
+    else Limpieza no confirmada o contrato violado
+        G->>G: Guardar marca de VM contaminada
+        G-->>W: Infraestructura dirty_runner, reusable false
+    end
+    G-->>W: DOWN del guardian
+    W->>W: Devolver resultado final
+    Note over W,G: Si muere el guardian, el caller devuelve dirty-runner no confirmado y prohíbe reutilizar VM

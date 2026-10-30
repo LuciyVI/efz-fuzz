@@ -1,5 +1,7 @@
 # DWARF/native coverage: feasibility checkpoint
 
+**English** · [Русский](i18n/ru/dwarf-native-coverage.md) · [Español](i18n/es/dwarf-native-coverage.md) · [简体中文](i18n/zh-CN/dwarf-native-coverage.md) · [All languages](i18n/README.md)
+
 Status: **DWARF direct backend not implemented** (2026-10-03). The safe
 `otp_native_public` comparison backend uses documented OTP APIs only; see
 [`dwarf-native-coverage-results.md`](dwarf-native-coverage-results.md).

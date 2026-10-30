@@ -1,0 +1,122 @@
+{
+  "accepted": true,
+  "completed": true,
+  "groups": {
+    "baseline": {
+      "accepted_fraction": {
+        "max": 0.7297039917466868,
+        "median": 0.6906053184044787,
+        "min": 0.4582907380903701
+      },
+      "coverage": {
+        "max": 48,
+        "median": 48,
+        "min": 48
+      },
+      "direct_core_p50_us": null,
+      "executions_per_second": {
+        "max": 424.27446188831783,
+        "median": 415.8009832435066,
+        "min": 325.57752983842175
+      },
+      "identity_check_p50_us": null,
+      "input_bytes": {
+        "max": 94.51789000204457,
+        "median": 66.64151831228924,
+        "min": 47.023014046504244
+      },
+      "legacy_core_wrapper_p50_us": null,
+      "legacy_core_wrapper_p95_us": null,
+      "process_tree_rss_bytes": {
+        "median": 112664576
+      },
+      "provider_p50_us": null,
+      "provider_p95_us": null,
+      "recycle_cleanup_p50_us": null,
+      "recycle_cleanup_p95_us": null,
+      "recycle_startup_p50_us": null,
+      "samples": 5,
+      "steady_state_executions_per_second": {
+        "max": 425.0271562719955,
+        "median": 416.37364354836336,
+        "min": 326.03657349093345
+      },
+      "warm_request_p50_us": null,
+      "warm_request_p95_us": null,
+      "worker_startup_p50_us": null
+    },
+    "native": {
+      "accepted_fraction": {
+        "max": 0.7296749614979331,
+        "median": 0.6915724072008922,
+        "min": 0.4577087378640777
+      },
+      "coverage": {
+        "max": 48,
+        "median": 48,
+        "min": 48
+      },
+      "direct_core_p50_us": null,
+      "executions_per_second": {
+        "max": 428.5577432545344,
+        "median": 417.87054647408496,
+        "min": 398.49629715270504
+      },
+      "identity_check_p50_us": null,
+      "input_bytes": {
+        "max": 94.61576699029126,
+        "median": 66.97786871555036,
+        "min": 47.02780254518927
+      },
+      "legacy_core_wrapper_p50_us": null,
+      "legacy_core_wrapper_p95_us": null,
+      "process_tree_rss_bytes": {
+        "median": 113356800
+      },
+      "provider_p50_us": null,
+      "provider_p95_us": null,
+      "recycle_cleanup_p50_us": null,
+      "recycle_cleanup_p95_us": null,
+      "recycle_startup_p50_us": null,
+      "samples": 5,
+      "steady_state_executions_per_second": {
+        "max": 429.1465969108178,
+        "median": 418.4391333716908,
+        "min": 399.11547956754737
+      },
+      "warm_request_p50_us": null,
+      "warm_request_p95_us": null,
+      "worker_startup_p50_us": null
+    }
+  },
+  "kind": "accepted_wall_time",
+  "limitations": [
+    "Single local query-string workload and one pinned OTP/ERTS build; no discovery advantage claim.",
+    "Stage profiling was disabled for acceptance throughput; diagnostic message, corpus persistence, and sampling were enabled equally in every mode.",
+    "Full campaign throughput includes startup, count-based recycle, and orderly shutdown; request percentiles distinguish warm requests from startup/recycle.",
+    "Memory is sampled; aggregate RSS double-counts shared pages and may miss short peaks."
+  ],
+  "native_off_median_change_percent": 2.3209067665130645,
+  "native_off_paired_changes": [
+    {
+      "seed": 17,
+      "throughput_change_percent": 9.805205450858278
+    },
+    {
+      "seed": 29,
+      "throughput_change_percent": 31.630012509530324
+    },
+    {
+      "seed": 43,
+      "throughput_change_percent": -2.1161852254452107
+    },
+    {
+      "seed": 61,
+      "throughput_change_percent": 2.3209067665130645
+    },
+    {
+      "seed": 89,
+      "throughput_change_percent": -6.075822857892965
+    }
+  ]
+}

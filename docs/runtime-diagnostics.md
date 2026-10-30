@@ -1,18 +1,22 @@
 # Automatic Runtime Diagnostics (P0)
 
-P0 включается настройками EFZ. Существующий `Target:run(Input) when is_binary(Input)`
-и instrumented target менять не нужно. Default `enabled=false`. `run/3` сохраняет
-прежний tuple API; `run/4` получает дополнительный `runtime_observations` schema v1.
-Повторы организует campaign worker, а standalone `run/4` выполняет один input.
+**English** · [Русский](i18n/ru/runtime-diagnostics.md) · [Español](i18n/es/runtime-diagnostics.md) · [简体中文](i18n/zh-CN/runtime-diagnostics.md) · [All languages](i18n/README.md)
 
-Поддержанная модель остаётся **synchronous binary harness with controlled descendants**.
-Мониторинг не легализует произвольный `spawn`, фоновые OTP applications, внешние
-сообщения, shared-state mutation или I/O. Правила [guardian/isolation](execution-isolation.md)
-сохраняются. Никакого production disposable-VM backend здесь нет.
+P0 is enabled through EFZ settings. The existing
+`Target:run(Input) when is_binary(Input)` and instrumented target need no changes.
+The default is `enabled=false`. `run/3` preserves the previous tuple API;
+`run/4` receives an additional `runtime_observations` schema v1. The campaign
+worker organizes repetitions, while standalone `run/4` executes one input.
 
-## Конфигурация
+The supported model remains **synchronous binary harness with controlled descendants**.
+Monitoring does not make arbitrary `spawn`, background OTP applications, external
+messages, shared-state mutation or I/O supported. The
+[guardian/isolation](execution-isolation.md) rules remain in force. There is no
+production disposable-VM backend here.
 
-Полные defaults (можно передавать только переопределяемые поля):
+## Configuration
+
+Complete defaults (only overridden fields need to be supplied):
 
 ```erlang
 runtime_oracles => #{
@@ -31,32 +35,33 @@ runtime_oracles => #{
     max_metadata_bytes => 1048576, max_total_metadata_bytes => 16777216}}
 ```
 
-`efz_runtime_config:prepare/1` — общий validator API, executor, CLI и replay.
-Все неизвестные поля и неверные типы отклоняются, включая выключенные разделы.
+`efz_runtime_config:prepare/1` is the shared validator for the API, executor, CLI
+and replay. All unknown fields and invalid types are rejected, including in
+disabled sections.
 
-| Поле | Диапазон / единица |
+| Field | Range / unit |
 |---|---|
-| `*_runs` | 1..16, **включает исходный запуск** |
-| `max_extra_executions` | 0..1 000 000 на всю кампанию, включая seed verification |
-| `sample_interval_ms` | 1..10 000 ms; интервал после окончания предыдущего опроса |
-| `max_samples` | 2..256, последние samples, не первые |
-| `max_sampled_processes` | 1..256; произведение с `max_samples` ≤32768 |
-| `ets_interval_ms` | 10..60 000 ms; первый ETS scan только по истечении интервала |
-| `max_ets_tables` | 1..4096 проверяемых VM table IDs за scan |
-| Resource thresholds | 1..2^40; process/ETS memory в bytes, mailbox в messages |
-| `residual_memory_bytes` | 1..2^40 bytes, порог VM-global binary-memory delta после cleanup |
-| `quiescence_ms` | 0..100 ms, фиксированное ожидание после guardian DOWN |
-| `memory_observation_timeout_ms` | 1..1000 ms, больше quiescence; общий deadline одного измерения, включая ожидание |
-| `max_stack_frames` | 0..32, только MFA, без arguments/locals |
-| `busy_reductions` | 1..10^9 за последний интервал, не CPU utilization |
-| `max_sample_age_ms` | 1..60 000, не меньше sample interval при включённых hangs |
+| `*_runs` | 1..16, **including the initial run** |
+| `max_extra_executions` | 0..1 000 000 for the entire campaign, including seed verification |
+| `sample_interval_ms` | 1..10 000 ms; interval after the preceding poll ends |
+| `max_samples` | 2..256, the latest samples, not the first |
+| `max_sampled_processes` | 1..256; product with `max_samples` ≤32768 |
+| `ets_interval_ms` | 10..60 000 ms; the first ETS scan occurs only after the interval elapses |
+| `max_ets_tables` | 1..4096 VM table IDs checked per scan |
+| Resource thresholds | 1..2^40; process/ETS memory in bytes, mailbox in messages |
+| `residual_memory_bytes` | 1..2^40 bytes, threshold for the VM-global binary-memory delta after cleanup |
+| `quiescence_ms` | 0..100 ms, fixed wait after guardian DOWN |
+| `memory_observation_timeout_ms` | 1..1000 ms, greater than quiescence; total deadline for one measurement, including the wait |
+| `max_stack_frames` | 0..32, MFA only, without arguments/locals |
+| `busy_reductions` | 1..10^9 in the latest interval, not CPU utilization |
+| `max_sample_age_ms` | 1..60 000, at least the sample interval when hangs are enabled |
 | `max_groups` / `max_representatives` | 1..1024 / 1..16 |
-| `max_metadata_bytes` | 4096..4 MiB на один finding payload |
-| `max_total_metadata_bytes` | 4096..64 MiB, не меньше индивидуальной квоты |
+| `max_metadata_bytes` | 4096..4 MiB per finding payload |
+| `max_total_metadata_bytes` | 4096..64 MiB, at least the individual quota |
 
-Раздел hangs может собирать process samples при `resources.enabled=false`.
-Пороговые resource findings при этом отключены. Если оба раздела выключены,
-resource samples отсутствуют; lifecycle evidence всё ещё доступно.
+The hangs section may collect process samples with `resources.enabled=false`.
+Threshold-based resource findings are then disabled. If both sections are
+disabled, there are no resource samples; lifecycle evidence remains available.
 
 CLI:
 
@@ -68,189 +73,203 @@ escript scripts/fuzz.escript \
   --sample-interval 20
 ```
 
-`--runtime-runs` задаёт все четыре repeat counts. Другие runtime flags требуют
-`--runtime-diagnostics`. Core валидирует числовые лимиты; CLI не создаёт atoms из
-текста module name: target разрешается только по выбранным artifacts или локальному
-BEAM в code path. CLI по-прежнему не исполняет Erlang expressions из аргументов.
+`--runtime-runs` sets all four repeat counts. Other runtime flags require
+`--runtime-diagnostics`. The core validates numeric limits; the CLI does not
+create atoms from module-name text: the target is resolved only from selected
+artifacts or a local BEAM on the code path. The CLI still does not execute
+Erlang expressions from arguments.
 
-## Calibration и verification
+## Calibration and verification
 
-Повторяются seeds, новые successful coverage/count discoveries, target failures
-и подозрительные runtime inputs. Одно `descendant_activity` само по себе не запускает
-дополнительные проверки. Каждый повтор — **новый штатный executor/guardian/root** с
-полным cleanup. Рекурсивной verification нет. Повторы не вызывают mutator, corpus
-selection, staged planner, feedback или retention. Исходный результат проходит
-прежний feedback и остаётся единственным источником retention для этого кандидата.
+Seeds, new successful coverage/count discoveries, target failures and suspicious
+runtime inputs are repeated. `descendant_activity` alone does not trigger
+additional checks. Every repetition is a **new standard executor/guardian/root**
+with complete cleanup. There is no recursive verification. Repetitions do not
+invoke the mutator, corpus selection, staged planner, feedback or retention.
+The initial result passes through the existing feedback and remains the sole
+source of retention for that candidate.
 
-Если выполнено `M` mutation executions и `S` seed executions, общее число executions
-не больше `M + S + max_extra_executions`. Более точная граница дополнительных runs:
-`min(budget, sum(requested_runs_for_selected_input - 1))`. `max_iterations` не
-включает verification. Timeout и cleanup bounds применяются отдельно к каждому run;
-это bound executions, не wall-clock deadline кампании.
+If `M` mutation executions and `S` seed executions are performed, the total number
+of executions is at most `M + S + max_extra_executions`. A tighter bound on
+additional runs is `min(budget, sum(requested_runs_for_selected_input - 1))`.
+`max_iterations` does not include verification. Timeout and cleanup bounds apply
+separately to each run; this bounds executions, not the campaign wall-clock time.
 
-Любая infrastructure failure немедленно прекращает повторения и кампанию. Исходная
-причина остаётся в failure context, включая dirty-runner и guardian failure. Crash,
-exit или timeout, впервые увиденный на повторе, сохраняется обычным crash storage с
-`metadata.origin=verification` и новым occurrence. Один execution учитывается ровно
-один раз. Runtime category не увеличивает crash counters.
+Any infrastructure failure immediately stops repetitions and the campaign. The
+original reason remains in the failure context, including dirty-runner and
+guardian failure. A crash, exit or timeout first seen on a repetition is saved
+through ordinary crash storage with `metadata.origin=verification` and a new
+occurrence. Each execution is counted exactly once. A runtime category does not
+increment crash counters.
 
-Outcome signature сравнивает `ok`, тип исключения и bounded category причины,
-exit category либо timeout. Произвольный успешный return **не сравнивается**.
-Опциональный return comparator принимает atoms, signed 64-bit integers, binaries,
-списки, tuples/maps с независимыми бюджетами 1024 nodes, 1024 binary bytes,
-1024 container elements и глубиной 64. Map обходится unordered iterator без
-сортировки/копирования keys; byte_size проверяется до чтения binary содержимого.
-Только полностью прошедший validation term сериализуется deterministic ETF.
-PID, refs, ports, functions,
-floats, большие/deep terms получают `not_comparable`. Он не угадывает семантику
-integer timestamps: при явном compare_return такие значения могут отличаться.
+The outcome signature compares `ok`, exception class and bounded reason category,
+exit category, or timeout. Arbitrary successful returns are **not compared**.
+The optional return comparator accepts atoms, signed 64-bit integers, binaries,
+lists, tuples/maps with independent budgets of 1024 nodes, 1024 binary bytes,
+1024 container elements and depth 64. Maps are traversed with an unordered
+iterator without sorting/copying keys; byte_size is checked before reading binary
+content. Only a term that passes complete validation is serialized as deterministic
+ETF. PIDs, refs, ports, functions, floats and large/deep terms receive
+`not_comparable`. It does not infer the semantics of integer timestamps: when
+compare_return is explicitly enabled, such values may differ.
 
-Собственные метрики EFZ, **не эквивалент AFL++ stability**:
+EFZ's own metrics, **not equivalent to AFL++ stability**:
 
 - Outcome repeatability = `100 * max_frequency(normalized_outcome) / completed`.
 - Coverage repeatability = `100 * max_frequency({builds, exact_probe_set}) / valid`.
-  При полностью пригодной серии `valid=completed`. Невалидный/unstarted snapshot
-  исключён, а не заменён пустым set.
-- Stable probes = пересечение валидных sets. Variable probes = union − intersection.
+  For a fully usable series, `valid=completed`. An invalid/unstarted snapshot
+  is excluded, not replaced by an empty set.
+- Stable probes = intersection of valid sets. Variable probes = union − intersection.
 - Stable-probe ratio = `100 * |intersection| / |union|`.
-- Несколько валидных пустых sets: обе coverage метрики 100%, `valid_empty_coverage=true`.
-- Менее двух пригодных runs: `insufficient_samples`, даже если единственный run успешен.
+- Multiple valid empty sets: both coverage metrics are 100%, `valid_empty_coverage=true`.
+- Fewer than two usable runs: `insufficient_samples`, even if the only run succeeded.
 
-`requested` включает исходный run; `attempted=completed+failed`; `completed` — runs
-без infrastructure failure; `valid` дополнительно исключает unstarted coverage;
-`failed` — infrastructure failures; `skipped=requested-attempted`. У каждой строки
-есть duration, coverage/build identity, cleanup status и runtime summary.
-Verification имеет отдельные requested/executions/completed/valid/failed/skipped
-counters. Coverage integrity errors никогда не становятся `unstable_coverage`.
+`requested` includes the initial run; `attempted=completed+failed`; `completed`
+means runs without infrastructure failure; `valid` additionally excludes unstarted
+coverage; `failed` means infrastructure failures; `skipped=requested-attempted`.
+Each row includes duration, coverage/build identity, cleanup status and a runtime
+summary. Verification has separate requested/executions/completed/valid/failed/skipped
+counters. Coverage-integrity errors never become `unstable_coverage`.
 
-## Наблюдения и scope
+## Observations and scope
 
-| Category | Что измерено / предположено | Чего это не доказывает |
+| Category | What is measured / inferred | What it does not prove |
 |---|---|---|
-| `unstable_outcome` | Отличается normalized outcome в серии | Security vulnerability |
-| `unstable_coverage` | Отличается exact valid coverage set/build | Ошибка target или причина нестабильности |
-| `unstable_return` | Различные comparable successful values, только opt-in | Семантический дефект |
-| `memory_pressure` | Наблюдавшаяся сумма process memory ≥ threshold bytes | Утечка; полная память VM/бинарных ресурсов |
-| `memory_growth_suspected` | Рост между первым и последним сохранённым sample ≥ threshold | Остаточный рост между inputs / memory leak |
-| `vm_memory_growth_suspected` | VM-global binary memory после cleanup/quiescence минус baseline ≥ residual threshold | Target attribution или подтверждённая утечка |
-| `mailbox_pressure` | Наблюдавшаяся сумма message_queue_len ≥ threshold | Потеря сообщений |
-| `ets_growth_suspected` | Наблюдавшийся owned ETS memory peak ≥ threshold | Утечка таблиц после cleanup |
-| `descendant_activity` | Guardian admit count и observed peak live | Process leak |
-| `child_abnormal_exit` | Ненормальный child DOWN, принятый guardian в running phase | Безусловный дефект или изменение root outcome |
-| `timeout_busy` | Существенный reductions delta у сопоставленных owned PID | CPU utilization, livelock или отсутствие progress |
-| `timeout_waiting` | Полные свежие samples: waiting и малый delta | Deadlock |
-| `timeout_unknown` | Мало, устаревшие, неполные или неоднозначные данные | Причина timeout |
+| `unstable_outcome` | Normalized outcomes differ in the series | A security vulnerability |
+| `unstable_coverage` | Exact valid coverage set/build differs | A target bug or the cause of instability |
+| `unstable_return` | Different comparable successful values, opt-in only | A semantic defect |
+| `memory_pressure` | Observed sum of process memory ≥ threshold bytes | A leak; total VM/binary-resource memory |
+| `memory_growth_suspected` | Growth between the first and last retained sample ≥ threshold | Residual growth across inputs / a memory leak |
+| `vm_memory_growth_suspected` | VM-global binary memory after cleanup/quiescence minus baseline ≥ residual threshold | Target attribution or a confirmed leak |
+| `mailbox_pressure` | Observed sum of message_queue_len ≥ threshold | Lost messages |
+| `ets_growth_suspected` | Observed owned ETS memory peak ≥ threshold | A table leak after cleanup |
+| `descendant_activity` | Guardian admission count and observed peak live count | A process leak |
+| `child_abnormal_exit` | Abnormal child DOWN received by the guardian in the running phase | An unconditional defect or a change to root outcome |
+| `timeout_busy` | Substantial reductions delta for matched owned PIDs | CPU utilization, livelock or lack of progress |
+| `timeout_waiting` | Complete fresh samples: waiting and a small delta | Deadlock |
+| `timeout_unknown` | Insufficient, stale, incomplete or ambiguous data | The cause of a timeout |
 
-Все resource thresholds диагностические: heap limits не меняются, дополнительных
-причин kill нет. `thresholds` хранит baseline, observed, threshold, interpretation
-и `defect=unproven`. `reproductions` показывает количество runs с category. Первый
-failure не скрывается как warmup. Нет принудительного GC чужих процессов и rollback
-persistent_term/env/shared ETS.
+All resource thresholds are diagnostic: heap limits are unchanged and no extra
+reasons to kill a process are introduced. `thresholds` stores baseline, observed,
+threshold, interpretation and `defect=unproven`. `reproductions` shows the number
+of runs with the category. The first failure is not hidden as warmup. There is
+no forced GC of other processes or rollback of persistent_term/env/shared ETS.
 
-Sampler получает только guardian-admitted PID через отдельную ограниченную таблицу.
-`processes()` не используется для определения ownership. Guardian/coordinator,
-sampler, coverage/corpus/reporting ETS исключены. Во время исполнения доступны
-memory, mailbox length, reductions, status, current_function, bounded stack.
-Содержимое mailbox/ETS/process dictionaries не читается. Process IDs в persisted
-summary заменены portable placeholders; `process_id`/`owner_id` — admission ordinals.
+The sampler receives only guardian-admitted PIDs through a separate bounded
+table. `processes()` is not used to determine ownership. Guardian/coordinator,
+sampler and coverage/corpus/reporting ETS are excluded. Memory, mailbox length,
+reductions, status, current_function and a bounded stack are available during
+execution. Mailbox/ETS/process-dictionary contents are not read. Process IDs in
+the persisted summary are replaced with portable placeholders;
+`process_id`/`owner_id` are admission ordinals.
 
-Baseline фиксируется **до admission**: target-owned processes/ETS равны нулю;
-VM counters имеют `scope=vm_global`. Это не снимок памяти уже работающего target.
+The baseline is captured **before admission**: target-owned processes/ETS are
+zero; VM counters have `scope=vm_global`. This is not a memory snapshot of an
+already-running target.
 
-Отдельный post-execution путь измеряет `erlang:memory(binary)` до execution и
-после подтверждённого cleanup **и normal DOWN guardian**, с bounded quiescence.
-Измерения выполняются в короткоживущих monitored helpers с отдельным deadline;
-они не выполняются в guardian и не задерживают kill/cleanup. Неудачное измерение
-даёт `incomplete`, не ноль. Failed cleanup сохраняет infrastructure failure и
-не проходит residual observation. P0 off и resources off этот путь не вызывают.
+A separate post-execution path measures `erlang:memory(binary)` before execution
+and after confirmed cleanup **and normal guardian DOWN**, with bounded quiescence.
+Measurements run in short-lived monitored helpers with their own deadline; they
+do not run inside the guardian and do not delay kill/cleanup. A failed measurement
+produces `incomplete`, not zero. Failed cleanup preserves the infrastructure
+failure and does not proceed to residual observation. P0 off and resources off
+do not invoke this path.
 
-`post_execution_memory` содержит scope=vm_global, metric=binary_memory, units=bytes,
-baseline_memory, sampled peak_memory (или not_sampled), post_execution_memory,
-residual_delta, threshold, completeness, cleanup_status, quiescence и deadline.
-`owned_memory` отдельно сохраняет target-owned peak; после уничтожения owners
-post memory/residual помечены not_applicable, а не выдуманным точным измерением.
-GC чужих процессов, shared-state writes и изменение ownership не используются.
+`post_execution_memory` contains scope=vm_global, metric=binary_memory, units=bytes,
+baseline_memory, sampled peak_memory (or not_sampled), post_execution_memory,
+residual_delta, threshold, completeness, cleanup_status, quiescence and deadline.
+`owned_memory` separately preserves the target-owned peak; after the owners are
+destroyed, post memory/residual are marked not_applicable rather than invented
+exact measurements. GC of other processes, shared-state writes and ownership
+changes are not used.
 
-Attribution явно ограничена: VM delta включает EFZ-retained return и другую
-активность VM. Обычный return большого ref-counted binary — поддержанный fixture
-остаточной VM allocation после root cleanup. Это не утечка target. Verification
-хранит фактическое M/N; replay может получить другое M/N, поскольку освобождение
-предыдущих EFZ-held returns/VM activity компенсирует новый рост. Отсутствие
-остаточного finding у временного allocation проверяется отдельно от peak.
-Такие findings имеют scope=vm_global также в artifact/signature; старые schema-v1
-artifacts остаются читаемыми, недостающие поля policy получают defaults.
-Snapshots во время execution измеряют observed peaks; последние доступные samples
-сохраняются отдельно от after-cleanup lifecycle evidence. При отсутствии опроса
-живого PID — `not_sampled`, не нулевое потребление.
+Attribution is explicitly limited: the VM delta includes EFZ-retained returns
+and other VM activity. An ordinary return of a large reference-counted binary
+is a supported fixture for residual VM allocation after root cleanup. This is
+not a target leak. Verification stores the actual M/N; replay may produce a
+different M/N because release of previous EFZ-held returns/VM activity offsets
+new growth. The absence of a residual finding for a temporary allocation is
+checked separately from the peak. Such findings also have scope=vm_global in
+the artifact/signature; old schema-v1 artifacts remain readable, and missing
+policy fields receive defaults. Snapshots during execution measure observed
+peaks; the latest available samples are stored separately from after-cleanup
+lifecycle evidence. If no live PID was polled, the result is `not_sampled`, not
+zero consumption.
 
-ETS `memory` в OTP 27 измеряется в words и умножается на `erlang:system_info(wordsize)`:
-[официальная документация ETS info](https://www.erlang.org/docs/27/apps/stdlib/ets.html#info/2).
-ETS scan выполняется в sampler с отдельной частотой и cap. Он перечисляет VM table
-IDs через `ets:all()`, но проверяет лишь первые `max_ets_tables`, фильтруя owner.
-Показываются known VM tables / scanned VM tables / observed owned tables, и
-`partial=true`, если обход неполный или ресурс исчез. Число всех owned tables при
-усечённом scan неизвестно. Это не утверждение, что partial sum равна расходу target.
-Проверка исчезновения запрашивает только `ets:info(Tab, owner)`, без построения
-полного списка table metadata. Сам `ets:all()` остаётся O(числа таблиц VM);
-cap ограничивает последующие проверки, а не это перечисление.
-Старые shared-state snapshots guardian (`ets:all()` до/после case) сохранены как часть
-контракта cleanup; новый sampler не добавляет ETS scan на каждую быструю итерацию.
+ETS `memory` in OTP 27 is measured in words and multiplied by
+`erlang:system_info(wordsize)`:
+[official ETS info documentation](https://www.erlang.org/docs/27/apps/stdlib/ets.html#info/2).
+The ETS scan runs in the sampler at a separate frequency and with a cap. It
+lists VM table IDs through `ets:all()`, but checks only the first
+`max_ets_tables`, filtering by owner. It shows known VM tables / scanned VM tables /
+observed owned tables, and `partial=true` if traversal is incomplete or a resource
+disappears. The total number of owned tables is unknown when a scan is truncated.
+This does not claim that a partial sum equals target consumption. Disappearance
+checks request only `ets:info(Tab, owner)`, without constructing a complete list
+of table metadata. `ets:all()` itself remains O(number of VM tables); the cap
+bounds subsequent checks, not that enumeration. The guardian's previous
+shared-state snapshots (`ets:all()` before/after a case) remain part of the
+cleanup contract; the new sampler does not add an ETS scan to every fast iteration.
 
-Sampler хранит ring из последних `max_samples`; peak сохраняется независимо от ring.
-Он имеет monitor на guardian, guardian — monitor на sampler. При cleanup сначала
-уничтожаются target processes, затем sampler. Guardian не запрашивает последний
-`process_info` и не ждёт «идеального» снимка перед kill. DOWN sampler входит в
-ограниченный cleanup lifecycle. Самостоятельная смерть sampler отмечается failed /
-partial и не подменяет outcome. Потеря самого guardian сохраняет dirty-runner policy.
+The sampler stores a ring of the latest `max_samples`; the peak is preserved
+independently of the ring. It monitors the guardian, and the guardian monitors
+the sampler. Cleanup first destroys target processes, then the sampler. The
+guardian does not request one final `process_info` or wait for an “ideal” snapshot
+before killing processes. Sampler DOWN is part of the bounded cleanup lifecycle.
+Independent sampler death is marked failed/partial and does not replace the
+outcome. Loss of the guardian itself preserves the dirty-runner policy.
 
-Child DOWN во время running хранит reason category и phase; initiator обычно unknown:
-monitor не доказывает, что child остановил именно parent. Cleanup помечает kill_requested;
-DOWN, принятый уже в cleaning phase, имеет classification=unknown из-за гонки с
-естественной смертью. Cleanup kills не создают child_abnormal_exit. `after_cleanup`
-сообщает подтверждение termination owners и known survivors; escaped ETS/shared
-state всё ещё обрабатываются прежним infrastructure failure, а не resource finding.
+Child DOWN during running records the reason category and phase; the initiator
+is usually unknown: a monitor does not prove that the parent stopped the child.
+Cleanup marks kill_requested; DOWN received in the cleaning phase has
+classification=unknown because of the race with natural death. Cleanup kills
+do not create child_abnormal_exit. `after_cleanup` reports confirmed owner
+termination and known survivors; escaped ETS/shared state still produces the
+existing infrastructure failure, not a resource finding.
 
-Timeout сохраняет исходный outcome/deadline. Классификация использует последние два
-samples, сопоставляет PID и сохраняет age, interval, matched/observed process counts,
-reductions delta, statuses, mailbox, bounded stacks. Partial activity может доказать
-наблюдавшуюся busy activity; waiting требует полных samples. Данные о всех завершённых
-между samples процессах восстановить нельзя.
+Timeout preserves the original outcome/deadline. Classification uses the last
+two samples, matches PIDs and records age, interval, matched/observed process
+counts, reductions delta, statuses, mailbox and bounded stacks. Partial activity
+may prove observed busy activity; waiting requires complete samples. Information
+about every process that completed between samples cannot be reconstructed.
 
-## Storage, report и replay
+## Storage, report and replay
 
-Хранилище находится рядом с `crash_dir`: `dirname(crash_dir)/runtime-findings/`;
-для CLI это `OUT/runtime-findings/`. Оно независимо от crash groups.
+Storage sits beside `crash_dir`: `dirname(crash_dir)/runtime-findings/`;
+for the CLI, this is `OUT/runtime-findings/`. It is independent of crash groups.
 
 ```text
 runtime-findings/
   index                       checksummed EFZO v1 index
   SIGNATURE_HASH-INPUT_HASH/
-    artifact.input            точные raw bytes
+    artifact.input            exact raw bytes
     artifact.term             bounded ETF schema v1
-    manifest                  hashes и размеры обеих файлов
+    manifest                  hashes and sizes of both files
 ```
 
-Record содержит SHA-256 input, category/scope/origin, portable harness/build identity,
-normalized original outcome, policy/thresholds, bounded evidence со всеми проверками,
-и **исходную exact mutation recipe**, если она была. Raw input сохраняется всегда
-для выбранного representative, независимо от наличия recipe.
+The record contains the input SHA-256, category/scope/origin, portable harness/build
+identity, normalized original outcome, policy/thresholds, bounded evidence with
+all checks, and the **original exact mutation recipe**, if present. Raw input is
+always preserved for a selected representative, regardless of recipe availability.
 
-Signature = SHA-256 version/category/scope/harness/builds. PID, refs, timestamps,
-конкретные memory deltas не участвуют. Такое grouping может объединять разные причины.
-`max_representatives` ограничивает distinct inputs на group, `max_groups` — groups
-в store; suppressions и drops учитываются отдельно. Metadata quota включает payloads,
-manifests и index; raw bytes дополнительно ограничены `max_groups * max_representatives *
-max_input_bytes`. При слишком большом payload representative drops, не бесконечная
-сериализация/запись. Есть фиксированный предел 128 report checks и byte quota;
-`checks_dropped` показывает усечение. Store сохраняет counters/caps между кампаниями.
+Signature = SHA-256 of version/category/scope/harness/builds. PIDs, refs, timestamps
+and specific memory deltas do not participate. This grouping may combine distinct
+causes. `max_representatives` limits distinct inputs per group; `max_groups` limits
+groups in the store; suppressions and drops are counted separately. The metadata
+quota includes payloads, manifests and the index; raw bytes are additionally
+bounded by `max_groups * max_representatives * max_input_bytes`. An oversized
+payload causes a representative drop, not unbounded serialization/writing.
+There is a fixed limit of 128 report checks and a byte quota; `checks_dropped`
+records truncation. The store preserves counters/caps across campaigns.
 
-Group публикуется атомарно с fsync/manifest, затем атомарно index. Прерванный промежуток,
-corrupt committed entry, stale writer/index или оставшийся `.writer-lock` — явная
-storage failure и остановка кампании. Автоматического удаления/«починки» нет; используйте
-новую output directory после исследования ошибки. Single writer lock не разрешает
-параллельную работу разных campaigns с устаревшим in-memory index.
+A group is published atomically with fsync/manifest, followed by an atomic index
+update. An interrupted interval, corrupt committed entry, stale writer/index or
+remaining `.writer-lock` is an explicit storage failure that stops the campaign.
+There is no automatic deletion/“repair”; use a new output directory after
+investigating the error. The single-writer lock does not permit different
+campaigns to run concurrently with stale in-memory indexes.
 
-Пример фрагмента report (схема, не обещание конкретных измерений):
+Example report fragment (schema, not a promise of particular measurements):
 
 ```erlang
 #{runtime_diagnostics => #{
@@ -263,7 +282,7 @@ storage failure и остановка кампании. Автоматическ
   stats => #{executions => 0, calibrations => 1, verification_executions => 2}}.
 ```
 
-Проверка выбранной директории representative, **с явным локальным target**:
+Check a selected representative directory, **with an explicit local target**:
 
 ```sh
 escript scripts/replay.escript \
@@ -272,37 +291,42 @@ escript scripts/replay.escript \
 ```
 
 API: `efz_replay:runtime(Directory, LocalTarget, Artifacts, #{runs=>3})`.
-Policy/timeout/input limit берутся из finding; `runs` 1..16, default saved interesting_runs.
-Target/artifacts берутся только от caller. Raw SHA-256, manifest, build и harness
-проверяются до execution. Safe ETF decode не создаёт target-derived atoms.
-`observed` (exit 0), `not_observed` или `inconclusive` (exit 3); несовместимость/invalid
-invocation — exit 2, infrastructure — exit 1. Старые crash `.replay`, recipes и raw
-input CLI остаются поддержанными.
+Policy/timeout/input limit come from the finding; `runs` is 1..16 and defaults
+to the saved interesting_runs. Target/artifacts come only from the caller.
+Raw SHA-256, manifest, build and harness are checked before execution. Safe ETF
+decoding does not create target-derived atoms. `observed` gives exit 0;
+`not_observed` or `inconclusive` gives exit 3; incompatibility/invalid invocation
+gives exit 2; infrastructure failure gives exit 1. Old crash `.replay`, recipes
+and raw-input CLI remain supported.
 
-Для unstable categories один run даёт inconclusive; report показывает sample count,
-repeatability и variable fraction. Даже `not_observed` означает только результат
-конечной выборки. Для resources отсутствие полных samples даёт inconclusive, а не
-доказательство отсутствия проблемы. Повтор использует тот же executor и прекращается
-при infrastructure failure. Replay не записывает новые campaign crash groups: найденный
-на повторе failure входит в returned summary. Campaign verification сохраняет его на диск.
+For unstable categories, one run gives inconclusive; the report shows sample
+count, repeatability and variable fraction. Even `not_observed` describes only
+the result of a finite sample. For resources, a lack of complete samples gives
+inconclusive, not proof that no problem exists. Repetition uses the same executor
+and stops on infrastructure failure. Replay does not write new campaign crash
+groups: a failure found during repetition is included in the returned summary.
+Campaign verification saves it to disk.
 
-## Стоимость и ограничения
+## Cost and limitations
 
-`stats` разделяет mutation executions, calibrations и verification. Есть отдельно
-verification elapsed time, post-execution `runtime_diagnostic_us` (wall time worker,
-включая verification и storage, без исходного executor), sampler work time,
-sampled/missed executions и максимум
-байтов ETS diagnostic buffer, измеренных при завершении runs. Последнее **не включает heap sampler/guardian/report**;
-sample slots, child records, report и disk metadata имеют отдельные bounds. Snapshot
-copying/worker comparison/storage тоже стоят времени; `sampling_us` не равно всей
-стоимости P0. Это cooperative BEAM diagnostics, не realtime scheduling guarantee.
+`stats` separates mutation executions, calibrations and verification. There are
+separate measurements for verification elapsed time, post-execution
+`runtime_diagnostic_us` (worker wall time including verification and storage,
+excluding the initial executor), sampler work time, sampled/missed executions,
+and the maximum bytes of the ETS diagnostic buffer measured at run completion.
+The last metric **does not include sampler/guardian/report heap**; sample slots,
+child records, the report and disk metadata have separate bounds. Snapshot
+copying/worker comparison/storage also take time; `sampling_us` is not the total
+P0 cost. These are cooperative BEAM diagnostics, not a real-time scheduling
+guarantee.
 
-P0 не доказывает memory safety, произвольные resource leaks, race conditions,
-deadlock/livelock как причину, native failures, семантическую корректность и внешние
-side effects. Нет FD/socket leak detector, NIF/ASan/UBSan/LSan, scheduler perturbation,
-stateful/sequence fuzzing, distribution, power scheduling или unstable-probe masking.
-Не измеряется полный off-heap binary footprint. Samples пропускают быстрые пики и
-быстро завершившиеся children/tables. Для state-dependent роста могут требоваться
-история inputs или свежая VM; одиночный raw input не гарантирует reproducer такого роста.
+P0 does not prove memory safety, arbitrary resource leaks, race conditions,
+deadlock/livelock as a cause, native failures, semantic correctness or external
+side effects. There is no FD/socket leak detector, NIF/ASan/UBSan/LSan, scheduler
+perturbation, stateful/sequence fuzzing, distribution, power scheduling or
+unstable-probe masking. The full off-heap binary footprint is not measured.
+Samples miss fast peaks and quickly terminated children/tables. State-dependent
+growth may require an input history or a fresh VM; a single raw input is not
+guaranteed to reproduce such growth.
 
-Реальные команды, результаты и ограничения измерений: [validation report](runtime-diagnostics-validation.md).
+Actual commands, results and measurement limitations: [validation report](runtime-diagnostics-validation.md).

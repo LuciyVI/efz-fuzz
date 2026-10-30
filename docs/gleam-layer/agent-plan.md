@@ -1,5 +1,7 @@
 # Ownership and gate order
 
+**English** · [Русский](../i18n/ru/gleam-layer/agent-plan.md) · [Español](../i18n/es/gleam-layer/agent-plan.md) · [简体中文](../i18n/zh-CN/gleam-layer/agent-plan.md) · [All languages](../i18n/README.md)
+
 Current status (13 October 2026): P5 PASS for the supported contract; see
 [p5-validation.md](p5-validation.md). The ownership/no-publication notes below
 record historical runs; subsequent branch updates were user-authorized.

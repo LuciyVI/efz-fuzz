@@ -1,0 +1,134 @@
+classDiagram
+    direction TB
+    accTitle: EFZ — зависимости модулей
+    accDescr: Структурная UML показывает зависимости модулей, а не отдельный процесс для каждой функции.
+    class efz_cli {
+        <<модуль>>
+        main(Args)
+    }
+    class efz {
+        <<API>>
+        start(Config)
+        await(Timeout)
+        stop()
+    }
+    class efz_fuzzer {
+        <<gen_server>>
+        start_link(Config)
+        init(Config)
+    }
+    class efz_config {
+        <<модуль>>
+        prepare(Config)
+    }
+    class efz_instrument {
+        <<модуль>>
+        compile(File, Opts)
+        preflight(Artifacts)
+    }
+    class efz_worker {
+        <<gen_server>>
+        handle_info(iterate, State)
+    }
+    class efz_mutation_plan {
+        <<модуль>>
+        next(State, Entries)
+    }
+    class efz_mutation {
+        <<модуль>>
+        apply_operation(B, Op, C)
+    }
+    class efz_executor {
+        <<модуль>>
+        run(M, B, T, Opts)
+    }
+    class efz_guardian {
+        <<владелец ЖЦ>>
+        run(Caller, Request, M, B, T, Opts)
+        status()
+    }
+    class efz_target {
+        <<API harness>>
+        spawn(Fun)
+        spawn_link(Fun)
+    }
+    class efz_cov_integrity {
+        <<модуль>>
+        pin(Harness, Selected)
+        validate(Identities)
+        trace_event(Event, Context, Seen)
+        observation(Hits, Status, Attached)
+    }
+    class efz_feedback {
+        <<модуль>>
+        evaluate(F, Result, Phase)
+    }
+    class efz_corpus {
+        <<gen_server>>
+        mutation_entries()
+        add(Input, Metadata)
+    }
+    class efz_corpus_store {
+        <<модуль>>
+        restore(Dir, Id, Policy, Max)
+        save(Store, B, Id, Meta)
+    }
+    class efz_recipe {
+        <<модуль>>
+        make(P, B, C, Builds)
+        regenerate(Recipe)
+    }
+    class efz_crash {
+        <<модуль>>
+        signature(Outcome, Policy)
+        remember(Crash, Groups, Limit)
+        save(B, Result, Meta, Opts)
+    }
+    class efz_replay {
+        <<модуль>>
+        load(ExpectationPath)
+        run(Kind, Path, Target, Artifacts, Expected, Options)
+    }
+    class efz_replay_cli {
+        <<модуль>>
+        main(Args)
+    }
+    class efz_crash_store {
+        <<модуль>>
+        save(Dir, Identity, Limit, Write)
+        read(Group)
+    }
+    class efz_fs {
+        <<модуль>>
+        atomic_group(Dir, Name, Files)
+        atomic_file(Path, Bytes)
+    }
+    efz_cli ..> efz : start / await / stop
+    efz ..> efz_fuzzer : ребёнок supervisor
+    efz_fuzzer ..> efz_config : prepare до init
+    efz_config ..> efz_instrument : preflight
+    efz_config ..> efz_cov_integrity : закрепить harness и сборки
+    efz_config ..> efz_corpus_store : restore
+    efz_fuzzer ..> efz_worker : через efz_worker_sup
+    efz_fuzzer ..> efz_corpus : start_link
+    efz_worker ..> efz_mutation_plan : поэтапное планирование
+    efz_mutation_plan ..> efz_mutation : операция
+    efz_worker ..> efz_executor : исполнить байты
+    efz_executor ..> efz_guardian : владеть lifecycle исполнения
+    efz_guardian ..> efz_cov_integrity : реестр / трассы / проверка
+    efz_target ..> efz_guardian : контролируемый допуск
+    efz_worker ..> efz_feedback : классификация / новизна
+    efz_worker ..> efz_corpus : записи / сохранение
+    efz_worker ..> efz_recipe : записать происхождение
+    efz_worker ..> efz_crash : сбой цели
+    efz_corpus ..> efz_corpus_store : опц. хранение
+    efz_crash ..> efz_crash_store : лимит образцов и счёт
+    efz_crash_store ..> efz_fs : проверка / запись сводки
+    efz_crash ..> efz_recipe : проверить / кодировать
+    efz_corpus_store ..> efz_fs : IO с sync
+    efz_replay_cli ..> efz_replay : итог: байты или рецепт
+    efz_replay ..> efz_crash
+    efz_replay ..> efz_recipe : regenerate / execute
+    efz_recipe ..> efz_executor : совместимый запуск цели
+    efz_replay ..> efz_cov_integrity : проверить ID harness
+    efz_crash ..> efz_replay : сохранить ожидание

@@ -1,0 +1,68 @@
+sequenceDiagram
+    accTitle: EFZ — guardian 与受控后代生命周期
+    accDescr: Guardian 独立于协调器拥有进程与覆盖率。最终结果在 DOWN、跟踪屏障及污染运行器检查之后返回。
+    autonumber
+    participant W as 工作进程 / 调用者
+    participant G as 守护者<br/>efz_guardian
+    participant C as 协调器<br/>efz_executor
+    participant T as 根目标<br/>M:run(Input)
+    participant D as 受控<br/>后代
+    participant O as 观测 ETS
+    participant I as 完整性辅助模块<br/>efz_cov_integrity
+    W->>G: spawn_monitor
+    G->>G: 独立 IO 组，monitor 调用者
+    G->>I: 检查固定 harness 与所选构建
+    G->>O: 打开上下文，新执行 Ref
+    G->>I: 创建受保护 PID 注册表，启用上下文/代码跟踪
+    G->>C: spawn_monitor
+    G->>T: spawn_monitor，关闭启动门
+    G->>I: 开门前注册根预期上下文
+    G->>C: coordinate 根进程
+    C->>T: monitor
+    C-->>G: coordinator_ready
+    G->>T: start_owned
+    T->>T: attach 上下文，调用目标
+    opt 创建受控子进程
+        T->>G: spawn_owned(Capability, Fun)
+        G->>D: 带门 spawn、monitor、trace，记录所有权
+        G->>I: 注册子进程预期上下文
+        G-->>T: 子进程 PID
+        T->>D: start_owned
+        D->>D: attach 共享覆盖率上下文，执行 Fun
+        D->>O: 探针，包括嵌套子进程
+    end
+    T->>O: 根探针
+    T-->>G: 首批发布探针 / 粘性钩子故障
+    G->>G: 接收上下文变更 / 代码加载跟踪
+    alt 根完成或崩溃
+        T-->>C: target_result + DOWN
+        C-->>G: coordinator_done(Outcome)
+    else 超时、调用者死亡或协调器死亡
+        G->>G: deadline 或 monitor DOWN 先到
+    end
+    G->>G: 停止接纳，开始清理
+    G->>T: kill
+    G->>D: kill 每个所属进程
+    G->>C: kill / 等待 DOWN
+    T-->>G: DOWN
+    D-->>G: 全部后代 DOWN
+    G->>G: 逐进程跟踪投递屏障
+    Note over G,D: 延迟非受控 spawn 加入监控和屏障，标记执行污染
+    G->>G: 全局加载器跟踪投递屏障
+    G->>I: 复查代码身份、附着与粘性故障
+    G->>O: snapshot，验证探针与保存观测，close
+    G->>I: 关闭注册表
+    G->>G: 销毁跟踪，检查共享状态变更
+    alt 进程已确认且无违规
+        alt 覆盖率完整性已确认
+            G-->>W: 已观测或有效空覆盖率，清理已确认
+        else 上下文、构建或观测无效
+            G-->>W: 基础设施故障，覆盖率观测损坏
+        end
+    else 清理未确认或违反契约
+        G->>G: 持久保存 VM 污染标记
+        G-->>W: 基础设施 dirty_runner，reusable false
+    end
+    G-->>W: Guardian DOWN
+    W->>W: 返回最终执行结果
+    Note over W,G: Guardian 本身死亡时，调用者返回未确认的污染运行器，禁止复用 VM

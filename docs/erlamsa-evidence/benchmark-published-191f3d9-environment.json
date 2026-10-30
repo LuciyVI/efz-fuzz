@@ -1,0 +1,36 @@
+{
+  "ERL_FLAGS": "+S 2:2",
+  "baseline_dependency_source_commits": {
+    "cowboy": "79e3fb02b31d47af6e69e8f3ba18fba291a3072a",
+    "cowlib": "c768a804565ff5b8178ed968a5921e469d6bd7b2",
+    "ranch": "10b51304b26062e0dbfd5e74824324e9a911e269"
+  },
+  "beam_smp_sha256": "dcc7fac32e6f401be539022fce3e15a3f92461600208a41f1e7bfe3ef9e5d98f",
+  "benchmark_cpu_affinity": [
+    0,
+    1
+  ],
+  "captured_utc": "2026-10-28",
+  "core_commit": "191f3d9d30d8932319b98f4af25d3dff9ddc5824",
+  "cowlib_commit": "c768a804565ff5b8178ed968a5921e469d6bd7b2",
+  "efz_baseline_commit": "db1add0bc47bc1011d55a4cb528b741a0b870f97",
+  "efz_branch": "feat/erlamsa-integration",
+  "efz_commit": "f0768323ca746476adf34aac8d5af8ac2c4a3cc5",
+  "erlang_otp": "27",
+  "erts": "15.0",
+  "fork": "https://github.com/LuciyVI/erlamsa",
+  "fork_branch": "efz-integration",
+  "fork_parent": "Darkkey/erlamsa",
+  "fork_upstream_base": "4a844bcd1083e3278c10405bb415a32871b216c3",
+  "gleam": "NOT INSTALLED",
+  "notes": [
+    "Baseline built from a temporary checkout using local Rebar3 checkout overrides for the same locked dependency commits.",
+    "RSS is sampled aggregate process-tree RSS and may double-count shared pages; it is not a hard memory limit.",
+    "Semantic/Gleam benchmark mode was not run because efz_qs_model is unavailable without Gleam."
+  ],
+  "os": "Linux MSK01-NBK0008 kernel 6.8.0-nyx+ x86_64",
+  "python": "3.12.3",
+  "rebar3": "3.25.0",
+  "schedulers_online": 2,
+  "schema_version": 1
+}

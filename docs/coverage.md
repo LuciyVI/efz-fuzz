@@ -1,5 +1,7 @@
 # Automatic coverage contract
 
+**English** · [Русский](i18n/ru/coverage.md) · [Español](i18n/es/coverage.md) · [简体中文](i18n/zh-CN/coverage.md) · [All languages](i18n/README.md)
+
 ## Supported environment and metric
 
 Actually tested: OTP 27.0 / ERTS 15.0, `x86_64-pc-linux-gnu`, Rebar3 3.25.0.

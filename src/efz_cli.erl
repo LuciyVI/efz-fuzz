@@ -1,6 +1,6 @@
 %% Filesystem/argument adapter only. The existing campaign owns all fuzzing work.
 -module(efz_cli).
--export([main/1, local_target/2]).
+-export([main/1, local_target/2, provider_options/2]).
 
 main(Args) ->
     case lists:member("--supervised",Args) of true->efz_external:main(Args);false->main_local(Args) end.
@@ -29,6 +29,16 @@ help() ->
     "  --coverage-feedback presence|hit_count  Experimental count feedback (default: presence)\n"
     "  --code-path DIR          Ordinary harness/dependency BEAM directory (repeatable)\n"
     "  --mutation staged|random Default: staged\n"
+    "  --mutation-provider native|erlamsa|hybrid  Byte mutation source (default: native)\n"
+    "  --erlamsa-profile balanced|bytes|formats|fields  Provider profile (default: balanced)\n"
+    "  --provider-strategy preserve|perturb|mixed  Structure policy (default: mixed)\n"
+    "  --provider-timeout MS    Isolated provider request deadline, 1..60000 (default: 1000)\n"
+    "  --provider-transport disposable|persistent  Reuse one isolated VM per campaign\n"
+    "  --provider-startup-timeout MS  Persistent startup/handshake budget (default: 10000)\n"
+    "  --provider-cleanup-timeout MS  Bounded worker shutdown/recycle budget (default: 3000)\n"
+    "  --provider-max-requests N  Recycle between requests; default: 10000\n"
+    "  --provider-core PATH     Trusted local Erlamsa core root or ebin directory\n"
+    "                           Enabled providers require staged mode; Gleam is independent\n"
     "  --timeout MS             Per-input timeout, nonnegative integer (default: 100)\n"
     "  --max-iterations N|infinity  Mutation limit; infinity runs until stopped\n"
     "                           Stop infinity campaigns with OUT/stop.request\n"
@@ -53,7 +63,9 @@ help() ->
     "\nSeed directories are not recursive; subdirectories are ignored. Empty files are valid seeds;\n"
     "a directory without seed files is an error.\n"
     "Exit: 0 completed/exhausted/idle stop (including target crashes); 2 invalid invocation/config;\n"
-    "1 runtime infrastructure or report-storage failure. Existing report.term is replaced.\n".
+    "1 runtime infrastructure or report-storage failure. Existing report.term is replaced.\n"
+    "\nFinite: fuzz.escript --target MODULE --artifacts DIR --seeds DIR --out OUT --mutation-provider hybrid --max-iterations 1000\n"
+    "Continuous: use the same command with --max-iterations infinity; touch OUT/stop.request to stop and save.\n".
 
 parse([], Options) -> Options;
 parse(["--help"], _) -> help;
@@ -97,6 +109,15 @@ option("--coverage-policy") -> coverage_policy;
 option("--coverage-feedback") -> coverage_feedback;
 option("--code-path") -> code_paths;
 option("--mutation") -> mutation_mode;
+option("--mutation-provider") -> provider_mode;
+option("--erlamsa-profile") -> provider_profile;
+option("--provider-strategy") -> provider_strategy;
+option("--provider-timeout") -> provider_timeout;
+option("--provider-transport") -> provider_transport;
+option("--provider-startup-timeout") -> provider_startup_timeout;
+option("--provider-cleanup-timeout") -> provider_cleanup_timeout;
+option("--provider-max-requests") -> provider_max_requests;
+option("--provider-core") -> provider_core;
 option("--timeout") -> timeout;
 option("--max-iterations") -> max_iterations;
 option("--max-input-bytes") -> max_input_bytes;
@@ -113,6 +134,32 @@ value(semantic_oracle,_)->fail("Invalid --semantic-oracle",[]);
 value(mutation_mode, "staged") -> staged;
 value(mutation_mode, "random") -> random;
 value(mutation_mode, _) -> fail("--mutation must be staged or random", []);
+value(provider_mode,"native")->native;
+value(provider_mode,"erlamsa")->erlamsa;
+value(provider_mode,"hybrid")->hybrid;
+value(provider_mode,_)->fail("--mutation-provider must be native, erlamsa or hybrid",[]);
+value(provider_profile,"balanced")->balanced;
+value(provider_profile,"bytes")->bytes;
+value(provider_profile,"formats")->formats;
+value(provider_profile,"fields")->fields;
+value(provider_profile,_)->fail("--erlamsa-profile must be balanced, bytes, formats or fields",[]);
+value(provider_strategy,"preserve")->preserve;
+value(provider_strategy,"perturb")->perturb;
+value(provider_strategy,"mixed")->mixed;
+value(provider_strategy,_)->fail("--provider-strategy must be preserve, perturb or mixed",[]);
+value(provider_timeout,Text)->
+    case Text=/=[] andalso lists:all(fun(C)->C>=$0 andalso C=<$9 end,Text) of
+        true->case list_to_integer(Text) of N when N>=1,N=<60000->N;
+            _->fail("--provider-timeout must be 1..60000",[]) end;
+        false->fail("--provider-timeout must be 1..60000",[]) end;
+value(provider_transport,"disposable")->disposable;
+value(provider_transport,"persistent")->persistent;
+value(provider_transport,_)->fail("--provider-transport must be disposable or persistent",[]);
+value(provider_startup_timeout,Text)->provider_integer(Text,1,60000,"--provider-startup-timeout");
+value(provider_cleanup_timeout,Text)->provider_integer(Text,1,30000,"--provider-cleanup-timeout");
+value(provider_max_requests,Text)->provider_integer(Text,1,1000000,"--provider-max-requests");
+value(provider_core,[])->fail("--provider-core must not be empty",[]);
+value(provider_core,Text)->filename:absname(Text);
 value(corpus_build_policy, "reject") -> reject;
 value(corpus_build_policy, "recalibrate") -> recalibrate;
 value(corpus_build_policy, _) -> fail("--corpus-build-policy must be reject or recalibrate", []);
@@ -130,6 +177,11 @@ value(K, Text) when K =:= timeout; K =:= max_iterations; K =:= max_input_bytes; 
     end;
 value(_, []) -> fail("Directory arguments must not be empty", []);
 value(_, Text) -> Text.
+provider_integer(Text,Min,Max,Flag)->
+    case Text=/=[] andalso lists:all(fun(C)->C>=$0 andalso C=<$9 end,Text) of
+        true->case list_to_integer(Text) of N when N>=Min,N=<Max->N;
+            _->fail("~ts must be in range ~B..~B",[Flag,Min,Max]) end;
+        false->fail("~ts must be in range ~B..~B",[Flag,Min,Max]) end.
 flag(runtime_runs) -> "--runtime-runs";
 flag(structured_fraction)->"--structured-fraction";
 flag(oracle_budget)->"--oracle-budget";
@@ -167,10 +219,11 @@ launch(#{config_file:=Path}=O) ->
         NoneRuntime when map_size(NoneRuntime)=:=0->C5;
         _->C5#{runtime_oracles=>runtime_options(O)}
     end,
+    C7=with_provider(C6,O),
     Out=filename:absname(maps:get(out,O)),Crashes=filename:join(Out,"crashes"),
     writable_directory(Out),writable_directory(Crashes),
-    try case efz:start(C6#{crash_dir=>Crashes}) of
-        {ok,_}->finish(await_campaign(C6,Out),Out);
+    try case efz:start(C7#{crash_dir=>Crashes}) of
+        {ok,_}->finish(await_campaign(C7,Out),Out);
         {error,Why}->fail("Cannot start campaign: ~ts",[start_error(Why)]) end
     after _=efz:stop() end;
 launch(O) ->
@@ -200,7 +253,7 @@ launch(O) ->
     C0 = #{target => Target, runtime_oracles=>Runtime, gleam_layer=>gleam_options(O), seeds => Seeds, artifacts => Artifacts,
            mutation_mode => Mode, timeout => maps:get(timeout, O, 100),
            max_iterations => maps:get(max_iterations, O, 1000)},
-    C = C0#{max_input_bytes => Max},
+    C = with_provider(C0#{max_input_bytes => Max},O),
     Out = filename:absname(maps:get(out, O)),
     Crashes = filename:join(Out, "crashes"),
     writable_directory(Out), writable_directory(Crashes),
@@ -210,6 +263,50 @@ launch(O) ->
             {error, Why} -> fail("Cannot start campaign: ~ts", [start_error(Why)])
         end
     after _ = efz:stop() end.
+
+%% Explicit CLI values override only their own nested provider fields. The
+%% trusted map's source weights, limits and other options remain caller-owned.
+with_provider(C,O)->
+    Keys=[provider_mode,provider_profile,provider_strategy,provider_timeout,provider_core,
+          provider_transport,provider_startup_timeout,provider_cleanup_timeout,provider_max_requests],
+    case maps:with(Keys,O) of
+        M when map_size(M)=:=0->C;
+        Overrides->C#{mutation_provider=>provider_options(maps:get(mutation_provider,C,native),Overrides)}
+    end.
+provider_options(Base,O)->
+    Keys=[provider_mode,provider_profile,provider_strategy,provider_timeout,provider_core,
+          provider_transport,provider_startup_timeout,provider_cleanup_timeout,provider_max_requests],
+    case maps:with(Keys,O) of
+        M when map_size(M)=:=0->Base;
+        Overrides->
+            B=case Base of
+                A when A=:=native;A=:=erlamsa;A=:=hybrid->#{mode=>A};
+                P when is_map(P)->P;
+                _->fail("Invalid trusted mutation_provider configuration",[])
+            end,
+            Mode=maps:get(provider_mode,Overrides,maps:get(mode,B,hybrid)),
+            Tuning=maps:remove(provider_mode,Overrides),
+            case {Mode,map_size(Tuning)} of
+                {native,0}->native;
+                {native,_}->fail("Provider tuning flags require --mutation-provider erlamsa or hybrid",[]);
+                _->
+                    Options0=maps:get(options,B,#{}),
+                    case is_map(Options0) of true->ok;false->fail("Provider options must be a map",[]) end,
+                    Options=lists:foldl(fun({From,To},Acc)->case maps:find(From,Overrides) of
+                        {ok,V}->Acc#{To=>V};error->Acc end end,Options0,
+                        [{provider_profile,profile},{provider_strategy,strategy}]),
+                    Result=B#{mode=>Mode,options=>Options},
+                    TuningResult=lists:foldl(fun({From,To},Acc)->case maps:find(From,Overrides) of
+                        {ok,V}->Acc#{To=>V};error->Acc end end,Result,
+                        [{provider_timeout,timeout},{provider_core,core_path}]),
+                    lists:foldl(fun({From,To},Acc)->case maps:find(From,Overrides) of
+                        {ok,V}->Acc#{To=>V};error->Acc end end,TuningResult,
+                        [{provider_transport,transport},
+                         {provider_startup_timeout,startup_timeout},
+                         {provider_cleanup_timeout,cleanup_timeout},
+                         {provider_max_requests,max_requests}])
+            end
+    end.
 
 await_campaign(C,Out)->
     Default=case maps:get(mutation_mode,C,random) of staged->1000;random->infinity end,

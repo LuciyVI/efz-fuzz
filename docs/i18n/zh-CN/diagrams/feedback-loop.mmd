@@ -1,0 +1,67 @@
+sequenceDiagram
+    accTitle: EFZ — 分阶段变异与活跃语料中的发现保留
+    accDescr: 带新探针的成功输入先持久化再加入活跃语料；调度器在未来轮次取得它。
+    autonumber
+    participant W as efz_worker
+    participant C as efz_corpus
+    participant P as efz_mutation_plan
+    participant M as efz_mutation
+    participant R as efz_recipe
+    participant E as efz_executor
+    participant F as efz_feedback
+    participant S as efz_corpus_store
+    Note over W,S: 初始与恢复种子已通过执行器和反馈校准
+    loop 活动预算和调度器允许进度时
+        W->>C: mutation_entries()
+        C-->>W: Entries：含 id 和 input 的 map
+        W->>P: next(PlanState, Entries)
+        P->>P: 选择条目、阶段通道与游标
+        P->>M: apply_operation(Primary, Op, Limits)
+        M-->>P: {ok, Candidate} 或 skip/error
+        alt 找到候选
+            P-->>W: {candidate, Input, Provenance, NextPlan}
+            W->>R: make(Provenance, Input, MutationConfig, Builds)
+            R-->>W: Recipe：parent、primary、哈希、操作
+            W->>W: efz_input:check(Input, Max, mutation)
+            W->>E: run(Target, Input, Timeout, Options)
+            Note over E: 守护者 + 协调器 + 所属进程树；返回结果前清理
+            E-->>W: Result：outcome、覆盖率、观测完整性、固定身份
+            W->>W: 记录观测模块，不依赖成功的全局覆盖率
+            W->>F: evaluate(FeedbackState, Result, mutation)
+            alt 有效成功结果且 New != empty
+                F-->>W: {ok, F1, Decision}, new_probes = New
+                W->>C: add(Input, Metadata 含父 ID 与 Recipe)
+                alt 新二进制
+                    opt 启用 corpus_dir
+                        C->>S: save(Store, Input, NextId, Metadata)
+                        S-->>C: {ok, Record} 在 rename + fsync 后
+                    end
+                    C->>C: 加入条目，递增 next ID
+                    C-->>W: {ok, Id}
+                    W->>W: discoveries += 1，采用 F1
+                    Note over W,C: 新 Input 下一轮可供调度器用作主输入和供体
+                else 二进制已存在
+                    C-->>W: {existing, Input}
+                    W->>W: 采用 F1，existing_input 不新增条目
+                end
+            else 成功但无新覆盖率
+                F-->>W: {ok, F1, equivalent_coverage decision}
+                W->>W: 采用 F1，rejections += 1
+            else 目标异常 / exit / timeout
+                F-->>W: {ok, previous F, target_failure decision}
+                W->>W: efz_crash:identify/3 + save/4，持久保存所选原始代表
+                W->>W: 持久摘要计数 += 1；磁盘/报告代表与决策有界
+            else 无效覆盖率或基础设施结果
+                F-->>W: {error, Reason}
+                W->>W: 基础设施故障，结束活动
+            end
+        else 本次访问无候选
+            P-->>W: {skip, Reason, NextPlan}
+            Note over W,E: 不调用执行器；进度模型保留游标
+        else 耗尽 / 空闲保护 / 错误
+            P-->>W: {done, Reason, NextPlan} 或 {error, Reason, NextPlan}
+            W->>W: 最终报告含独立停止原因
+        end
+    end
+    W->>W: 报告未用产物；未观测任何探针时 strict 失败
+    Note over W,S: 语料/崩溃存储错误停止活动；输入和原因保留在 failure_context

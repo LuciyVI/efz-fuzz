@@ -1,20 +1,29 @@
-# Cowboy: небольшой target для EFZ
+# Cowboy: a small target for EFZ
 
-`efz_cowboy_target:run/1` принимает **байты query string без начального `?`**,
-например `<<"q=hello+world&edit">>`, и вызывает `cowboy_req:parse_qs/1`.
-Результат — `{ok, Pairs}` либо `{invalid, qs | limit_reached}` для штатного
-отказа Cowboy. Неожиданные исключения обёртка не перехватывает. Сам Cowboy
-переводит исключения своего парсера в `request_error`, поэтому это harness
-публичного API с его семантикой ошибок, а не сохранение всех внутренних причин.
+**English** · [Русский](../../docs/i18n/ru/examples/cowboy/README.md) · [Español](../../docs/i18n/es/examples/cowboy/README.md) · [简体中文](../../docs/i18n/zh-CN/examples/cowboy/README.md) · [All languages](../../docs/i18n/README.md)
 
-Запуск выполняется синхронно в процессе target. Используется минимальный Req
-с полем `qs`; listener, соединение и Cowboy application не запускаются.
-Область проверки — декодирование query string в Cowboy/Cowlib. HTTP framing,
-заголовки, сокеты, router, handlers и дочерние процессы сюда не входят.
+`efz_cowboy_target:run/1` accepts **query string bytes without the leading `?`**,
+for example `<<"q=hello+world&edit">>`, and calls `cowboy_req:parse_qs/1`.
+The result is `{ok, Pairs}` or `{invalid, qs | limit_reached}` for an expected
+Cowboy rejection. The wrapper does not catch unexpected exceptions. Cowboy
+itself converts its parser exceptions to `request_error`, so this harness tests
+the public API with its error semantics rather than preserving every internal
+cause.
 
-## Запуск
+For the newer eleven-target data-flow suite (request fields, routing, HTTP/1
+body delivery, protocol and compression round trips), see
+[Cowboy data-flow harnesses](../../docs/cowboy-harness-suite.md). It runs the same
+targets with Gleam disabled, observation-only, and semantic-guided feedback,
+using pinned dependencies from this repository and recording target coverage.
 
-Из корня **efz/**, с собранным соседним checkout Cowboy:
+Execution is synchronous in the target process. A minimal Req containing the
+`qs` field is used; no listener, connection or Cowboy application is started.
+The scope is query string decoding in Cowboy/Cowlib. HTTP framing, headers,
+sockets, routing, handlers and child processes are outside this scope.
+
+## Running
+
+From the **efz/** root, with a built sibling Cowboy checkout:
 
 ```sh
 rebar3 compile
@@ -23,9 +32,9 @@ escript examples/cowboy/run.escript ../cowboy check
 escript examples/cowboy/run.escript ../cowboy 500
 ```
 
-В текущем workspace путь содержит `:`. `erlang.mk` Cowboy не собирается в таком
-пути (`target pattern contains no '%'`). Проверенный обход — отдельная копия
-в `/tmp`, исходный checkout сохраняется:
+The path in the current workspace contains `:`. Cowboy's `erlang.mk` cannot build
+in such a path (`target pattern contains no '%'`). The verified workaround is a
+separate copy in `/tmp`; the original checkout is preserved:
 
 ```sh
 COWBOY_BUILD=$(mktemp -d /tmp/efz-cowboy.XXXXXX)
@@ -36,47 +45,48 @@ escript examples/cowboy/run.escript "$COWBOY_BUILD/cowboy" check
 escript examples/cowboy/run.escript "$COWBOY_BUILD/cowboy" 500
 ```
 
-`make` скачивает зависимости, закреплённые в Cowboy Makefile. При недоступном
-прокси в этой среде проверена сборка через прямой доступ:
+`make` downloads the dependencies pinned in Cowboy's Makefile. When the proxy was
+unavailable in this environment, a build using direct access was verified:
 
 ```sh
 env -u HTTPS_PROXY -u HTTP_PROXY -u ALL_PROXY \
     -u https_proxy -u http_proxy -u all_proxy make -C "$COWBOY_BUILD/cowboy"
 ```
 
-Для отдельного длительного HTTP/1 benchmark Cowboy 2.19.0 теперь закреплён в
-`rebar.config` и `rebar.lock`; его runner описан в
+For the separate long-running Cowboy HTTP/1 benchmark, Cowboy 2.19.0 is now pinned
+in `rebar.config` and `rebar.lock`; its runner is described in
 [`docs/cowboy-long-benchmark.md`](../../docs/cowboy-long-benchmark.md).
-Этот старый пример query string продолжает использовать соседний checkout
-Cowboy и запускается в свежей VM.
+This older query string example continues to use a sibling Cowboy checkout and
+runs in a fresh VM.
 
-Runner автоматически инструментирует allowlist `[cowboy_req, cow_qs]` в
-`_build/cowboy-targets`, проверяет BEAM/manifest и запускает штатный executor.
-Обычные артефакты Cowboy сохраняются. Для `cow_qs` передаётся include-каталог
-Cowlib. Для `cowboy_req` явно используется `strict => false`: в проверенной
-версии два list comprehension (`filter_cookies/2`, `kvlist_to_map/2`) сохранены
-без внутренних probes. Они не входят в путь `parse_qs/1`; ограничения выводятся
-при сборке и записаны в manifest. Полное покрытие всего Cowboy не заявляется.
+The runner automatically instruments the allowlist `[cowboy_req, cow_qs]` in
+`_build/cowboy-targets`, verifies the BEAM/manifest and runs the standard executor.
+The ordinary Cowboy artifacts are preserved. The Cowlib include directory is
+passed for `cow_qs`. For `cowboy_req`, `strict => false` is used explicitly: in
+the verified version, two list comprehensions (`filter_cookies/2`,
+`kvlist_to_map/2`) are preserved without internal probes. They are not on the
+`parse_qs/1` path; the limitations are printed during the build and recorded in
+the manifest. Full coverage of all of Cowboy is not claimed.
 
-Пример использует staged mode, seed `{17,23,41}`, начальный корпус `[<<>>]`,
-этапы `dictionary_insert`, `bitflip`, `havoc` и предел входа 1024 байта.
-Аргумент числа исполнений: 1–100000, по умолчанию 500. Сохраняются defaults
-покрытия EFZ: prepared validation + ETS. Штатные отказы разбора считаются
-нормальным завершением target, поэтому их новые probes могут расширять корпус.
-Отчёт: `_build/cowboy-report.term`; неожиданные падения: `_build/cowboy-crashes/`.
+The example uses staged mode, seed `{17,23,41}`, initial corpus `[<<>>]`,
+`dictionary_insert`, `bitflip`, `havoc` stages and a 1024-byte input limit.
+The execution-count argument accepts 1–100000 and defaults to 500. EFZ coverage
+defaults are preserved: prepared validation + ETS. Expected parsing rejections
+count as normal target completion, so their new probes can expand the corpus.
+Report: `_build/cowboy-report.term`; unexpected crashes: `_build/cowboy-crashes/`.
 
-## Локальная проверка
+## Local validation
 
-Проверено на OTP 27.0, Rebar3 3.25.0, Cowboy 2.19.0
+Verified on OTP 27.0, Rebar3 3.25.0, Cowboy 2.19.0
 (`79e3fb02b31d47af6e69e8f3ba18fba291a3072a`), Cowlib 2.20.0
-(`c768a804565ff5b8178ed968a5921e469d6bd7b2`). `check` — 14 EUnit-проверок:
-пустой вход, повторные ключи, percent decoding, нулевые/не-UTF-8 байты,
-повреждённые escapes, граница 99/100/101 ключей, точное совпадение snapshots
-ETS/ets_member, новые execution refs и удержание `a=1` после реальной dictionary
-мутации с automatic coverage. Эти дополнительные проверки запускаются командой
-`check`, отдельно от обычного `rebar3 eunit`, и требуют настоящего Cowboy.
+(`c768a804565ff5b8178ed968a5921e469d6bd7b2`). `check` runs 14 EUnit checks:
+empty input, repeated keys, percent decoding, zero/non-UTF-8 bytes, malformed
+escapes, the 99/100/101-key boundary, exact matching of ETS/ets_member snapshots,
+new execution refs and retention of `a=1` after a real dictionary mutation with
+automatic coverage. These additional checks run with the `check` command,
+separately from ordinary `rebar3 eunit`, and require the real Cowboy.
 
-Локальный запуск на 500 mutation executions завершился: 1 обработка seed,
+A local run of 500 mutation executions completed with: 1 seed execution,
 20 discoveries, 480 rejections, 0 crashes/timeouts/infrastructure failures.
-Это наблюдение на указанной сборке, не ожидаемая константа для других версий.
-Базовые `rebar3 compile` и `rebar3 eunit` прошли: 62 теста EFZ.
+This is an observation on the stated build, not an expected constant for other
+versions. The baseline `rebar3 compile` and `rebar3 eunit` passed: 62 EFZ tests.

@@ -1,52 +1,54 @@
-# Аудит готовности EFZ к калибровке и feature_stability
+# EFZ readiness audit for calibration and feature_stability
 
-Дата: 2026-09-09. **Вердикт: READY WITH PREREQUISITES.**
+**English** · [Русский](i18n/ru/calibration-readiness.md) · [Español](i18n/es/calibration-readiness.md) · [简体中文](i18n/zh-CN/calibration-readiness.md) · [All languages](i18n/README.md)
 
-Для фиксированной сборки, кооперативной цели и области **одного target-процесса**
-уже доступны полные точные множества наблюдений одного исполнения. Второй executor,
-новый backend, hit counters или buckets не нужны. Перед достоверной интеграцией
-нужны явная причина завершения, контракт полноты/очистки и обработки потери runner,
-а затем отдельный сборщик повторов, не вызывающий novelty на каждом повторе.
+Date: 2026-09-09. **Verdict: READY WITH PREREQUISITES.**
 
-Для произвольного дерева процессов, stateful OTP-приложения, native/NIF coverage
-или восстановления после аварии всей VM текущая реализация **NOT READY**: таких
-контрактов/runner нет. Это ограничение области, а не повод выдать их покрытие за
-пустое и получить 100%.
+For a fixed build, a cooperative target and a scope of **one target process**,
+complete exact observation sets for individual executions are already available. A second executor,
+a new backend, hit counters or buckets are unnecessary. Reliable integration first requires
+an explicit termination reason, completeness/cleanup and runner-loss handling contracts,
+followed by a separate repeat collector that does not invoke novelty on each repeat.
 
-В этом задании механизм калибровки **не внедрялся**. Production-код, API, зависимости,
-defaults и алгоритмы поиска не менялись. Единственный постоянный новый файл — этот
-отчёт. Fixtures, диагностические скрипты и логи находятся в
-`/tmp/efz-calibration-audit.rIBEql/`; их исходники включены в приложение для
-воспроизведения после удаления временного каталога.
+For an arbitrary process tree, a stateful OTP application, native/NIF coverage
+or recovery after a whole-VM crash, the current implementation is **NOT READY**: those
+contracts/runners do not exist. This is a scope limitation, not a reason to represent their coverage
+as empty and obtain 100%.
 
-Обозначения доказательств: **К** — обнаружено в текущем коде; **Э** — подтверждено
-новым запуском; **Д** — утверждение документации; **П** — предложено, ещё не
-реализовано; **НП** — не проверено. Исторические показатели не считаются результатами
-этого аудита.
+The calibration mechanism was **not implemented** in this task. Production code, APIs, dependencies,
+defaults and search algorithms were unchanged. The only permanent new file is this
+report. Fixtures, diagnostic scripts and logs are in
+`/tmp/efz-calibration-audit.rIBEql/`; their sources are included in the appendix for
+reproduction after the temporary directory is removed.
 
-## 1. Checkout, инструменты и действующая архитектура
+Evidence notation: **C** — found in current code; **E** — confirmed by
+a new run; **D** — documentation claim; **P** — proposed, not yet
+implemented; **NV** — not verified. Historical measurements are not treated as results
+of this audit.
 
-**К/Э.** Репозиторий — `efz/`, ветка `main`, HEAD
+## 1. Checkout, tools and current architecture
+
+**C/E.** Repository: `efz/`, branch `main`, HEAD
 `ac09c1f3e938c3a79b369fc6a87d61c1ae739db4` (`chore: initialize efz OTP project`).
-Commit не описывает всю проверенную реализацию: на входе уже были изменения
-`README.md`, `rebar.config`, `src/efz.app.src`, untracked каталоги `bench/`, `docs/`,
-`examples/`, `fixtures/`, `scripts/`, `test/` и большинство модулей `src/efz_*.erl`.
-Полный исходный status/diff сохранён в [status.txt](/tmp/efz-calibration-audit.rIBEql/status.txt)
-и [diff.txt](/tmp/efz-calibration-audit.rIBEql/diff.txt).
+The commit does not describe the entire implementation examined: the initial tree already had changes to
+`README.md`, `rebar.config`, `src/efz.app.src`, untracked directories `bench/`, `docs/`,
+`examples/`, `fixtures/`, `scripts/`, `test/` and most `src/efz_*.erl` modules.
+The complete initial status/diff is saved in [status.txt](/tmp/efz-calibration-audit.rIBEql/status.txt)
+and [diff.txt](/tmp/efz-calibration-audit.rIBEql/diff.txt).
 
-До запуска сняты SHA-256 всех 78 существовавших файлов из
-`git ls-files --cached --others --exclude-standard`. После экспериментов их
-содержимое совпало. До добавления отчёта не изменился ни один такой файл.
-Не выполнялись reset/clean/stage/commit/push и изменения Git identity/remotes.
-Применимых `AGENTS.md` в репозитории и проверенных родительских каталогах нет.
+SHA-256 hashes of all 78 existing files listed by
+`git ls-files --cached --others --exclude-standard` were captured before the run. Their
+contents matched after the experiments. None of those files changed before this report was added.
+No reset/clean/stage/commit/push operations or Git identity/remote changes were performed.
+No applicable `AGENTS.md` files were found in the repository or checked parent directories.
 
-Хеш списка исходного дерева (отсортированные UTF-8 строки
+The source-tree list hash (sorted UTF-8 lines
 `path + NUL + file_sha256 + LF`) —
 `24eafa7e45d6584b1ff2eb03021391c3e299b95df2a51ab7041726c9a612cf23`.
-Полный список — [before-sha256.json](/tmp/efz-calibration-audit.rIBEql/before-sha256.json).
-Ключевые файлы для привязки выводов к dirty checkout:
+The full list is in [before-sha256.json](/tmp/efz-calibration-audit.rIBEql/before-sha256.json).
+Key files that bind the conclusions to the dirty checkout:
 
-| Файл | SHA-256 |
+| File | SHA-256 |
 |---|---|
 | `src/efz_executor.erl` | `c4a7802a9ac299445b5b6b50fd1ded92ae09e814ad25f4f300054503e6745f47` |
 | `src/efz_cov.erl` | `2d32b0aca9c1641e40ab111e844d020004fb5cb9b743d76c40a46385fa4489d0` |
@@ -57,640 +59,640 @@ Commit не описывает всю проверенную реализаци�
 | `src/efz_instrument.erl` | `c4dfbe3b9caadfc4ed60153d1a6573b152f31fc5b95e34a168a6bea730695351` |
 | `src/efz_instrument_pt.erl` | `b781f83981aef57f59a79c42c099a07076002434ceecd2ecef8feb05930766cd` |
 
-**Э.** `rebar3 version`: Rebar3 3.25.0, OTP 27 / ERTS 15.0.
-`releases/27/OTP_VERSION` содержит `27.0`. Архитектура
-`x86_64-pc-linux-gnu`, ОС Linux. Штатная VM аудита: **16 schedulers, 16 online**;
-`ERL_FLAGS`, `ERL_AFLAGS`, `ERL_COMPILER_OPTIONS` не заданы. Основной диагностический
-скрипт и три его свежие VM также записали 16 online. Число 4 из Phase 2.1 сюда
-не перенесено. Существующие fresh-VM EUnit helper явно используют два schedulers;
-это отдельные тестовые настройки, не конфигурация основного измерения.
+**E.** `rebar3 version`: Rebar3 3.25.0, OTP 27 / ERTS 15.0.
+`releases/27/OTP_VERSION` contains `27.0`. Architecture:
+`x86_64-pc-linux-gnu`, Linux. The audit's standard VM had **16 schedulers, 16 online**;
+`ERL_FLAGS`, `ERL_AFLAGS`, `ERL_COMPILER_OPTIONS` were unset. The main diagnostic
+script and its three fresh VMs also recorded 16 online. The value 4 from Phase 2.1
+was not carried over here. Existing fresh-VM EUnit helpers explicitly use two schedulers;
+those are separate test settings, not the main measurement configuration.
 
-**К.** [rebar.config](../rebar.config), строки 1–14: минимум OTP 27,
+**C.** [rebar.config](../rebar.config), lines 1–14: minimum OTP 27,
 `debug_info,warnings_as_errors`, `src_dirs = ["src","examples/simple_parser"]`,
-`deps = []`; `rebar.lock` пустой. Именованных project profiles нет. `compile`
-использует default, EUnit/CT — стандартный test profile Rebar3. CI-конфигурации
-GitHub/GitLab, отдельного Makefile, Go module/controller или Python управляющего
-слоя в текущем дереве не найдено. README перечисляет локальные rebar-команды;
-это не доказательство запуска CI. Форматтер/линтер не настроен.
+`deps = []`; `rebar.lock` is empty. There are no named project profiles. `compile`
+uses default; EUnit/CT use Rebar3's standard test profile. No GitHub/GitLab CI configuration,
+separate Makefile, Go module/controller or Python control
+layer was found in the current tree. The README lists local rebar commands;
+this is not evidence of a CI run. No formatter/linter is configured.
 
-**К/Э.** Это одна Erlang-native OTP-реализация EFZ:
+**C/E.** This is a single Erlang-native OTP implementation of EFZ:
 
 ```text
 escript / Erlang caller
   efz:start/1 -> efz_sup -> efz_fuzzer
                               |-> efz_corpus (entries, selector RNG)
                               |-> efz_stats
-                              `-> efz_worker_sup -> один efz_worker
+                              `-> efz_worker_sup -> one efz_worker
                                        |-> prepared validation plan
                                        |-> random / staged mutation state
                                        `-> efz_executor:run/4
                                               -> coordinator -> target process
 ```
 
-`src/efz.erl:start/1`, строки 3–7; `efz_fuzzer:init/1`, строки 17–25;
-`efz_worker_sup:init/1`, строка 2. Приложение `efz` версии 0.1.0 зависит от
-`kernel`, `stdlib`, `crypto` (`src/efz.app.src:1–18`). Использование crypto не
-означает наличия native coverage.
+`src/efz.erl:start/1`, lines 3–7; `efz_fuzzer:init/1`, lines 17–25;
+`efz_worker_sup:init/1`, line 2. Application `efz` version 0.1.0 depends on
+`kernel`, `stdlib`, `crypto` (`src/efz.app.src:1–18`). Using crypto does not
+imply native coverage support.
 
-| Поисковый ориентир | Что обнаружено |
+| Search term | Findings |
 |---|---|
-| EFZ/ErlFuzz, Go controller, `input_coverage` | В актуальном runtime — EFZ, Erlang; остальные имена/режим не найдены |
-| `efz_instrument`, `efz_cov`, `efz_feedback`, `efz_executor` | Существуют |
-| `efz_cov_runtime`, `efz_run_context` | Фактически `efz_cov_rt` и tuple context в `efz_cov`; модулей с указанными именами нет |
-| `efz_value_runtime`, `efz_hook_runtime`, `efz_data` | Не найдены; value/transition feedback отсутствует |
-| `execution_ref`, `builds`, `coverage_status`, `elapsed_us`, `target_outcome` | Есть в результате `run/4`, но аварийная ветвь может не иметь `target_outcome` |
-| `input_id` | SHA-256 входа в metadata worker/corpus, не поле обычного executor result |
-| `cleanup_status`, generation, layout digest, `feedback_epoch` | Нет; не следует приписывать их существующему контракту |
-| `RunRef` | Есть внутренний `Request` и отдельный context `Ref`; переносимый input ID из них не получается |
+| EFZ/ErlFuzz, Go controller, `input_coverage` | The current runtime uses EFZ and Erlang; the other names/mode were not found |
+| `efz_instrument`, `efz_cov`, `efz_feedback`, `efz_executor` | Present |
+| `efz_cov_runtime`, `efz_run_context` | The actual implementation is `efz_cov_rt` and a tuple context in `efz_cov`; no modules have the specified names |
+| `efz_value_runtime`, `efz_hook_runtime`, `efz_data` | Not found; value/transition feedback is absent |
+| `execution_ref`, `builds`, `coverage_status`, `elapsed_us`, `target_outcome` | Present in the `run/4` result, but the failure branch may lack `target_outcome` |
+| `input_id` | Input SHA-256 in worker/corpus metadata, not a field of the normal executor result |
+| `cleanup_status`, generation, layout digest, `feedback_epoch` | Absent; they must not be attributed to the existing contract |
+| `RunRef` | An internal `Request` and a separate context `Ref` exist; neither provides a portable input ID |
 
-**К/Э.** Defaults подтверждены `efz_config:defaults/0`, строки 4–6, и runtime:
+**C/E.** Defaults confirmed by `efz_config:defaults/0`, lines 4–6, and runtime:
 `coverage => automatic`, `coverage_validation => prepared`,
 `coverage_backend => ets`, `workers => 1`, `mutation_mode => random`, timeout 100 ms.
-`ets_member` разрешён явно; `per_execution` — альтернативная валидация. Это две
-независимые оси, не четыре разных пространства features. Низкоуровневый `run/4`
-сам не создаёт prepared plan: caller передаёт `coverage_plan` либо `manifests`.
-`run/3` использует manual compatibility и возвращает только outcome.
+`ets_member` is explicitly allowed; `per_execution` is an alternative validation mode. These are two
+independent axes, not four different feature spaces. Low-level `run/4`
+does not create a prepared plan itself: the caller supplies `coverage_plan` or `manifests`.
+`run/3` uses manual compatibility and returns only the outcome.
 
-**К/Э.** `seed_calibration` — **одно исполнение каждого начального seed**:
-`efz_worker:init/1`, строки 20–24, `handle_info/2`, 26–30;
-`efz_feedback:evaluate/3`, 9–17. Проверка с двумя seeds и нулём мутаций дала
-`calibrations=2, executions=0, discoveries=0`, две причины `seed_calibration`.
-Повторов R, intersection/frequencies и показателя устойчивости сейчас нет.
-Слово «calibrates» в README означает эту начальную обработку, а не повторную
-оценку стабильности.
+**C/E.** `seed_calibration` is **one execution of each initial seed**:
+`efz_worker:init/1`, lines 20–24, `handle_info/2`, 26–30;
+`efz_feedback:evaluate/3`, 9–17. A check with two seeds and zero mutations produced
+`calibrations=2, executions=0, discoveries=0`, with two `seed_calibration` reasons.
+There are currently no R repeats, intersection/frequencies or stability metric.
+The word “calibrates” in the README means this initial processing, not repeated
+stability evaluation.
 
-## 2. Фактический путь testcase и владельцы состояния
+## 2. Actual testcase path and state ownership
 
-Ссылки на основной код: [executor](../src/efz_executor.erl),
+Main code links: [executor](../src/efz_executor.erl),
 [coverage context](../src/efz_cov.erl), [hook](../src/efz_cov_rt.erl),
 [worker](../src/efz_worker.erl), [feedback](../src/efz_feedback.erl).
 
 ```text
-До измерения:
-  config + artifacts preflight; загрузка selected BEAM; plan создаётся один раз
-  seed берётся как есть ИЛИ corpus selection -> mutation -> binary/recipe
+Before measurement:
+  config + artifacts preflight; load selected BEAM; create plan once
+  take seed unchanged OR corpus selection -> mutation -> binary/recipe
 
-Для одного run/4:
-  caller создаёт Request, spawn_monitor(coordinator)
+For one run/4:
+  caller creates Request, spawn_monitor(coordinator)
     coordinator monitor(caller)
-    open: новый context Ref + новая public ETS       [до Started]
+    open: new context Ref + new public ETS         [before Started]
     Started = monotonic_time(microsecond)
     spawn_monitor(target)
       attach(Context) -> M:run(Input)
-      selected module bodies -> синхронные ETS membership publications
+      selected module bodies -> synchronous ETS membership publications
       outcome / caught error, throw, exit
       target_result{Ref, target PID, Outcome}
-    wait: результат + target DOWN, либо DOWN/timeout/caller DOWN
-    timeout/cancel -> kill(target) + подтверждённый DOWN
-    обычная ветвь: sticky failure -> snapshot -> identity validation -> result
-    отправка result caller                         [ещё до finally cleanup]
-    after: повторный kill_and_drain -> close ETS -> demonitor caller
-    coordinator завершается
-  caller ждёт coordinator DOWN перед возвратом run/4
+    wait: result + target DOWN, or DOWN/timeout/caller DOWN
+    timeout/cancel -> kill(target) + confirmed DOWN
+    ordinary branch: sticky failure -> snapshot -> identity validation -> result
+    send result to caller                         [still before finally cleanup]
+    after: repeat kill_and_drain -> close ETS -> demonitor caller
+    coordinator terminates
+  caller waits for coordinator DOWN before returning from run/4
 
-После run/4:
-  worker увеличивает calibration ИЛИ mutation execution counter
+After run/4:
+  worker increments calibration OR mutation execution counter
   feedback(status, outcome, builds, Observed) -> novelty/merge decision
-  corpus add для нового успешного input; crash storage отдельно
-  decisions/statistics; следующая итерация
+  corpus add for new successful input; crash storage separate
+  decisions/statistics; next iteration
 ```
 
-**К.** Время `elapsed_us` начинается после `efz_cov:open/1` и включает startup target,
-attach, `M:run/1`, ожидание завершения, чтение и валидацию snapshot; заканчивается
-до `builds(Options)`/отправки result и finally cleanup
-(`efz_executor:coordinate/6:28–59`). Это не чистое target time и не полный wall time
-`run/4`. Полный синхронный вызов включает context allocation и cleanup. Deadline
-в `wait_target/5:62–79` отсчитывается отдельно в миллисекундах после spawn target;
-это не гарантированная верхняя граница wall time при зависшем native вызове.
+**C.** `elapsed_us` starts after `efz_cov:open/1` and includes target startup,
+attach, `M:run/1`, waiting for termination, snapshot reading and validation; it ends
+before `builds(Options)`/sending the result and finally cleanup
+(`efz_executor:coordinate/6:28–59`). This is neither pure target time nor the full wall time of
+`run/4`. The full synchronous call includes context allocation and cleanup. The deadline
+in `wait_target/5:62–79` is measured separately in milliseconds after target spawn;
+it is not a guaranteed wall-time upper bound for a stuck native call.
 
-**К.** Общего decoder, `before_input`, reset target state, `after_input` и target
-cleanup callback нет. Seeds — binary, мутации возвращают binary; staged recipe
-составляется до executor (`efz_worker:staged_iteration/1:42–52`). Проверки размеров
-и словаря находятся вне coverage. Низкоуровневый `run/4` допускает произвольный
-Erlang term как `Input`, передавая его прямо в `M:run/1`; диагностические tuple
-inputs с PID используют именно этот низкоуровневый seam, не новый campaign API.
-В replay чтение файла/регенерация/preflight выполняются до исполнения
-(`efz_recipe:execute/5`, `execute_file/5`, строки 85–114).
+**C.** There is no common decoder, `before_input`, target-state reset, `after_input` or target
+cleanup callback. Seeds are binary, mutations return binary; the staged recipe
+is composed before the executor (`efz_worker:staged_iteration/1:42–52`). Size
+and dictionary checks are outside coverage. Low-level `run/4` accepts any
+Erlang term as `Input`, passing it directly to `M:run/1`; diagnostic tuple
+inputs containing PIDs use this low-level seam, not a new campaign API.
+Replay file reading/regeneration/preflight happen before execution
+(`efz_recipe:execute/5`, `execute_file/5`, lines 85–114).
 
-**К.** Область features — тела выбранных модулей, вызываемые процессом после attach.
-Поэтому decoder/setup внутри выбранного `M:run/1` тоже будет измеряться, если он
-там есть. Target `try ... after` измеряется до нормального/exception завершения;
-принудительный kill не обещает выполнения target cleanup. EFZ hook, executor,
-сборщик статистики и transform исключены из allowlist самим transform
-(`efz_instrument_pt:parse_transform/2:26–33`). Compilation/load до attach и cleanup
-coordinator после target DOWN не добавляют EFZ probes. Иначе выбранный пользователем
-adapter может добавлять свои общие probes — это нужно фиксировать в allowlist,
-а не вычитать такие features после получения процента.
+**C.** The feature scope is the bodies of selected modules called by the process after attach.
+Therefore decoder/setup inside the selected `M:run/1` is also measured if
+present. Target `try ... after` is measured until normal/exception termination;
+forced kill does not guarantee target cleanup execution. The EFZ hook, executor,
+statistics collector and transform are excluded from the allowlist by the transform itself
+(`efz_instrument_pt:parse_transform/2:26–33`). Compilation/load before attach and coordinator cleanup
+after target DOWN add no EFZ probes. A user-selected
+adapter may otherwise add its own shared probes; record this in the allowlist,
+rather than subtracting those features after calculating a percentage.
 
-| Состояние/ресурс | Владелец и lifetime | Гарантия / граница |
+| State/resource | Owner and lifetime | Guarantee / boundary |
 |---|---|---|
-| Corpus и selector RNG | `efz_corpus` gen_server; campaign lifetime | insertion order; random selector либо staged planner; `src/efz_corpus.erl:5–14` |
-| Mutation RNG/cursors, global novelty, decisions | `efz_worker` | Не должны изменяться от stability repeats; `worker:7–24,42–56,108–125` |
-| Prepared plan | Worker; offline caller `prepare/2` | protected unnamed ETS; до release/смерти владельца; не observation buffer |
-| Request и monitor coordinator | Caller `run/4:7–24` | Response привязан к Request/PID; caller ждёт завершения coordinator |
-| Context Ref и public ETS set | Coordinator `coordinate/6:26–29`; `cov:open/0:11–13` | ETS живёт после смерти target, уничтожается с owner; heir нет |
-| Context reference в PD | Только target после attach | Не единственное хранилище hits; не наследуется детьми |
-| Caller/target monitors, deadlines | Coordinator, `wait_target/5`, `kill_and_drain/2` | `receive after`, не timer process/port; отдельный fresh monitor в cleanup |
-| Snapshot list | Coordinator, затем копия result у caller | Неизменяемый Erlang list; живёт после удаления ETS; данные до novelty |
-| Порты в production executor | Отсутствуют | Fresh-VM ports в тестах/аудите принадлежат внешнему диагностическому escript |
-| Children, OTP servers, target timers, внешние ресурсы | Не управляются executor | Нет списка target tree, child ACK barrier или общего reset |
+| Corpus and selector RNG | `efz_corpus` gen_server; campaign lifetime | insertion order; random selector or staged planner; `src/efz_corpus.erl:5–14` |
+| Mutation RNG/cursors, global novelty, decisions | `efz_worker` | Must not change due to stability repeats; `worker:7–24,42–56,108–125` |
+| Prepared plan | Worker; offline caller `prepare/2` | protected unnamed ETS; until release/owner death; not an observation buffer |
+| Request and coordinator monitor | Caller `run/4:7–24` | Response is bound to Request/PID; caller waits for coordinator termination |
+| Context Ref and public ETS set | Coordinator `coordinate/6:26–29`; `cov:open/0:11–13` | ETS survives target death and is destroyed with its owner; no heir |
+| Context reference in PD | Only the target after attach | Not the only hit store; not inherited by children |
+| Caller/target monitors, deadlines | Coordinator, `wait_target/5`, `kill_and_drain/2` | `receive after`, not a timer process/port; separate fresh monitor during cleanup |
+| Snapshot list | Coordinator, then result copy at caller | Immutable Erlang list; survives ETS deletion; data precedes novelty |
+| Ports in the production executor | Absent | Fresh-VM ports in tests/audit belong to the external diagnostic escript |
+| Children, OTP servers, target timers, external resources | Not managed by executor | No target-tree list, child ACK barrier or common reset |
 
-### Что действительно доказывает quiescence
+### What actually proves quiescence
 
-**К/Э.** Синхронный завершённый `ets:insert` публикует присутствие до возврата hook.
-`target_result` сам по себе недостаточен: executor дополнительно ждёт monitor DOWN.
-Timeout/cancel вызывают `exit(Target,kill)` и ждут DOWN fresh monitor без sleep
-(`kill_and_drain/2:82–87`). После этого target PID больше не пишет; из нового
-исполнения создаются новые PID/Ref/Tid. Список snapshot читается до удаления ETS.
-Caller не получает успешный возврат `run/4` до завершения coordinator.
+**C/E.** A completed synchronous `ets:insert` publishes presence before the hook returns.
+`target_result` alone is insufficient: the executor also waits for monitor DOWN.
+Timeout/cancel call `exit(Target,kill)` and wait for a fresh monitor's DOWN without sleeping
+(`kill_and_drain/2:82–87`). The target PID can no longer write after that; each new
+execution creates fresh PID/Ref/Tid values. The snapshot list is read before ETS deletion.
+The caller cannot receive a successful `run/4` return before coordinator termination.
 
-Это доказательство **одного PID**, не дерева. Для дочерних процессов нет ни ACK
-протокола, ни transitively joined scope. Spawned children не наследуют PD; обычные
-их hooks неактивны. Child с вручную переданным context способен писать в старую
-таблицу, пока она жива, в том числе после завершения родителя. Между snapshot и
-close для такого unsupported writer барьера нет. После close stale hook получает
-ошибку таблицы, а не новый context. Диагностика явно дождалась child после root,
-запустила следующий context и подтвердила отсутствие загрязнения следующего.
-Это не подтверждает полноту покрытия child tree.
+This proves **one PID**, not a tree. Child processes have neither an ACK
+protocol nor a transitively joined scope. Spawned children do not inherit PD; their normal
+hooks are inactive. A child given the context manually can write to the old
+table while it exists, including after parent termination. There is no barrier between snapshot and
+close for such an unsupported writer. After close, a stale hook gets a table
+error, not a new context. The diagnostic explicitly waited for the child after the root,
+started the next context and confirmed no pollution of that next context.
+This does not confirm complete coverage of the child tree.
 
-**К/Э.** Generation validation при hit **нет**. Ref сопоставляет result/failure
-messages, но не хранится в ETS строке и не проверяется against table при hit.
-`attach/1:24–29` проверяет owner таблицы и тип reference/PID, не привязку Ref к Tid.
-Подмена только Ref при том же owner/Tid принята в диагностике. Изоляция штатного
-пути обеспечена свежими непереиспользуемыми Tid и процессом, а не проверкой
-поколения. `snapshot/1:31–34` сам не проверяет, что writers остановлены: прямое
-чтение live context вернуло `{a}`, после разрешённой записи того же writer — `{a,b}`.
-Для калибровки нужно брать результат `run/4`, а не произвольно читать ETS.
+**C/E.** There is **no** generation validation on hit. Ref matches result/failure
+messages, but is not stored in an ETS row or checked against the table on hit.
+`attach/1:24–29` checks table ownership and the reference/PID types, not the Ref-to-Tid binding.
+Replacing only Ref with the same owner/Tid was accepted in the diagnostic. Normal-path
+isolation comes from fresh, non-reused Tid values and processes, not a
+generation check. `snapshot/1:31–34` does not check whether writers have stopped: directly
+reading a live context returned `{a}`; after an allowed write by the same writer it returned `{a,b}`.
+Calibration must consume the `run/4` result rather than read ETS arbitrarily.
 
-### Ветви завершения: текущий результат и допустимость для метрики
+### Termination branches: current result and metric eligibility
 
-| Ветка | Фактические данные и cleanup | Решение для будущей серии |
+| Branch | Actual data and cleanup | Decision for a future series |
 |---|---|---|
-| Нормальный return | `outcome={ok,V}`, `target_outcome` такой же, полный root snapshot при status ok; DOWN перед чтением и close перед возвратом | Измеряемый повтор при соблюдённом root/reset/build контракте |
-| Target возвращает `{error,invalid_input}` | Это `{ok,{error,invalid_input}}`, не отдельная executor invalid category; текущий feedback считает return успешным | Не исключать по названию Value; outcome записать отдельно; пустой U даёт N/A |
-| Некорректная конфигурация/oversized staged seed | Reject до target; snapshot не создаётся (`efz_config:prepare/1,prepare_mutation/1`) | Ошибка запроса, не пустой измеряемый повтор |
-| `error`/`throw` из target | `{crash,Class,Reason,Stack}`; hook hits сохранены, target DOWN и cleanup штатные | Валидный snapshot терминального exception; crash не исключать из stability по outcome |
-| `exit(Reason)` из target | `{exit,Reason}`, status ok возможен | Семантически завершённый exception допустим, но текущий result не отличает его от внешнего termination; нужен origin |
-| Внешний kill target | `{exit,killed}`, сохранён опубликованный префикс; root DOWN доказан | Полный префикс завершённого PID, **не полный testcase**; обычно incomplete, не пустой F |
-| Timeout | `{timeout,T}`, status ok возможен, hooks до фактического kill/DOWN сохранены | Срез по deadline не считать полным x; diagnostic prefix отдельно, основная серия incomplete |
-| Race completion/timeout | Result + DOWN успели — Outcome; иначе timeout wins; late messages остаются у retiring coordinator | Проверять terminal source, не угадывать по duration или наличию hits |
-| Caller death / campaign cancel | Coordinator убивает/drains target, closes table, не возвращает snapshot (`cancelled -> ok`, executor:44) | Missing/cancelled slot; incomplete. DOWN caller/worker не заменяет DOWN coordinator |
-| `efz:await(Timeout)` истёк | Это timeout `gen_server:call`; campaign продолжает работать | Не считать отменой target; отдельный cancel/stop нужен явно |
-| Worker kill | Fuzzer возвращает `status={infrastructure_failure,{worker_down,killed}}`; snapshot в report отсутствует; coordinator асинхронно cleans target | Incomplete; не выводить успех из нулевого counter infrastructure_failures |
-| Coordinator killed | `run/4`: infrastructure `coordinator_down`, `coverage=[]`, status error, builds пустой; таблица исчезает; target может выжить | Missing, dirty/unknown VM state; прекратить серию, не переиспользовать VM без доказанного cleanup |
-| Backend/plan/validation failure | Infrastructure, status error, иногда доступны диагностические hits; при обычном исключении coordinator выполняет finally | Не пустой F и не target bug; серия incomplete/incomparable по причине |
-| Ненормальный DOWN coordinator после result | `cleanup_failed` заменяет outcome/status (`run/4:15–18`) | Данные только диагностические до подтверждения cleanup; не допускать автоматически |
-| Node/VM crash | В той же VM контроллер тоже потерян; результата нет | Потерянная серия incomplete, external exit status отдельно; U не строить из отсутствия файла |
+| Normal return | `outcome={ok,V}`, identical `target_outcome`, complete root snapshot when status is ok; DOWN precedes reading and close precedes return | Measurable repeat when the root/reset/build contract is met |
+| Target returns `{error,invalid_input}` | This is `{ok,{error,invalid_input}}`, not a separate executor invalid category; current feedback treats the return as successful | Do not exclude based on the Value's name; record the outcome separately; empty U gives N/A |
+| Invalid configuration/oversized staged seed | Rejected before target; no snapshot is created (`efz_config:prepare/1,prepare_mutation/1`) | Request error, not an empty measurable repeat |
+| Target `error`/`throw` | `{crash,Class,Reason,Stack}`; hook hits retained, target DOWN and cleanup normal | Valid snapshot of a terminal exception; do not exclude crashes from stability based on outcome |
+| Target `exit(Reason)` | `{exit,Reason}`, status may be ok | A semantically completed exception is eligible, but current results do not distinguish it from external termination; origin is required |
+| External target kill | `{exit,killed}`, published prefix retained; root DOWN proven | Complete prefix of a terminated PID, **not a complete testcase**; generally incomplete, not an empty F |
+| Timeout | `{timeout,T}`, status may be ok, hooks before actual kill/DOWN retained | Do not treat a deadline cut as complete x; keep diagnostic prefix separately, mark main series incomplete |
+| Completion/timeout race | If Result + DOWN arrive in time: Outcome; otherwise timeout wins; late messages stay with the retiring coordinator | Check terminal source instead of guessing from duration or hit presence |
+| Caller death / campaign cancel | Coordinator kills/drains target and closes table, returns no snapshot (`cancelled -> ok`, executor:44) | Missing/cancelled slot; incomplete. Caller/worker DOWN does not substitute for coordinator DOWN |
+| `efz:await(Timeout)` expires | This is a `gen_server:call` timeout; campaign continues | Do not treat as target cancellation; explicit separate cancel/stop is needed |
+| Worker kill | Fuzzer returns `status={infrastructure_failure,{worker_down,killed}}`; report has no snapshot; coordinator asynchronously cleans target | Incomplete; do not infer success from a zero infrastructure_failures counter |
+| Coordinator killed | `run/4`: infrastructure `coordinator_down`, `coverage=[]`, error status, empty builds; table disappears; target may survive | Missing, dirty/unknown VM state; stop series, do not reuse VM without proven cleanup |
+| Backend/plan/validation failure | Infrastructure, error status, diagnostic hits sometimes available; coordinator executes finally on ordinary exceptions | Not an empty F or a target bug; series incomplete/incomparable with a reason |
+| Abnormal coordinator DOWN after result | `cleanup_failed` replaces outcome/status (`run/4:15–18`) | Data is diagnostic only until cleanup is confirmed; do not admit automatically |
+| Node/VM crash | Controller in the same VM is also lost; no result | Lost series is incomplete; record external exit status separately; do not construct U from a missing file |
 
-Для `halt(23)` во **внешней диагностической VM** подтверждён exit status 23 и
-отсутствие result/snapshot файла. Это контроль потери VM, не тест NIF segfault.
-Распределённого runner и отдельной ветки `nodedown` в EFZ нет.
+For `halt(23)` in an **external diagnostic VM**, exit status 23 and
+the absence of a result/snapshot file were confirmed. This controls VM loss; it is not a NIF segfault test.
+EFZ has no distributed runner or separate `nodedown` branch.
 
-`kill_and_drain` намеренно ждёт реального DOWN, а не объявляет cleanup после
-произвольной задержки. Но его ожидание не ограничено вторым таймером: NIF, который
-не возвращает управление, может потребовать уничтожения VM извне. Такой NIF не
-проверялся. Dirty shared/application state не становится чистым от смерти одного
-target PID. При недоказанном reset/cleanup будущий сборщик должен прекратить серию
-с `requires_fresh_vm`, а не продолжить и признать counters достоверными.
+`kill_and_drain` deliberately waits for actual DOWN rather than declaring cleanup after an
+arbitrary delay. Its wait is not bounded by a second timer, however: a NIF that
+never returns may require external VM termination. Such a NIF was not
+tested. Dirty shared/application state does not become clean when a single
+target PID dies. Without proven reset/cleanup, the future collector must stop the series
+with `requires_fresh_vm`, rather than continue and declare the counters reliable.
 
-## 3. Точное пространство features и сопоставимость
+## 3. Exact feature space and comparability
 
-**К/Э.** Единица automatic feedback:
-`{Module, BuildId_SHA256, ProbeId_integer}` — **присутствие source-level
-clause/outcome probe**. Строка в обоих backend — `{{probe,Id}}` в ETS `set`:
+**C/E.** Automatic feedback unit:
+`{Module, BuildId_SHA256, ProbeId_integer}` — **presence of a source-level
+clause/outcome probe**. The row in both backends is `{{probe,Id}}` in an ETS `set`:
 
-* `ets`: вставляет ту же строку на каждом hit (`efz_cov_rt:hit/1:20–26`).
-* `ets_member`: сначала проверяет membership, при отсутствии вставляет такую же
-  строку (`hit/1:8–19`). Повторная запись не увеличивает никакое значение.
-* `manual`: отдельное пространство `{manual,Id}` через `efz_cov:hit/1:38–39`, с теми
-  же двумя вариантами ETS storage. Это compatibility API; стабильность произвольных
-  пользовательских Id должен обеспечивать caller. Automatic/manual не смешиваются.
+* `ets`: inserts the same row on every hit (`efz_cov_rt:hit/1:20–26`).
+* `ets_member`: first checks membership and inserts the same
+  row if absent (`hit/1:8–19`). Repeated writes increase no value.
+* `manual`: a separate `{manual,Id}` space through `efz_cov:hit/1:38–39`, using the same
+  two ETS storage variants. This is a compatibility API; the caller must ensure stability of
+  arbitrary user IDs. Automatic/manual spaces are not mixed.
 
-Нет counters, buckets, CFG edges, value features, transition sequence или hashed
-bitmap. Нет переполнения счётчика, поскольку счётчика нет. Exact ETS key сравнивает
-полный term, а не маленький hash. SHA-256 build namespace не является математической
-гарантией отсутствия всех возможных hash collisions, но здесь нет намеренных
-коллизий bitmap/index. Повторные публикации не теряются из-за local cache: кеша нет.
-Кратность 1 и 100 одного site экспериментально дала одинаковое одноэлементное F
-в обоих backend. Поэтому `feature_stability` здесь совпадает с site-presence
-stability; вводить вторую дублирующую метрику или buckets незачем.
+There are no counters, buckets, CFG edges, value features, transition sequences or hashed
+bitmaps. No counter overflow exists because there is no counter. Exact ETS keys compare
+the full term, not a small hash. The SHA-256 build namespace is not a mathematical
+guarantee against every possible hash collision, but this implementation has no intentional
+bitmap/index collisions. Repeated publications are not lost through a local cache: there is none.
+Experimentally, multiplicities 1 and 100 at the same site produced the same singleton F
+in both backends. Thus `feature_stability` here equals site-presence
+stability; a second duplicate metric or buckets are unnecessary.
 
-`efz_cov:snapshot/1` возвращает **весь отсортированный список присутствующих Id**,
-а не count/hash/delta. `efz_feedback:evaluate/3:10–17` только после этого вычисляет
-`Observed - Global`. `Result.coverage`, `Report.coverage` и `Decision.new_probes`
-различны: последнее — delta для retention, report — union успешных исполнений.
-Полные snapshots успешных/отклонённых исполнений в обычном campaign report не
-сохраняются; crash result сохраняет своё полное coverage. По старому report нельзя
-восстановить отсутствующие F_r. Нужно переисполнение через `run/4` либо будущий
-observer до feedback; восстановления из SHA/count/new_probes не предлагать.
+`efz_cov:snapshot/1` returns **the entire sorted list of present IDs**,
+not a count/hash/delta. `efz_feedback:evaluate/3:10–17` only then calculates
+`Observed - Global`. `Result.coverage`, `Report.coverage` and `Decision.new_probes`
+differ: the last is the retention delta; report coverage is the union of successful executions.
+Full snapshots of successful/rejected executions are not
+saved in a normal campaign report; a crash result retains its own complete coverage. An old report cannot
+recover missing F_r values. Re-execution through `run/4` or a future
+observer before feedback is needed; do not propose reconstructing them from SHA/count/new_probes.
 
-**К/Э.** Смена входа создаёт новую пустую table, а не очищает общий bitmap. Изоляция
-повторных/параллельных context проверена на одинаковых probe IDs. Return/exception
-сохраняют все завершённые root publications при контракте неизменяемого context.
-Для kill/timeout это все опубликованные hits до прекращения данного процесса,
-не все ветви, которые он мог бы выполнить без прерывания. Вставка, прерванная kill,
-не даёт оснований объявлять незавершённый hit наблюдённым. Snapshot не повреждён,
-но полнота задачи — отдельный вопрос.
+**C/E.** Each input change creates a fresh empty table instead of clearing a shared bitmap. Isolation
+of repeated/concurrent contexts was verified with identical probe IDs. Return/exception
+preserve all completed root publications under an immutable-context contract.
+For kill/timeout, these are all published hits before that process terminates,
+not all branches it could have executed without interruption. An insertion interrupted by kill
+does not justify declaring the unfinished hit observed. The snapshot is intact,
+but testcase completeness is a separate question.
 
-**К.** Идентичность задаётся `efz_instrument_pt:parse_transform/2:35–53` и
+**C.** Identity is defined by `efz_instrument_pt:parse_transform/2:35–53` and
 `probe/4:114–121`: SHA-256 `{instrumentation_version, OTP release, compiler MD5,
-canonical preprocessed forms, relevant compiler options}`, затем детерминированный
+canonical preprocessed forms, relevant compiler options}`, followed by a deterministic
 ordered AST index. Manifest schema/instrumentation version = 1,
-metric = `clause_outcome_probe`. Probe mapping содержит M/F/arity/kind/path/file/
-line/column. Root-relative source path нормализуется; absolute path-sensitive
-литералы могут менять build. Нет separate native layout или feedback_epoch.
-Произвольный hash всего ETF map нельзя использовать как portable digest без
-канонизации: map serialization order не является таким контрактом.
+metric = `clause_outcome_probe`. Probe mapping contains M/F/arity/kind/path/file/
+line/column. The root-relative source path is normalized; absolute path-sensitive
+literals can change the build. There is no separate native layout or feedback_epoch.
+An arbitrary hash of a whole ETF map cannot serve as a portable digest without
+canonicalization: map serialization order is not such a contract.
 
-`efz_instrument:preflight/1`, `load/1`, `loaded_manifest/2`, строки 94–142,
-проверяют BEAM, decoded sidecar, manifest и атрибут загруженного модуля. Sidecar
-сравнивается по точному term, не байтам (`matching_sidecar/2:111–113`).
-Существующий reversed-map-order/fresh-VM тест прошёл вновь. В трёх новых VM один
-artifact дал **те же полные Id**, ту же build map и S=100%; соответствие проверялось
-по спискам Id, не только count/digest.
+`efz_instrument:preflight/1`, `load/1`, `loaded_manifest/2`, lines 94–142,
+check BEAM, decoded sidecar, manifest and loaded-module attribute. The sidecar
+is compared by exact term, not bytes (`matching_sidecar/2:111–113`).
+The existing reversed-map-order/fresh-VM test passed again. In three new VMs, one
+artifact produced **the same complete IDs**, the same build map and S=100%; equivalence was checked
+using ID lists, not only count/digest.
 
-Hot replacement после preflight не контролируется непрерывно. В диагностике старый
-valid plan после контролируемой загрузки **ordinary** версии того же модуля дал
-`coverage_status=ok, coverage=[]` и старую build map. Повторный явный preflight
-отклонил `loaded_module_identity_mismatch`. Смена на новый instrumented build,
-публикующий новые Id, ловится валидатором; замена на код без probes этим способом
-не ловится. Lifetime требует неизменяемых selected builds и harness. При изменении
-build или manifest нужен новый plan и новая серия; arbitrary hot reload не
-объявляется поддержанным.
+Hot replacement after preflight is not continuously monitored. In the diagnostic, an old
+valid plan after controlled loading of an **ordinary** version of the same module produced
+`coverage_status=ok, coverage=[]` and the old build map. Repeating explicit preflight
+rejected `loaded_module_identity_mismatch`. A change to a new instrumented build
+publishing new IDs is caught by the validator; replacement with code without probes is
+not caught this way. The lifetime contract requires immutable selected builds and harness. Changing
+the build or manifest requires a new plan and series; arbitrary hot reload is not
+declared supported.
 
-**К/Э.** Prepared plan — `{efz_cov_plan,1,Tid,BuildMap}`. `prepare/2:51–68` валидирует
-manifest schema, instrumentation version, uniqueness, непустой automatic selection
-и отсутствие duplicate modules, создаёт protected ETS marker `{'$efz_plan',{Mode,Bs}}`
-и exact allowed identities. Он **не заменяет preflight** и не содержит input,
-execution Ref, RNG или accumulated coverage. Worker владеет им до stop, даже после
-`await` completed. Для low-level API допустим foreign caller с живым owner; запись
-в чужой protected plan запрещена. Release выполняет владелец после всех читателей;
-owner death удаляет таблицу автоматически.
+**C/E.** A prepared plan is `{efz_cov_plan,1,Tid,BuildMap}`. `prepare/2:51–68` validates
+manifest schema, instrumentation version, uniqueness, nonempty automatic selection
+and absence of duplicate modules; it creates protected ETS marker `{'$efz_plan',{Mode,Bs}}`
+and exact allowed identities. It **does not replace preflight** and contains no input,
+execution Ref, RNG or accumulated coverage. The worker owns it until stop, including after
+`await` completes. The low-level API allows a foreign caller while the owner is alive; writes
+to someone else's protected plan are prohibited. The owner releases it after all readers;
+owner death automatically deletes the table.
 
-На каждом execution validate проверяет marker/mode/builds и каждый observed Id,
-включая проверку marker при пустом F (`validate_prepared/3:72–85`). Disposed/wrong
-mode/подменённая build map не становятся успешным пустым снимком. Иная версия tuple
-может дополнительно упасть в `builds/1:70` и дать coordinator_down infrastructure.
-Существующие negative/lifetime tests это проверяют, включая смерть plan owner при
-активном исполнении. План backend-independent; storage backend и validation
-strategy всё же записываются в конфигурацию опыта из-за разной нагрузки на timing.
+On every execution, validation checks marker/mode/builds and every observed ID,
+including the marker check for empty F (`validate_prepared/3:72–85`). A disposed plan, wrong
+mode or substituted build map cannot become a successful empty snapshot. A different tuple version
+may additionally fail in `builds/1:70` and produce coordinator_down infrastructure.
+Existing negative/lifetime tests cover this, including plan-owner death during
+an active execution. The plan is backend-independent; storage backend and validation
+strategy are nevertheless recorded in experiment configuration because their timing overhead differs.
 
-## 4. Применимость feature_stability и правила допуска
+## 4. Applicability of feature_stability and admission rules
 
-**П.** Это собственная метрика EFZ, не штатная формула libFuzzer и не численный
-эквивалент AFL++ stability. Нормализация v1 — dedup + canonical ordering **полных**
-probe identities; без маскирования sites, counters или исключения crash-only Id.
-Для одного и того же x с фиксированным контрактом состояния и R >= 2:
+**P.** This is EFZ's own metric, not libFuzzer's standard formula or a numerical
+equivalent of AFL++ stability. Normalization v1 is deduplication + canonical ordering of **complete**
+probe identities; no site/counter masking or exclusion of crash-only IDs.
+For the same x under a fixed state contract and R >= 2:
 
 ```text
-frequency_x(f) = число измеряемых повторов, где f присутствовал хотя бы раз
-U_x = union всех F_r(x)
-I_x = { f из U_x | frequency_x(f) == R }
+frequency_x(f) = number of measured repeats where f appeared at least once
+U_x = union of all F_r(x)
+I_x = { f in U_x | frequency_x(f) == R }
 V_x = U_x \ I_x
 S(x) = feature_stability = 100 * |I_x| / |U_x|
 S_C = 100 * sum_x |I_x| / sum_x |U_x|
 ```
 
-Повторные hits внутри одного F не повышают frequency. Reference run не нужен.
-Долю полностью совпавших прогонов при желании называть отдельной метрикой с явно
-выбранным эталоном; не подменять ею S. Для точного сравнения порогов сохранять
-числитель/знаменатель и сравнивать целые произведения, округлять только отображение.
+Repeated hits within one F do not increase frequency. No reference run is needed.
+If desired, call the fraction of entirely matching runs a separate metric with an explicitly
+chosen reference; do not substitute it for S. For exact threshold comparisons, retain
+numerator/denominator and compare integer products; round only for display.
 
-**Э.** Диагностическая цель со всего четырьмя probes дала при одном input:
+**E.** A diagnostic target with only four probes produced the following for one input:
 
 ```text
 F1={a,b,c}; F2={a,b,d}; F3={a,b,c}
 frequency={a:3,b:3,c:2,d:1}; I={a,b}; U={a,b,c,d}; V={c,d}; S=50%
 ```
 
-Все размеры равны трём. Второй вход с обратным чередованием также имеет S=50%;
-правильный corpus aggregate — 50%. Если сначала объединять оба входа каждого
-раунда, три раза получится `{a,b,c,d}` и ошибочные 100%. Это проверено assert,
-не оценено по визуальному сходству логов.
+All sizes equal three. A second input alternating in reverse also has S=50%;
+the correct corpus aggregate is 50%. If the two inputs of each
+round are unioned first, `{a,b,c,d}` appears three times and yields a false 100%. This was asserted,
+not inferred from visually similar logs.
 
-**П.** Машина состояний результата одного input:
+**P.** Result state machine for one input:
 
-| Условие | Статус / значение |
+| Condition | Status / value |
 |---|---|
-| Requested R < 2 | N/A `insufficient_repeats`; не 100 |
-| Все R достоверны и сравнимы, U непусто | `complete`, S и полные frequencies |
-| Все R достоверны, U пусто | N/A `empty_feature_union`; отдельно различать empty bytes и empty snapshot |
-| Snapshot missing, infra error, неподтверждённая quiescence/reset/cleanup, cancellation, потеря owner/VM, оборванный testcase | `incomplete`, основной S отсутствует |
-| Смена build/manifest/schema/scope или несопоставимые Id | `incomparable`, основной S отсутствует; не переводить в другой namespace автоматически |
-| Есть только k<R достоверных повторов | `incomplete`; можно отдельно показать diagnostic S для фактического k>=2, без automatic admission |
-| Полные terminal error/throw/caught exit либо нормальный invalid return | Могут участвовать в stability; outcome учитывается отдельно, не исключается только из-за класса |
+| Requested R < 2 | N/A `insufficient_repeats`; not 100 |
+| All R reliable and comparable, U nonempty | `complete`, S and full frequencies |
+| All R reliable, U empty | N/A `empty_feature_union`; distinguish empty bytes from an empty snapshot separately |
+| Missing snapshot, infrastructure error, unconfirmed quiescence/reset/cleanup, cancellation, owner/VM loss, interrupted testcase | `incomplete`, main S absent |
+| Build/manifest/schema/scope changed or IDs incomparable | `incomparable`, main S absent; do not automatically convert to another namespace |
+| Only k<R reliable repeats exist | `incomplete`; a separate diagnostic S for actual k>=2 may be shown, without automatic admission |
+| Complete terminal error/throw/caught exit or normal invalid return | May participate in stability; account for outcome separately, do not exclude solely by class |
 
-Для сопоставимости предполагается отсутствие вмешательства в instrumentation-owned
-state. Status ok сам по себе не доказывает это против враждебного target. При
-выявленном вмешательстве или смене кода series invalid/incomplete независимо от
-того, остался ли непустой subset одинаковых hits.
+Comparability assumes no interference with instrumentation-owned
+state. Status ok alone does not prove this against a hostile target. If
+interference or code changes are detected, the series is invalid/incomplete regardless
+of whether a nonempty subset of identical hits remains.
 
-Для фиксированного C заморозить content identity, порядок/перестановки и протокол
-повторов заранее. Aggregate взвешивает **пары input–feature**, а не уникальные
-features всего корпуса. Вместе с S_C обязательны rows каждого x, min S(x), число
+For a fixed C, freeze content identity, order/permutations and the repeat
+protocol beforehand. The aggregate weights **input–feature pairs**, not unique
+features across the whole corpus. Alongside S_C, require rows for every x, min S(x), the number of
 unstable inputs (`|V_x|>0`), `selected_entries`, `unique_inputs`, `measured`,
-`scored`, `empty`, `incomplete`, `incomparable` и их input IDs. Дубликаты byte-identical
-entries явно сопоставить одному x для этой контрольной метрики; исходные seed entries,
-их порядок/статус и обычные calibration counters не удалять и не менять.
+`scored`, `empty`, `incomplete`, `incomparable` and their input IDs. Explicitly map byte-identical
+duplicate entries to one x for this control metric; do not remove or alter the original seed entries,
+their order/status or normal calibration counters.
 
-При неполном корпусе основной aggregate имеет статус incomplete/incomparable,
-а не «всё устойчиво». Допустим отдельный `complete_subset` aggregate с точным
-перечнем включённых x и denominators. Пустые полные x дают нулевой вклад в суммы,
-но остаются N/A rows, явно отмечаются и не превращаются в «проверенные 100%».
-Если суммарный знаменатель равен нулю, S_C=N/A. Нельзя молча исключать failures
-или недостающие повторы, заменять их пустым set, либо retry до набора удобных R.
-Новый согласованный запуск после сбоя — новая серия с новым диагностическим job ID.
+For an incomplete corpus, the main aggregate has incomplete/incomparable status,
+not “everything is stable”. A separate `complete_subset` aggregate is allowed with an exact
+list of included x values and denominators. Complete empty x values contribute zero to the sums,
+but remain N/A rows, explicitly marked, rather than becoming “verified 100%”.
+If the total denominator is zero, S_C=N/A. Do not silently exclude failures
+or missing repeats, replace them with an empty set, or retry until a convenient R is obtained.
+A new consistent run after failure is a new series with a new diagnostic job ID.
 
-Основной outcome comparison предложен отдельно: exact return value либо exception
-class/reason; target stack хранить как evidence, не как feature. Volatile PID/ref/
-port/fun значения нельзя объявить portable совпадением между VM. Записывать outcome
-changes/несопоставимость outcome отдельно; исходный result не уничтожать. Полное
-равенство F не доказывает одинаковый порядок выполнения, одинаковый outcome или
-отсутствие дефектов.
+The main outcome comparison is proposed separately: exact return value or exception
+class/reason; keep target stack as evidence, not a feature. Volatile PID/ref/
+port/fun values must not be declared portable matches across VMs. Record outcome
+changes/incomparability separately; do not destroy the original result. Complete
+F equality proves neither identical execution order, identical outcome nor
+absence of defects.
 
-Если когда-либо feedback станет `{site,bucket}`, смена bucket может создавать
-несколько нестабильных features одного site; это отличается от числа стабильных
-ячеек AFL++. Сейчас такого backend нет. Вводить второй schema и отдельную
-site-presence метрику только при реальном изменении feedback, не для этого аудита.
+If feedback ever becomes `{site,bucket}`, a bucket change may create
+several unstable features for one site; this differs from the number of stable
+AFL++ cells. No such backend exists currently. Introduce a second schema and a separate
+site-presence metric only if feedback actually changes, not for this audit.
 
-Предлагаемые настраиваемые внутренние ориентиры: цель **100%**, warning при
-`S < 95%`, усиленный разбор при `S < 90%`; все вариативные x видны и выше 95%.
-Это начальные project thresholds, не отраслевой стандарт и не доказательство
-корректности. Incomplete не проходит пороговую проверку. Более высокий R повышает
-шанс обнаружить вариативность; сравнение процентов требует фиксированных R, C,
-feature schema, builds/manifest и execution/reset/warmup режима.
+Proposed configurable internal guidelines: target **100%**, warn at
+`S < 95%`, investigate more deeply at `S < 90%`; all variable x values remain visible above 95% too.
+These are initial project thresholds, not an industry standard or proof of
+correctness. Incomplete data does not pass the threshold check. A higher R increases
+the chance of detecting variability; percentage comparisons require fixed R, C,
+feature schema, builds/manifest and execution/reset/warmup mode.
 
-## 5. Изоляция BEAM и протоколы повторяемости
+## 5. BEAM isolation and repeatability protocols
 
-| Режим | Что подтверждено / что должен фиксировать будущий запуск |
+| Mode | What is confirmed / what a future run must record |
 |---|---|
-| Повторы x штатным `run/4` | Fresh target PD/mailbox, новый context; main schedulers 16; first call включён. Для deterministic fixture одинаковые полные F и S=100 |
-| A→B→A, фиксированные permutations | У независимых `only_a`/`only_b` наборы disjoint, оба A совпали, permutations дали тот же mapping input→F |
-| Контролируемое нарушение независимости | `state_b` меняет `persistent_term`; A до/после дал c/d, S=0. Явный reset fixture восстановил A. Это свидетельство общей VM state, не дефект ETS isolation |
-| Свежая VM для каждого x | Три автономных VM, одинаковый artifact/manifest и Id, S=100; штатные 16 schedulers. Контрольный режим, не обещание изоляции ОС |
-| Предусмотренный warmup | В этом аудите W=0. Первый вызов не отбрасывался. Будущий W/последовательность warmup — явная часть протокола/ключа, failures warmup тоже учитываются |
+| Repeats of x through normal `run/4` | Fresh target PD/mailbox, new context; main schedulers 16; first call included. Deterministic fixture has identical complete F and S=100 |
+| A→B→A, fixed permutations | Independent `only_a`/`only_b` sets are disjoint, both A values match, permutations yield the same input→F mapping |
+| Controlled independence violation | `state_b` changes `persistent_term`; A before/after produces c/d, S=0. Explicit fixture reset restores A. This indicates shared VM state, not defective ETS isolation |
+| Fresh VM for each x | Three independent VMs, same artifact/manifest and IDs, S=100; normal 16 schedulers. Control mode, not an OS-isolation guarantee |
+| Planned warmup | This audit uses W=0. The first call was not discarded. Future W/warmup sequence is an explicit part of the protocol/key; warmup failures count too |
 
-В первом ETS опыте `elapsed_us=[919,10,7]`, при начале последующего ets_member
-опыта `[15,12,11]`; F совпадают. Вторая группа уже работала в прогретой VM, поэтому
-это **не backend performance comparison**. Числа показывают, почему нельзя незаметно
-исключать первый вызов или смешивать cold/steady режимы. Полный warmup/stability
-на реальной библиотеке не измерялся.
+The first ETS experiment had `elapsed_us=[919,10,7]`; the subsequent ets_member
+experiment began with `[15,12,11]`; F values match. The second group already ran in a warm VM, so
+this is **not a backend performance comparison**. The numbers show why the first call must not be silently
+excluded or cold/steady modes mixed. Full warmup/stability
+was not measured on a real library.
 
-**Э.** Target-local `put`, mailbox message и implicit rand state не перенеслись в
-следующий свежий target. Но общие ETS/registered servers/persistent_term/application
-state не сбрасываются executor. В тесте уже запущенный gen_server, синхронный OTP
-callback и timer-delivered message вызвали instrumented site без прикреплённого
-context: child/background hooks были inactive. `spawn`, `spawn_link`, `spawn_monitor`
-после нормального root return оставляли child живым; ни link, ни monitor от родителя
-не обеспечивают завершения всего дерева. Child release/ACK выполнены явно, не после
-sleep. Таймеры/сообщения не переносят process dictionary; адресат определяет процесс
-исполнения. Контекст существующим OTP-серверам не выдаётся автоматически.
+**E.** Target-local `put`, mailbox messages and implicit rand state did not carry into
+the next fresh target. Shared ETS/registered servers/persistent_term/application
+state, however, is not reset by the executor. In the test, an already-running gen_server, a synchronous OTP
+callback and a timer-delivered message called an instrumented site without an attached
+context: child/background hooks were inactive. `spawn`, `spawn_link`, `spawn_monitor`
+left the child alive after normal root return; neither a parent link nor a parent monitor
+ensures whole-tree termination. Child release/ACK were explicit, not triggered after
+a sleep. Timers/messages do not carry the process dictionary; the recipient determines the
+execution process. Existing OTP servers are not automatically given a context.
 
-Если цель stateful по замыслу, x должен включать initial state, configuration и
-последовательность действий. `state_a` после различных намеренных состояний нельзя
-выдавать за один scenario x. Текущий EFZ принимает binary+`run/1`, scenario/reset API
-нет. Минимальная первая интеграция должна явно ограничиться существующим
-`fresh_target_process / unreset_shared_vm / root_probe_scope` и согласованной
-независимостью harness. Не подменять это универсальным reset OTP-приложения.
+If the target is intentionally stateful, x must include initial state, configuration and
+the action sequence. `state_a` after different intentional states must not
+be represented as one scenario x. Current EFZ accepts binary+`run/1`, with no scenario/reset API.
+The minimum first integration must explicitly restrict itself to the existing
+`fresh_target_process / unreset_shared_vm / root_probe_scope` and agreed
+harness independence. Do not present this as a universal OTP-application reset.
 
-Непройденные границы: произвольные ETS других владельцев, registry/global state,
-общие приложения, файлы/порты, неуправляемые timers/фоновые actors, distributed node
-state, shared native resources. Свежая VM изолирует process state этой VM, но не
-гарантирует reset внешних ресурсов ОС. Ни context Ref, ни public ETS, ни prepared
-plan не являются security boundary. Target внутри той же VM может менять runtime,
-убить coordinator или повредить instrumentation state. Часть вмешательств уже
-классифицируется как infrastructure; полной защиты/dirty-worker detector нет.
+Unverified boundaries: arbitrary ETS owned by others, registry/global state,
+shared applications, files/ports, unmanaged timers/background actors, distributed-node
+state, shared native resources. A fresh VM isolates its own process state, but does not
+guarantee resetting external OS resources. Neither context Ref, public ETS nor a prepared
+plan is a security boundary. A target in the same VM can change runtime,
+kill the coordinator or corrupt instrumentation state. Some interference is already
+classified as infrastructure failure; full protection/a dirty-worker detector is absent.
 
-## 6. Запуски и доказательная матрица
+## 6. Runs and evidence matrix
 
-Все команды выполнялись из `efz/`. Входные build flags — текущий rebar.config;
-диагностические модули компилировались `debug_info,warnings_as_errors`, без новых
-зависимостей, только `audit_sites` был allowlisted. Его четыре probes:
+All commands were run from `efz/`. Input build flags are the current rebar.config;
+diagnostic modules were compiled with `debug_info,warnings_as_errors`, without new
+dependencies; only `audit_sites` was allowlisted. Its four probes:
 `a/0:3`, `b/0:4`, `c/0:5`, `d/0:6` (column 1), build
 `68bd7a9201c0be5e43ed13f5850558fcefe6e07493252a66204f7fe36fc7e809`.
-Adapter/background fixture намеренно uninstrumented, чтобы общие ветви управления
-не загрязняли заданные множества a/b/c/d. Нормальные production examples также
-проверены, а не заменены этим специальным пространством probes.
+The adapter/background fixture is intentionally uninstrumented so shared control branches
+do not pollute the specified a/b/c/d sets. Normal production examples were also
+checked, rather than replaced by this special probe space.
 
-| Команда | Новый результат | Лог |
+| Command | New result | Log |
 |---|---|---|
 | `rebar3 compile` | exit 0 | [compile.log](/tmp/efz-calibration-audit.rIBEql/compile.log) |
 | `rebar3 eunit` | exit 0, **62 passed** | [eunit.log](/tmp/efz-calibration-audit.rIBEql/eunit.log) |
 | `rebar3 ct` | exit 0, **3 passed** | [ct.log](/tmp/efz-calibration-audit.rIBEql/ct.log) |
-| `escript /tmp/efz-calibration-audit.rIBEql/audit.escript /tmp/efz-calibration-audit.rIBEql` | exit 0, **54 evidence records**, все asserts passed | [diagnostic.log](/tmp/efz-calibration-audit.rIBEql/diagnostic.log) |
-| `escript /tmp/efz-calibration-audit.rIBEql/existing_example.escript /tmp/efz-calibration-audit.rIBEql` | exit 0; `efz_example_target` на `<<0>>` и `<<255>>`, R=3 каждый, точные F совпали, S=100; exception не исключён | [existing-example.log](/tmp/efz-calibration-audit.rIBEql/existing-example.log) |
+| `escript /tmp/efz-calibration-audit.rIBEql/audit.escript /tmp/efz-calibration-audit.rIBEql` | exit 0, **54 evidence records**, all assertions passed | [diagnostic.log](/tmp/efz-calibration-audit.rIBEql/diagnostic.log) |
+| `escript /tmp/efz-calibration-audit.rIBEql/existing_example.escript /tmp/efz-calibration-audit.rIBEql` | exit 0; `efz_example_target` with `<<0>>` and `<<255>>`, R=3 each, exact F match, S=100; exception not excluded | [existing-example.log](/tmp/efz-calibration-audit.rIBEql/existing-example.log) |
 
-Полные diagnostic results до novelty, включая exact IDs и metadata, —
-[events.term](/tmp/efz-calibration-audit.rIBEql/events.term) и
-[events.txt](/tmp/efz-calibration-audit.rIBEql/events.txt). Assertions сравнивают
-канонические наборы, не только их размеры. Логи/скрипты — временные; таблица здесь
-и встроенные исходники — постоянная воспроизводимая запись. В первом пробном
-скрипте было предупреждение OTP о float pattern `0.0`; заменено на `+0.0` только
-во временном скрипте, итоговый опыт повторён успешно. Прежние временные результаты
-сохранены с суффиксом `first`, в выводах используется финальный запуск.
+Complete diagnostic results before novelty, including exact IDs and metadata, are in
+[events.term](/tmp/efz-calibration-audit.rIBEql/events.term) and
+[events.txt](/tmp/efz-calibration-audit.rIBEql/events.txt). Assertions compare
+canonical sets, not just sizes. Logs/scripts are temporary; this table
+and embedded sources are the permanent reproducible record. The first trial
+script had an OTP warning about float pattern `0.0`; this was changed to `+0.0` only
+in the temporary script, and the final experiment was repeated successfully. Earlier temporary results
+were kept with the `first` suffix; the conclusions use the final run.
 
-SHA-256 финальных доказательств: `eunit.log` —
+SHA-256 hashes of final evidence: `eunit.log` —
 `1aaf27c24e7f320e7b331d2f9e7f06dea647981627050cd53aba37c513fe8a3e`,
 `diagnostic.log` —
 `b4bc09d285bd1681b13ffbd7f4a61233ccef6ace37af8dfabf7dc32ddac3ba66`,
 `events.term` —
 `fc7773394e458dedd9f742b80c5b0d9f7c44913add1e48d79146d9e8a2ea37c9`.
-Встроенные в отчёт исходники затем извлечены **самими командами приложения** в
-`/tmp/efz-calibration-reproduce.5h0yayqu`; оба диагностических escript снова
-завершились exit 0. Это проверка воспроизводимости команд, не новая выборка для
-смешивания процентов/времён. См. [контроль воспроизведения](/tmp/efz-calibration-audit.rIBEql/report-reproduction.txt).
+The sources embedded in the report were then extracted **using the appendix commands themselves** into
+`/tmp/efz-calibration-reproduce.5h0yayqu`; both diagnostic escripts again
+finished with exit 0. This verifies command reproducibility; it is not a new sample to
+mix into the percentages/timings. See [reproduction check](/tmp/efz-calibration-audit.rIBEql/report-reproduction.txt).
 
-| Требование / опыт | Текущая реализация и доказательство | Пробел / минимальное изменение |
+| Requirement / experiment | Current implementation and evidence | Gap / minimum change |
 |---|---|---|
-| Deterministic x, R=3 | Оба backend: abc три раза, S=100; `{B,deterministic}` | Для public metric нужен отдельный collector |
-| Equal-size different sets / known alternation | abc/abd/abc, frequencies 3/3/2/1, S=50; `{B,alternation}` | Считать по identity, не по count/hash |
-| Corpus aggregation | Два противоположных x: correct 50, collapsed 100 | Хранить отдельную частоту `(x,feature)` |
-| Разная кратность | 1 и 100 hits site a → один probe; `{B,multiplicity}` | Не вводить counters/buckets |
-| A→B→A/permutations | Disjoint a/b, оба A совпадают; `{B,aba}` | Зафиксировать order/reset contract |
-| Shared state | persistent_term изменяет A; reset fixture восстанавливает | Нет универсального target reset; не считать процесс свежей VM |
-| Delayed child | Все три spawn-варианта inactive, следующий root set чист; explicit-copy child после close получил invalid table | Tree quiescence/coverage не поддержаны; root-only scope явно |
-| Existing OTP server/timer | Hook в background inactive, root snapshot только a | Для OTP application scope нужен отдельный будущий runner, не эта интеграция |
-| Concurrent contexts, одинаковые Id | Разные Ref/Tid, оба exact `{a}`, после возврата таблиц нет | Нельзя выводить production multiworker поддержку из этого теста |
-| Error/throw/exit | Все сохранили a, status ok; `{B,exceptions}` | Terminal exception допустим, нужен origin для exit |
-| External kill / timeout | ACK после a, затем kill либо deadline, a сохранён, target/owner DOWN | Это prefix; completeness полного testcase отсутствует |
-| Completion/deadline race | Существующий `efz_backend_tests:boundary/1:188–198` и Phase 2 tests прошли | Метаданные terminal source вместо угадывания |
-| Caller/cancel/shutdown | Существующие `caller_death/1`, `cancel/1:179–210` прошли для четырёх комбинаций; новый campaign cancel подтвердил await != cancel | Cancellation snapshot отсутствует, cleanup async относительно смерти caller |
-| Empty input/snapshot | `<<>>` return invalid и отдельный empty route различимы; обе пустые серии N/A | Не путать error/missing с valid empty |
-| Worker crash | status infrastructure, report без snapshot, stats infra=0; `worker_kill` | Observer должен читать status; telemetry нуждается в уточнении |
-| Coordinator crash | Сохранённый до kill a утрачен вместе с таблицей; root оставался жив, harness явно его убил | Incomplete + dirty; cleanup guard либо запрет reuse/утилизация VM |
-| Prepared ownership/dispose/foreign | `efz_backend_tests:plan_lifetime/1:128–166` прошёл; disposed + empty у обоих backend infra | Сохранять owner до окончания читателей; no release while executing |
-| Missing/mismatched manifest/sidecar | EUnit preflight negatives и `efz_phase2_tests:sidecar_encoding/0:229–253` прошли | Offline API обязан делать preflight, raw run/4 его не делает |
-| Same build, fresh VM | Три новых VM приняли один sidecar и дали exact abc + одинаковые builds | При смене namespace — incomparable, не merge |
-| VM loss | External helper exit 23, snapshot файла нет | Existing native runner отсутствует; external job должен отметить missing |
-| Live snapshot / Ref | До quiescence a, после ab; изменённый Ref при том же Tid принят | Не брать snapshot напрямую; Ref — correlation, не generation/security guard |
-| Broken active state | Invalid table пойман и остаётся sticky infrastructure; malformed PD context, пойманный target, дал ok+empty | См. finding F4; no blanket trust по status ok |
-| Hot ordinary replacement | Old plan accepted empty; explicit preflight rejected loaded identity | Freeze builds и контроль на поддержанных границах series |
+| Deterministic x, R=3 | Both backends: abc three times, S=100; `{B,deterministic}` | Public metric needs a separate collector |
+| Equal-size different sets / known alternation | abc/abd/abc, frequencies 3/3/2/1, S=50; `{B,alternation}` | Calculate by identity, not count/hash |
+| Corpus aggregation | Two opposing x values: correct 50, collapsed 100 | Retain separate `(x,feature)` frequencies |
+| Different multiplicities | 1 and 100 hits at site a → one probe; `{B,multiplicity}` | Do not introduce counters/buckets |
+| A→B→A/permutations | Disjoint a/b, both A values match; `{B,aba}` | Freeze order/reset contract |
+| Shared state | persistent_term changes A; fixture reset restores it | No universal target reset; do not equate a process to a fresh VM |
+| Delayed child | All three spawn variants inactive, next root set clean; explicit-copy child got invalid table after close | Tree quiescence/coverage unsupported; explicitly root-only scope |
+| Existing OTP server/timer | Background hook inactive, root snapshot only a | OTP-application scope requires a separate future runner, not this integration |
+| Concurrent contexts, identical IDs | Different Ref/Tid, both exact `{a}`, no tables after return | Do not infer production multiworker support from this test |
+| Error/throw/exit | All retained a, status ok; `{B,exceptions}` | Terminal exception eligible; exit origin required |
+| External kill / timeout | ACK after a, then kill or deadline, a retained, target/owner DOWN | This is a prefix; full testcase completeness is absent |
+| Completion/deadline race | Existing `efz_backend_tests:boundary/1:188–198` and Phase 2 tests passed | Terminal-source metadata instead of guessing |
+| Caller/cancel/shutdown | Existing `caller_death/1`, `cancel/1:179–210` passed for four combinations; new campaign cancel confirmed await != cancel | No cancellation snapshot; cleanup asynchronous relative to caller death |
+| Empty input/snapshot | `<<>>` returning invalid and a separate empty route are distinguishable; both empty series N/A | Do not confuse error/missing with valid empty |
+| Worker crash | infrastructure status, no report snapshot, stats infra=0; `worker_kill` | Observer must read status; telemetry needs clarification |
+| Coordinator crash | a saved before kill was lost with the table; root stayed alive, harness explicitly killed it | Incomplete + dirty; cleanup guard or no reuse/VM disposal |
+| Prepared ownership/dispose/foreign | `efz_backend_tests:plan_lifetime/1:128–166` passed; disposed + empty gave infrastructure failure on both backends | Keep owner alive until readers finish; no release while executing |
+| Missing/mismatched manifest/sidecar | EUnit preflight negatives and `efz_phase2_tests:sidecar_encoding/0:229–253` passed | Offline API must perform preflight; raw run/4 does not |
+| Same build, fresh VM | Three new VMs accepted one sidecar and returned exact abc + identical builds | Namespace change means incomparable, not merge |
+| VM loss | External helper exited 23; no snapshot file | No existing native runner; external job must mark missing |
+| Live snapshot / Ref | a before quiescence, ab afterward; modified Ref accepted with the same Tid | Do not take snapshots directly; Ref is correlation, not a generation/security guard |
+| Broken active state | Invalid table caught and remains sticky infrastructure failure; malformed PD context caught by target gave ok+empty | See finding F4; no blanket trust based on status ok |
+| Hot ordinary replacement | Old plan accepted empty; explicit preflight rejected loaded identity | Freeze builds and check at supported series boundaries |
 
-Существующий EUnit включает transform semantics, same-line/nested syntax, exception
+Existing EUnit coverage includes transform semantics, same-line/nested syntax, exception
 class/reason, tail position, instrumentation identities, backend/validator canonical
-outcomes/novelty, cancel/shutdown и повторное освобождение execution resources.
-Expected malformed-plan errors в логах — negative tests, не провалы сборки.
-`efz_backend_tests:variants/0:21` действительно проверяет обе storage реализации
-с обоими validators. Находящиеся в старых отчётах 38/3 не использованы как новые
-результаты: текущий запуск — 62/3.
+outcomes/novelty, cancel/shutdown, and repeated execution-resource release.
+Expected malformed-plan errors in logs are negative tests, not build failures.
+`efz_backend_tests:variants/0:21` actually checks both storage implementations
+with both validators. The 38/3 figures in old reports were not used as new
+results: the current run is 62/3.
 
-**НП.** Dialyzer/xref в этом аудите повторно не запускались: нет production изменений,
-применимых инструкций с обязательным gate и вопроса, требующего нового static
-analysis вместо рассмотренных runtime tests. Их старые PASS не выдаются за этот
-запуск. Не запускались Phase 2.1 profiling/soak, Cowboy (нет dependency/harness),
-произвольные внешние targets, native/NIF coverage reset/quiescence, NIF segfault,
-distributed nodedown, exhaustive OTP resource isolation. Эти границы не закрываются
-настоящими тестами a/b/c/d.
+**NV.** Dialyzer/xref were not rerun in this audit: there are no production changes,
+applicable instructions requiring a gate, or questions that require new static
+analysis instead of the runtime tests examined. Their old PASS results are not presented as this
+run. Phase 2.1 profiling/soak, Cowboy (no dependency/harness),
+arbitrary external targets, native/NIF coverage reset/quiescence, NIF segfault,
+distributed nodedown, and exhaustive OTP resource isolation were not tested. These boundaries are not closed
+by the present a/b/c/d tests.
 
-## 7. Приоритизированные findings
+## 7. Prioritized findings
 
-### F1 — P1: outcome/status не задают полноту и источник termination
+### F1 — P1: outcome/status do not establish completeness or termination source
 
-**К/Э.** `efz_executor:coordinate/6:35–38`, `wait_target/5:64–79`, `coverage/3:89–104`.
-Caught `exit(killed)` и external kill дали **одинаковые** outcome, target_outcome,
-coverage_status, coverage, builds; различаются только incidental Ref/time. Timeout
-также может иметь status ok и непустой F. Если считать это достаточным для полного
-повтора, прерванные исполнения могут создать ложную устойчивость.
+**C/E.** `efz_executor:coordinate/6:35–38`, `wait_target/5:64–79`, `coverage/3:89–104`.
+Caught `exit(killed)` and external kill produced **identical** outcome, target_outcome,
+coverage_status, coverage, and builds; only incidental Ref/time differed. Timeout
+can also have status ok and a nonempty F. Treating this as sufficient for a complete
+repeat can make interrupted executions appear falsely stable.
 
-**П. Минимум:** additive terminal origin/scope/quiescence/snapshot/cleanup metadata;
-не переименовывать старые outcome tuples. Выдавать признаки на основе выбранной
-ветки executor, а не эвристики по Reason. Валидатор серии допускает terminal caught
-exceptions, но не неполный deadline/monitor-exit testcase. **Приёмка:** один и тот
-же public `{exit,killed}` distinguishable по origin; prefix и missing никогда
-не превращаются в full/empty для метрики.
+**P. Minimum:** additive terminal origin/scope/quiescence/snapshot/cleanup metadata;
+do not rename existing outcome tuples. Derive metadata from the executor branch
+taken, not Reason heuristics. The series validator admits terminal caught
+exceptions but not incomplete deadline/monitor-exit testcases. **Acceptance:** the same
+public `{exit,killed}` is distinguishable by origin; prefix and missing never
+become full/empty for the metric.
 
-### F2 — P1: untrappable смерть coordinator оставляет unsupported живой target
+### F2 — P1: untrappable coordinator death leaves an unsupported live target
 
-**К/Э.** Target создан `spawn_monitor`, не под переживающим owner cleanup guard
-(`coordinate/6:31–41`). Kill coordinator не выполняет `after:55–60`; `run/4:20–23`
-возвращает infrastructure, но target в тесте ещё жил. Диагностический harness
-мониторил и убил именно этот target, затем дождался DOWN; чужие процессы не трогались.
+**C/E.** The target is created with `spawn_monitor`, without an owner-surviving cleanup guard
+(`coordinate/6:31–41`). Killing the coordinator skips `after:55–60`; `run/4:20–23`
+returns infrastructure, but the target was still alive in the test. The diagnostic harness
+monitored and killed that exact target, then waited for DOWN; unrelated processes were untouched.
 
-**П. Минимум для метрики:** abort series, missing snapshot, `requires_fresh_vm` при
-неподтверждённом cleanup; не продолжать следующие x в dirty VM. Для разрешения reuse
-после такой аварии нужен отдельный owner-surviving guardian/tracked target cleanup
-и ACK реального DOWN. Простого link недостаточно для target с `trap_exit`; sleep
-не является исправлением. Не менять outcome и не добавлять счётчики ради скорости.
-**Приёмка:** forced owner kill никогда не даёт score; продолжение разрешено только
-после доказанной остановки tracked writers либо в новой внешней VM.
+**P. Minimum for the metric:** abort the series, mark the snapshot missing, and use `requires_fresh_vm` when
+cleanup is unconfirmed; do not run subsequent x in a dirty VM. Allowing reuse
+after such a failure requires a separate owner-surviving guardian/tracked target cleanup
+and an ACK for actual DOWN. A simple link is insufficient for a target with `trap_exit`; sleep
+is not a fix. Do not change outcome or add counters for speed.
+**Acceptance:** forced owner kill never produces a score; continuation is allowed only
+after tracked writers are proven stopped, or in a new external VM.
 
-### F3 — P1: plan не доказывает неизменность исполняемого кода
+### F3 — P1: a plan does not prove the executing code is unchanged
 
-**К/Э.** `efz_cov_manifest:validate_prepared/3:72–85` сравнивает observed IDs с marker,
-не loaded code. `efz_instrument:loaded_manifest/2:124–127` проверяет actual loaded
-attribute только при preflight. Ordinary hot replacement дал valid empty snapshot
-со старой build map. Полный result.builds берётся из options/plan, не из трассы.
+**C/E.** `efz_cov_manifest:validate_prepared/3:72–85` compares observed IDs to the marker,
+not loaded code. `efz_instrument:loaded_manifest/2:124–127` checks the actual loaded
+attribute only at preflight. Ordinary hot replacement produced a valid empty snapshot
+with the old build map. The full result.builds comes from options/plan, not a trace.
 
-**П. Минимум:** fixed selected modules **и target adapter** на lifetime series;
-preflight на входе, capture/проверка выбранных loaded identities на оговорённых
-границах серии, invalidation по build/manifest/harness. Код, меняющийся во время
-исполнения и возвращающийся к прежнему виду, этим не защищён; не обещать arbitrary
-hot loading. **Приёмка:** incompatible boundary rejected; new build — new series,
-не subset merge; unchanged fixed build спокойно переиспользует plan.
+**P. Minimum:** fix selected modules **and target adapter** for the series lifetime;
+preflight at entry, capture/check selected loaded identities at agreed
+series boundaries, and invalidate on build/manifest/harness changes. This does not protect against code changing during
+execution and reverting to its old form; do not promise arbitrary
+hot loading. **Acceptance:** incompatible boundary rejected; a new build means a new series,
+not a subset merge; an unchanged fixed build can safely reuse the plan.
 
-### F4 — P1 для нарушенного runtime-контракта: caught malformed context теряется
+### F4 — P1 for runtime-contract violations: caught malformed context is lost
 
-**К/Э.** `efz_cov_rt:hit/1:16–27`: bad table посылает sticky notification, а последний
-invalid-context clause только raises. Fixture заменила PD context и поймала это
-исключение; executor вернул `{ok,caught}`, status ok, empty coverage. RunRef не
-защищает instrumentation state от target.
+**C/E.** `efz_cov_rt:hit/1:16–27`: bad table sends a sticky notification, while the final
+invalid-context clause only raises. The fixture replaced PD context and caught that
+exception; executor returned `{ok,caught}`, status ok, and empty coverage. RunRef does not
+protect instrumentation state from the target.
 
-**П. Минимум:** явный запрет модификации instrumentation-owned state в поддержанном
-harness; fail-closed проверка исходного context из wrapper перед завершением и
-диагностика нарушения. Проверка только «на выходе» не защищает от умышленной
-подмены/восстановления. Для враждебной цели нужна другая security/isolation boundary,
-не обещание калибровки. **Приёмка:** сохраняющийся bad/erased context после пойманной
-ошибки — infrastructure/incomplete; runtime available без attach в обычном
-неизмеряемом child остаётся допустимым inactive no-op.
+**P. Minimum:** explicitly prohibit modification of instrumentation-owned state in the supported
+harness; check original context from the wrapper before completion, fail closed, and
+diagnose violations. Checking only “at exit” does not protect against deliberate
+replacement/restoration. A hostile target needs a different security/isolation boundary,
+not a calibration promise. **Acceptance:** bad/erased context remaining after a caught
+error means infrastructure/incomplete; runtime available without attach in an ordinary
+unmeasured child remains a permitted inactive no-op.
 
-### F5 — P1 для интеграции: данные campaign report нельзя принять за F_r
+### F5 — P1 for integration: campaign report data cannot be treated as F_r
 
-**К.** `efz_worker:execute/4:60–82`, `finish/2:115–118`, `efz_feedback:evaluate/3:10–20`.
-Success snapshots уходят в global merge и не сохраняются как per-run report.
-`new_probes=[]` у crash — retention policy, не отсутствие execution features.
+**C.** `efz_worker:execute/4:60–82`, `finish/2:115–118`, `efz_feedback:evaluate/3:10–20`.
+Success snapshots enter the global merge and are not retained as per-run reports.
+`new_probes=[]` for a crash is retention policy, not absence of execution features.
 
-**П. Минимум:** collector сохраняет полный result до novelty, либо самостоятельно
-повторяет выбранные bytes через тот же run/4. Не вызывать `feedback:evaluate/3`
-на каждом повторе. **Приёмка:** одинаковая серия повторов не создаёт несколько NEW,
-не меняет corpus/RNG/cursors и не сливает crash-only features в global.
+**P. Minimum:** the collector stores the full result before novelty, or independently
+repeats selected bytes through the same run/4. Do not call `feedback:evaluate/3`
+on every repeat. **Acceptance:** an identical repeat series does not produce several NEW events,
+change corpus/RNG/cursors, or merge crash-only features into global state.
 
-### F6 — P2: потеря worker и source failure хуже отражены в телеметрии
+### F6 — P2: worker loss and source failure are less clearly represented in telemetry
 
-**К/Э.** `efz_fuzzer:handle_info/2:34–39` возвращает worker_down infrastructure, но не
-увеличивает infrastructure_failures; observed counter был 0. **К:**
-`efz_feedback:evaluate/3:6–7,22` сначала требует равенства builds; coordinator_down
-с builds=#{} может превратиться в `instrumentation_build_mismatch`, маскируя
-исходную infrastructure reason, хотя target bug из него не делается.
+**C/E.** `efz_fuzzer:handle_info/2:34–39` returns worker_down infrastructure but does not
+increment infrastructure_failures; the observed counter was 0. **C:**
+`efz_feedback:evaluate/3:6–7,22` first requires equal builds; coordinator_down
+with builds=#{} can become `instrumentation_build_mismatch`, masking the
+original infrastructure reason, although it is not classified as a target bug.
 
-**П. Минимум:** стабильность определять по структурированному result/status,
-не aggregate counters. Сохранить первичную failure reason; при будущем изменении
-stats учесть worker failure ровно один раз. **Приёмка:** lost run остаётся missing,
-а actual reason доступна в calibration row; никто не объявляет 0 infra counter
-доказательством полноты.
+**P. Minimum:** determine stability from structured result/status,
+not aggregate counters. Preserve the primary failure reason; any future stats
+change should count worker failure exactly once. **Acceptance:** a lost run stays missing,
+and the actual reason is available in the calibration row; nobody declares an infra counter of 0
+proof of completeness.
 
-### F7 — P2 / scope: root isolation не есть независимость testcase
+### F7 — P2 / scope: root isolation is not testcase independence
 
-**К/Э.** Нет reset/child registry в executor; persistent_term и delayed child tests
-подтвердили границу. Direct `snapshot/1` и подмена Ref не устанавливают quiescence.
-**П:** record root-only/unreset-VM mode; diagnostic A→B→A и fixed permutations;
-несогласованный stateful scenario — unsupported, не автоматическое обнуление
-частоты. **Приёмка:** измеряется известный контракт, не удаляются unstable seeds и
-не маскируются probes ради повышения процента.
+**C/E.** The executor has no reset/child registry; persistent_term and delayed-child tests
+confirmed this boundary. Direct `snapshot/1` and Ref replacement do not establish quiescence.
+**P:** record root-only/unreset-VM mode; diagnostic A→B→A and fixed permutations;
+an inconsistent stateful scenario is unsupported, not automatic zeroing of
+frequency. **Acceptance:** measure a known contract; do not delete unstable seeds or
+mask probes to increase the percentage.
 
-## 8. Минимальный проект интеграции — только предложение
+## 8. Minimal integration design — proposal only
 
-### Границы API и владельцы
+### API boundaries and owners
 
-**П, не существующий API:**
+**P, not an existing API:**
 
 ```erlang
-%% Полный offline контрольный корпус, без mutator и feedback side effects.
+%% Complete offline control corpus, without mutator or feedback side effects.
 efz_calibration:run(Target, Entries, Artifacts, Options)
     -> {ok, CalibrationReport} | {error, ConfigurationReason}.
-%% Pure aggregation, отдельно от storage/execution.
+%% Pure aggregation, separate from storage/execution.
 efz_stability:fold(Accumulator, ValidatedRun).
 efz_stability:finalize(Accumulator, RequestedR).
 ```
 
-Предлагаемые options: `repeats` (R>=2, начальный bounded opt-in пример R=5), timeout,
+Proposed options: `repeats` (R>=2, initial bounded opt-in example R=5), timeout,
 backend/validation strategy, `mode=fresh_target_process`, `scope=target_process`,
-`warmup=0`, protocol/order/reset-contract identity, limits на inputs/R/общий wall
-budget, output trace/witness budget. Feature cap при превышении должен завершать
-input incomplete, а не обрезать множество. Enabled-функциональность не должна
-создавать infinity retry. В первой версии не принимать произвольный stateful
-scenario под видом binary input; свежая VM — отдельный явно выбранный helper mode.
+`warmup=0`, protocol/order/reset-contract identity, limits on inputs/R/total wall
+budget, output trace/witness budget. Exceeding the feature cap must finish the
+input as incomplete, not truncate the set. Enabled functionality must not
+create infinite retries. Do not accept arbitrary stateful
+scenarios as binary input in the first version; a fresh VM is a separate explicitly selected helper mode.
 
-Инициатор получает фиксированный набор bytes/identities и explicit Target/Artifacts,
-как нынешний replay. `efz_config`/`efz_instrument` валидируют selection; никаких
-arbitrary callable targets из файла результатов. Decoder/recipe regeneration —
-один раз до серии; каждое измерение получает **те же bytes**, а не повторную мутацию.
-Низкоуровневый executor не заменяется.
+The initiator receives a fixed set of bytes/identities and explicit Target/Artifacts,
+as current replay does. `efz_config`/`efz_instrument` validate selection; no
+arbitrary callable targets from a result file. Decoder/recipe regeneration occurs
+once before the series; each measurement receives **the same bytes**, not another mutation.
+The low-level executor is not replaced.
 
-Предлагаемая ownership схема:
+Proposed ownership scheme:
 
-* Job controller/caller владеет frozen corpus, compatibility key и агрегатором;
-  получает bounded progress по каждому запланированному run index.
-* Один calibration collector process владеет prepared plan и вызывает
-  `efz_executor:run/4` последовательно. Никаких concurrent production fuzzing workers.
-  Plan создаётся после preflight, живёт до окончания всех run/4 и освобождается
-  owner в `after`. Per-execution contexts, ETS и monitors остаются у существующего
-  coordinator. Parent JobRef/PID — только correlation, не durable cache key.
-* Collector передаёт controller immutable full RunResult после возврата run/4,
-  то есть после coordinator DOWN/cleanup. Controller increment frequency один раз
-  на feature текущего slot, исходя из полного snapshot, не decision delta.
-* Отмена offline job первоначально **кооперативная между run/4**: дождаться текущего
-  вызова, не release его plan, затем не начинать следующий slot. Остальные slots —
-  cancelled/not_run; итог incomplete. Это не promise мгновенного cancel при зависшем
-  NIF. Collector мониторит инициатора и проверяет stop/death перед следующим run.
-* При forced collector/owner death Job controller сохраняет полученные ранее slots,
-  missing остальные, наблюдает имеющиеся cleanup guarantees и при недоказанной
-  quiescence требует новую VM. Нельзя принять одиночный DOWN collector как ACK всех
-  ресурсов. Если нужна немедленная отмена с продолжением в той же VM, prerequisite —
-  explicit executor cleanup observer/guardian; это отдельное additive расширение
-  существующего протокола, не второй executor.
+* The job controller/caller owns the frozen corpus, compatibility key, and aggregator;
+  receives bounded progress for every scheduled run index.
+* One calibration collector process owns the prepared plan and calls
+  `efz_executor:run/4` sequentially. No concurrent production fuzzing workers.
+  The plan is created after preflight, lives until all run/4 calls finish, and is released
+  by its owner in `after`. Per-execution contexts, ETS, and monitors remain owned by the existing
+  coordinator. Parent JobRef/PID provide correlation only, not a durable cache key.
+* The collector passes an immutable full RunResult to the controller after run/4 returns,
+  that is, after coordinator DOWN/cleanup. The controller increments frequency once
+  per feature in the current slot, using the complete snapshot, not the decision delta.
+* Offline-job cancellation is initially **cooperative between run/4 calls**: wait for the current
+  call without releasing its plan, then do not start the next slot. Remaining slots are
+  cancelled/not_run; the result is incomplete. This does not promise immediate cancellation of a hanging
+  NIF. The collector monitors the initiator and checks stop/death before the next run.
+* On forced collector/owner death, the job controller preserves previously received slots,
+  marks the rest missing, observes existing cleanup guarantees, and requires
+  a new VM if quiescence is unproven. A collector DOWN alone cannot be accepted as an ACK for all
+  resources. Immediate cancellation with continuation in the same VM requires an
+  explicit executor cleanup observer/guardian; this is a separate additive extension
+  of the existing protocol, not a second executor.
 
-**П:** дополнять существующий `run/4` metadata, сохранив его outcome/coverage поля и
-старый `run/3` wrapper. Предлагаемая структура (названия ещё не реализованы):
+**P:** extend existing `run/4` metadata while preserving its outcome/coverage fields and
+the old `run/3` wrapper. Proposed structure (names not implemented yet):
 
 ```erlang
 #{termination_origin => returned | caught_error | caught_throw | caught_exit |
@@ -701,19 +703,19 @@ arbitrary callable targets из файла результатов. Decoder/recip
   cleanup_status => complete | failed | unknown}.
 ```
 
-`full_scope` ограничен root и соблюдённым instrumentation contract, не «вся OTP
-application». Поля устанавливает ветка executor, а calibration admission отдельно
-проверяет builds, scope, reset contract, terminal origin и coverage_status. Передача
-result до finally допустима только с нынешним ожиданием DOWN у caller; cleanup
-metadata должно отражать результат этого барьера, не выставляться заранее.
-Cancellation без возвращаемого result остаётся missing, пока не появится явный
-наблюдатель. Epoch не подменяет quiescence.
+`full_scope` is limited to root and compliance with the instrumentation contract, not “the whole OTP
+application.” Executor branches set the fields; calibration admission separately
+checks builds, scope, reset contract, terminal origin, and coverage_status. Sending
+the result before finally is permitted only with the current caller wait for DOWN; cleanup
+metadata must reflect the result of this barrier, not be set in advance.
+Cancellation without a returned result stays missing until an explicit
+observer exists. Epoch is not a substitute for quiescence.
 
-### Схема результата и ключ инвалидирования
+### Result schema and invalidation key
 
-**П:** добавить отдельный versioned `calibration` report/index; прежние corpus,
-mutation recipes, crash tuples, decisions и counters не переименовывать.
-На каждый x хранить:
+**P:** add a separate versioned `calibration` report/index; do not rename existing corpus,
+mutation recipes, crash tuples, decisions, or counters.
+For each x, store:
 
 ```erlang
 #{schema_version => 1, compatibility_key => Key,
@@ -728,163 +730,163 @@ mutation recipes, crash tuples, decisions и counters не переименов�
   timing => #{startup_us => ..., repetitions_us => ..., aggregation_us => ...}}.
 ```
 
-Дополнительно corpus summary, min S, unstable count, selected/measured/incomplete
-с точными ID списками. Не сохранять все rejected recipes/snapshots бесконечно.
-Frequencies достаточно для I/U/V; raw snapshots/witnesses — bounded option. Сами
-input bytes должны оставаться проверяемыми по hash/length в corpus или packaged
-копии; donor/RNG state для повторов готового binary не нужны.
+Also include corpus summary, minimum S, unstable count, selected/measured/incomplete
+with exact ID lists. Do not retain every rejected recipe/snapshot indefinitely.
+Frequencies suffice for I/U/V; raw snapshots/witnesses are a bounded option. Input
+bytes themselves must remain verifiable by hash/length in the corpus or a packaged
+copy; repeating a ready binary does not require donor/RNG state.
 
-**П.** `Key = SHA256(canonical versioned structure)` со следующими обязательными
-частями, никакой сериализации неканонического map как «переносимого ключа»:
+**P.** `Key = SHA256(canonical versioned structure)` with the following mandatory
+components; never serialize a noncanonical map as a “portable key”:
 
-| Компонент | Фактическое основание / правило |
+| Component | Actual basis / rule |
 |---|---|
-| Input/scenario | SHA-256 **bytes + length**, проверка packaged bytes; для будущего scenario — initial state/config/actions digest, не одно сообщение |
-| Target/harness | Explicit `{Module,run,1}`, identity actual loaded adapter/обычного harness BEAM (сопоставленный code MD5/object digest), harness/reset contract version; один только selected BuildMap adapter не покрывает |
-| Selected code | Sorted `{module-name-binary, BuildId, canonical manifest digest}`; schema/instrumentation version, limitations и toolchain |
-| Feature semantics | `clause_outcome_probe / exact_presence / normalization_v1 / target_process`; version/code digest действующего EFZ runtime/executor/validator; manual отдельный namespace/explicit ID contract |
-| Compatibility epoch | Новый предложенный portable digest перечисленных схем/semantics; **existing feedback_epoch нет**; изменение политики/schema требует новой серии |
-| Execution settings | Timeout, backend implementation, validation strategy, OTP/ERTS/arch, scheduler settings, target config, protocol/reset mode; меняют окружение/нагрузку даже при сопоставимых features |
-| Trial protocol | R, warmup count/inputs, cold/steady policy, consecutive versus corpus rounds/fixed permutations/fresh VM; control corpus/order digest для order-dependent опытов |
-| Outcome policy | Версия нормализации outcome, без скрытого выбрасывания return changes/volatile values |
+| Input/scenario | SHA-256 of **bytes + length**, packaged-byte validation; for future scenarios, initial state/config/actions digest, not one message |
+| Target/harness | Explicit `{Module,run,1}`, identity of the actual loaded adapter/ordinary harness BEAM (matched code MD5/object digest), harness/reset contract version; selected BuildMap alone does not cover the adapter |
+| Selected code | Sorted `{module-name-binary, BuildId, canonical manifest digest}`; schema/instrumentation version, limitations, and toolchain |
+| Feature semantics | `clause_outcome_probe / exact_presence / normalization_v1 / target_process`; version/code digest of the active EFZ runtime/executor/validator; manual uses a separate namespace/explicit ID contract |
+| Compatibility epoch | Newly proposed portable digest of the listed schemas/semantics; **no existing feedback_epoch**; policy/schema change requires a new series |
+| Execution settings | Timeout, backend implementation, validation strategy, OTP/ERTS/arch, scheduler settings, target configuration, protocol/reset mode; affect environment/load even with comparable features |
+| Trial protocol | R, warmup count/inputs, cold/steady policy, consecutive versus corpus rounds/fixed permutations/fresh VM; control corpus/order digest for order-dependent experiments |
+| Outcome policy | Outcome-normalization version, without silently discarding return changes/volatile values |
 
-`ets` и `ets_member` имеют одинаковые feature semantics и их F сопоставимы, но
-result cache не следует бесшумно переиспользовать между разными timing/config
-вариантами. `execution_ref`, PID, Tid, monotonic timestamps и родительский queue
-index не являются portable identity. Selection/mutation seed не нужен для
-регенерации уже замороженного x; если он определял контрольный corpus/order,
-сохраняются их identities и происхождение. Prepared descriptor нельзя сохранять
-как reusable artifact; при новой VM создаётся новый plan.
+`ets` and `ets_member` have the same feature semantics and comparable F, but
+a result cache must not be silently reused across different timing/config
+variants. `execution_ref`, PID, Tid, monotonic timestamps, and parent queue
+index are not portable identities. Selection/mutation seed is not needed to
+regenerate already frozen x; if it defined the control corpus/order,
+their identities and provenance are retained. A prepared descriptor cannot be saved
+as a reusable artifact; a new VM creates a new plan.
 
-Это ключ **совместимости опыта**, не доказательство идентичности неизвестного
-содержимого shared VM. В режиме unreset VM автоматический cache reuse между jobs
-по одному этому ключу следует отключить. Сохранять отдельные observation series
-с одинаковым compatibility key, не объединять их повторы в новое R и не заменять
-новый запуск прежними «100%». Reuse результата допустим только при отдельно
-подтверждённом контракте initial state/reset и выбранной политике актуальности.
-Job ID/time нужны для различения записей, но не становятся input/feature identity.
+This is an **experiment compatibility** key, not proof that unknown
+shared-VM contents are identical. In unreset-VM mode, automatic cache reuse between jobs
+based on this key alone should be disabled. Save separate observation series
+with the same compatibility key; do not combine their repeats into a new R or substitute
+old “100%” results for a new run. Reuse is allowed only under a separately
+confirmed initial-state/reset contract and selected freshness policy.
+Job ID/time distinguish records but do not become input/feature identity.
 
-Текущие formats — Erlang report maps/`term_to_binary`, pretty-print в escript;
-EFZR — отдельный формат конкретной mutation recipe, не calibration database.
-Минимальный новый CLI `scripts/calibrate.escript` может вызвать предложенный API и
-сохранить отдельный versioned `.term` report. JSON API/encoder в проекте нет;
-не добавлять dependency ради него. Если позднее потребуется JSON export, binary IDs
-отдавать hex, undefined score — null + reason, runtime handles исключать; schema
-эквивалентен report map. Это предложенный export, не нынешняя возможность.
+Current formats are Erlang report maps/`term_to_binary` and pretty-print in escript;
+EFZR is a separate format for a particular mutation recipe, not a calibration database.
+A minimal new CLI `scripts/calibrate.escript` could call the proposed API and
+save a separate versioned `.term` report. The project has no JSON API/encoder;
+do not add a dependency for one. If JSON export is later required, output binary IDs
+as hex, undefined score as null + reason, and omit runtime handles; the schema
+is equivalent to the report map. This is proposed export, not current functionality.
 
-### Инициаторы, novelty и однократная фиксация
+### Initiators, novelty, and recording exactly once
 
-**П.** Порядок внедрения: offline frozen corpus сначала; затем opt-in report-only
-инициаторы при старте campaign, после нового интересного input и при явной проверке
-снимка корпуса. Изменение build/manifest/schema **инвалидирует** результаты и требует
-новой подготовки; live hot reload в текущей campaign не поддерживать.
+**P.** Implementation order: offline frozen corpus first; then opt-in report-only
+initiators at campaign startup, after a new interesting input, and on an explicit corpus
+snapshot check. Changing build/manifest/schema **invalidates** results and requires
+fresh preparation; do not support live hot reload in the current campaign.
 
-В offline path нет `efz_feedback:evaluate/3`, `efz_corpus:add/2`, selector/mutator
-или перезапуска stats. В campaign можно захватить оригинальный full RunResult в
-`efz_worker:execute/4` сразу после строки 60 и использовать как первый повтор R,
-затем выполнить R−1 наблюдательных повторов этих bytes. Их отдельная очередь не
-двигает staged cursors, RNG и mutation iteration, не меняет parent/recipe.
-Старый feedback/retention вызывается **ровно один раз для исходного результата**,
-в прежнем порядке; calibration observations не сливаются в Global.
+The offline path has no `efz_feedback:evaluate/3`, `efz_corpus:add/2`, selector/mutator,
+or stats restart. In a campaign, capture the original full RunResult in
+`efz_worker:execute/4` immediately after line 60 and use it as the first of R repeats,
+then perform R−1 observation repeats of those bytes. Their separate queue does not
+advance staged cursors, RNG, or mutation iteration, or change parent/recipe.
+Existing feedback/retention is invoked **exactly once for the original result**,
+in its original order; calibration observations are not merged into Global.
 
-Начальные seeds остаются baseline entries; обычный seed pass с причиной
-`seed_calibration` сохраняется, не превращается в mutation discovery. Исторические
-baseline/candidate streams сохраняют свой контракт при выключенной функции.
-Включённые дополнительные исполнения неизбежно меняют timing/VM side effects;
-для целей без reset независимость после такой вставки требует проверки, а не
-обещания идентичного campaign stream.
+Initial seeds remain baseline entries; the ordinary seed pass with reason
+`seed_calibration` stays intact and does not become a mutation discovery. Historical
+baseline/candidate streams retain their contract with the feature disabled.
+Enabled extra executions inevitably alter timing/VM side effects;
+for targets without reset, independence after this insertion requires checking, not
+a promise of an identical campaign stream.
 
-Результаты повторов прикреплять через отдельный `Report.calibration` index по
-content/key. Нынешний `efz_corpus:add/2` не обновляет metadata существующего input;
-не злоупотреблять им для повторной вставки. В первой версии новый corpus-update API
-не нужен. Исходные input/metadata/added_at/recipes и число discoveries остаются.
-Отдельного scorer/last-new-coverage timestamp сейчас нет; не вводить его случайно
-и не переинициализировать `stats.started_at` из-за проверки устойчивости.
+Attach repeat results through a separate `Report.calibration` index by
+content/key. Current `efz_corpus:add/2` does not update existing-input metadata;
+do not misuse it for reinsertion. The first version needs no new corpus-update
+API. Original input/metadata/added_at/recipes and discovery count remain unchanged.
+No separate scorer/last-new-coverage timestamp exists; do not introduce one accidentally
+or reinitialize `stats.started_at` for a stability check.
 
-Outcome variation и новые calibration crash witnesses сохранять с происхождением
-`stability`, raw input и actual result; не отбрасывать findings из-за низкого S и
-не считать их mutation discovery. Можно использовать существующее crash storage
-для witness bytes/result с дополнительной metadata, при отдельном учёте повторов.
-Crash-only probe observations по-прежнему не suppress успешную будущую novelty.
+Save outcome variation and new calibration crash witnesses with provenance
+`stability`, raw input, and actual result; do not discard findings because S is low or
+count them as mutation discoveries. Existing crash storage can be used
+for witness bytes/results with extra metadata and separate repeat accounting.
+Crash-only probe observations still do not suppress future successful novelty.
 
-Если позже будет принято **отдельное** решение менять поиск на stable-only feedback,
-понадобится отложенная однократная транзакция `G_before + original result + series +
-compatibility epoch -> один commit`. Это нельзя сделать повторным вызовом evaluate
-для R прогонов или merge(U): последний может включать crash-only/вариативные features.
-Такое изменение retention и scheduler требует собственного ADR/тестов и не входит
-в предлагаемый report-only этап. Автоматическое удаление unstable seeds, masking
-probes, suppression crashes и переоценка baseline status здесь не предлагаются.
+A later **separate** decision to switch search to stable-only feedback would
+require a deferred single transaction `G_before + original result + series +
+compatibility epoch -> one commit`. Repeated evaluate calls for
+R runs or merge(U) cannot provide this: the latter may contain crash-only/variable features.
+Such retention and scheduler changes require their own ADR/tests and are outside
+the proposed report-only stage. Automatic unstable-seed deletion, probe masking,
+crash suppression, and baseline-status reassessment are not proposed here.
 
-### Стоимость и раздельная статистика
+### Cost and separate statistics
 
-**П, оценка сложности, не новый benchmark:** offline N уникальных inputs требует
-`N*R` измеряемых исполнений (+ явно выбранный warmup). При использовании исходного
-seed/candidate результата первый раз уже выполнен: дополнительно `R−1` на input.
-Никакого нового измерения Phase 2.1 backend throughput для этой оценки не нужно.
+**P, complexity estimate, not a new benchmark:** offline processing of N unique inputs needs
+`N*R` measured executions (+ explicitly selected warmup). When the original
+seed/candidate result is reused, the first run is already done: add `R−1` per input.
+This estimate needs no new Phase 2.1 backend-throughput measurement.
 
-Пусть P — число manifest probes, H_r — unique hits повторa, T_r — hook calls.
-Plan preparation — O(P) storage один раз; публикации зависят от T_r.
-`tab2list` O(H_r), sorting O(H_r log H_r), prepared validation — membership по
-H_r; per_execution дополнительно строит allowed set O(P) каждый раз. Aggregation
-с hash-map частот ожидаемо O(sum H_r), memory O(|U_x|), финальный вывод сортируется.
-Хранение всех raw F стоило бы O(sum H_r), поэтому оно bounded optional; frequencies
-не требуют R копий каждого set. Snapshot/result copying и ETF serialization тоже
-пропорциональны данным и должны измеряться отдельно от target time.
+Let P be manifest probe count, H_r unique hits in a repeat, and T_r hook calls.
+Plan preparation uses O(P) storage once; publications depend on T_r.
+`tab2list` is O(H_r), sorting O(H_r log H_r), prepared validation uses membership over
+H_r; per_execution also builds an allowed set O(P) each time. Hash-map frequency
+aggregation is expected O(sum H_r), memory O(|U_x|), and final output is sorted.
+Saving all raw F would cost O(sum H_r), so it is bounded and optional; frequencies
+do not require R copies of every set. Snapshot/result copying and ETF serialization are also
+proportional to data and must be measured separately from target time.
 
-В диагностике plan на четыре probes занимал 5 ETS rows (4 + marker), 3,128 bytes
-в обоих backend. Это один живой plan, **не peak и не total campaign memory**.
-После опытов coverage/plan tables отсутствовали. Orphan targets от намеренного
-coordinator kill очищались **диагностическим harness**, не автоматически движком;
-этот факт нельзя замаскировать итоговым «нет утечек». Lifecycle tests отдельно
-подтверждают штатный cleanup после caller/cancel/shutdown.
+In diagnostics, the four-probe plan occupied 5 ETS rows (4 + marker), 3,128 bytes
+on both backends. This is one live plan, **not peak or total campaign memory**.
+After experiments, coverage/plan tables were absent. Orphan targets from intentional
+coordinator kill were cleaned up **by the diagnostic harness**, not automatically by the engine;
+this cannot be hidden behind a final “no leaks” statement. Lifecycle tests separately
+confirm normal cleanup after caller/cancel/shutdown.
 
-Предлагаемые additive counters: `stability_attempts`, `stability_completed`,
+Proposed additive counters: `stability_attempts`, `stability_completed`,
 `stability_missing`, `stability_target_failures`, `stability_infra_failures`.
-Не увеличивать `stats.executions`/`discoveries`/`rejections` для повторов; прежний
-`calibrations` оставить счётчиком initial seed passes для compatibility.
-Wall time: добавить `stability_us`, `stability_in_mutation_us`,
+Do not increment `stats.executions`/`discoveries`/`rejections` for repeats; retain
+existing `calibrations` as the initial-seed-pass counter for compatibility.
+Wall time: add `stability_us`, `stability_in_mutation_us`,
 `mutation_active_us = existing mutation_us - stability_in_mutation_us`.
-Старый `mutation_us` может остаться wall time исходной фазы; новый отчёт throughput
-использует **mutation executions / mutation_active_us**, а не R repeats в числителе.
-Startup/seed phase, aggregation, serialization и fresh-VM startup сообщаются отдельно.
-При выключенной функции прежние timings/counters/stream не меняются.
+Existing `mutation_us` can remain the wall time of the original phase; new throughput reporting
+uses **mutation executions / mutation_active_us**, not R repeats in the numerator.
+Report startup/seed phase, aggregation, serialization, and fresh-VM startup separately.
+With the feature disabled, existing timings/counters/stream remain unchanged.
 
-## 9. План реализации и критерии приёмки
+## 9. Implementation plan and acceptance criteria
 
-Все изменения ниже **предложены**, сейчас в коде их нет.
+All changes below are **proposed**, not present in the code today.
 
-| Этап | Файлы/зависимости | Критерий готовности | Отключение и compatibility |
+| Stage | Files/dependencies | Readiness criterion | Disablement and compatibility |
 |---|---|---|---|
-| 1. Prerequisites | `src/efz_executor.erl`, при guard `src/efz_cov_rt.erl`; `test/efz_backend_tests.erl`, новые focused cases | Terminal origin отличает caught exit от kill; metadata не обещают tree completeness; owner loss abort/dirty; caught broken context fail closed; current 62/3 остаются | Outcome tuples и run/3 сохранены; никаких default backend/worker changes |
-| 2. Snapshot admission contract | Executor metadata + proposed `src/efz_stability.erl`; manifest/preflight reuse | Full immutable F после root DOWN и до уничтожения store; series проверяет scope/build/cleanup; empty != missing, timeout prefix != full | Snapshot code backend не заменяется; существующий feedback не зависит от нового observer |
-| 3. Offline collector | Proposed `src/efz_calibration.erl`, `scripts/calibrate.escript`, разрешённые internal modules в transform denylist | Frozen bytes, R/state protocol, живой plan owner, тот же run/4; versioned keys; bounded cancellation/limits; никакого novelty side effect | Только явный отдельный вызов; current campaigns не используют collector |
-| 4. Regression suite | Proposed `test/efz_stability_tests.erl`, calibration integration suite, существующие backend/semantic tests | 50% vector, equal-size sets, frequency vs multiplicity, corpus masking trap, R<2/empty/incomplete/incomparable; A→B→A, child scope, fresh VM IDs; exception/kill/timeout/owner/cancel; corruption/build mismatch | Tests не фиксируют performance thresholds и не меняют ожидаемые старые probe/outcome sets |
-| 5. Campaign report-only integration | `efz_config`, `efz_worker`, `efz_stats`, report docs; optional index без corpus reinsertion | Первый результат + R−1 repeats; original feedback ровно один раз; no RNG/cursor advance; отдельные times/counters; witness failures не скрываются | **`stability => disabled` по умолчанию**; включение явное, configurable R/95/90; старые baselines работают без новой серии |
-| 6. Reporting/measurement | CLI/README/coverage documentation, короткий fixed-budget overhead опыт | Per-input rows, weighted corpus/min/unstable/subset membership; actual overhead, cold/warm distinction; JSON только при реальной потребности | Старые отчёты/EFZR/CLI сохраняются; additive versioned section |
+| 1. Prerequisites | `src/efz_executor.erl`, with guard `src/efz_cov_rt.erl`; `test/efz_backend_tests.erl`, new focused cases | Terminal origin distinguishes caught exit from kill; metadata does not promise tree completeness; owner loss abort/dirty; caught broken context fails closed; current 62/3 remain | Outcome tuples and run/3 preserved; no default backend/worker changes |
+| 2. Snapshot admission contract | Executor metadata + proposed `src/efz_stability.erl`; manifest/preflight reuse | Full immutable F after root DOWN and before store destruction; series checks scope/build/cleanup; empty != missing, timeout prefix != full | Snapshot backend code is not replaced; existing feedback does not depend on the new observer |
+| 3. Offline collector | Proposed `src/efz_calibration.erl`, `scripts/calibrate.escript`, permitted internal modules in transform denylist | Frozen bytes, R/state protocol, live plan owner, same run/4; versioned keys; bounded cancellation/limits; no novelty side effects | Explicit separate call only; current campaigns do not use collector |
+| 4. Regression suite | Proposed `test/efz_stability_tests.erl`, calibration integration suite, existing backend/semantic tests | 50% vector, equal-size sets, frequency vs multiplicity, corpus-masking trap, R<2/empty/incomplete/incomparable; A→B→A, child scope, fresh-VM IDs; exception/kill/timeout/owner/cancel; corruption/build mismatch | Tests do not fix performance thresholds or alter expected old probe/outcome sets |
+| 5. Campaign report-only integration | `efz_config`, `efz_worker`, `efz_stats`, report docs; optional index without corpus reinsertion | First result + R−1 repeats; original feedback exactly once; no RNG/cursor advance; separate times/counters; witness failures are not hidden | **`stability => disabled` by default**; explicit enablement, configurable R/95/90; old baselines run without a new series |
+| 6. Reporting/measurement | CLI/README/coverage documentation, short fixed-budget overhead experiment | Per-input rows, weighted corpus/min/unstable/subset membership; actual overhead, cold/warm distinction; JSON only when needed | Existing reports/EFZR/CLI preserved; additive versioned section |
 
-Реализация не должна начинаться с повторного `efz:start` для каждого input: это
-путает seed initialization с stability, создаёт отдельный feedback state и не
-сбрасывает всю VM. Также не следует менять scheduler count/target rand seed ради
-красивого процента. Основной режим остаётся штатным, altered runtime — отдельный
-помеченный диагностический опыт.
+Implementation must not begin by repeating `efz:start` for every input: that
+confuses seed initialization with stability, creates separate feedback state, and does not
+reset the whole VM. Nor should scheduler count/target rand seed be changed for
+a prettier percentage. The main mode stays standard; altered runtime is a separate
+labeled diagnostic experiment.
 
-Открытые внешние вопросы ограничены тем, что нельзя получить из этого checkout:
-каков reset/warmup/initial-state контракт конкретной реальной цели и оправданы ли
-выбранные R/95/90 на ней. Cowboy harness/dependencies отсутствуют; универсальная
-независимость реальных Erlang приложений не проверена. Для описанного root-only
-engine контракта owners, snapshots, failure paths и первые implementation points
-установлены; предполагать скрытый Go/OTP application runner не требуется.
+Open external questions are limited to what cannot be learned from this checkout:
+the reset/warmup/initial-state contract of a particular real target and whether
+the chosen R/95/90 are justified on it. Cowboy harness/dependencies are absent; universal
+independence of real Erlang applications has not been verified. For the described root-only
+engine contract, owners, snapshots, failure paths, and initial implementation points
+are established; no hidden Go/OTP application runner need be assumed.
 
-## 10. Воспроизведение диагностики без постоянных fixtures
+## 10. Reproducing diagnostics without permanent fixtures
 
-Исходники ниже — только аудиторские. Они не подключены к приложению или build
-profiles и не реализуют production calibration API. Один `audit_sites` компилируется
-с обычной автоматической instrumentation; остальные модули дают контролируемые
-inputs, state и ACK. В опытах kill сначала принимается сообщение после завершённого
-probe; sleeps для доказательства публикации не используются. Все созданные children
-явно завершены, а VM-loss тест убивает только собственный внешний helper.
+The sources below are for audit use only. They are not included in the application or build
+profiles and do not implement a production calibration API. One `audit_sites` is compiled
+with ordinary automatic instrumentation; the other modules provide controlled
+inputs, state, and ACK. Kill experiments first receive a message after a completed
+probe; no sleeps are used to prove publication. Every created child is
+explicitly terminated, and the VM-loss test kills only its own external helper.
 
-Из корня `efz/`:
+From the `efz/` root:
 
 ```sh
 AUDIT_DIR=$(mktemp -d /tmp/efz-calibration-audit.XXXXXX)
@@ -904,11 +906,11 @@ escript "$AUDIT_DIR/audit.escript" "$AUDIT_DIR" > "$AUDIT_DIR/diagnostic.log" 2>
 escript "$AUDIT_DIR/existing_example.escript" "$AUDIT_DIR" > "$AUDIT_DIR/existing-example.log" 2>&1
 ```
 
-Не добавляйте `+S 4:4` к этому воспроизведению молча: original main и fresh controls
-использовали штатную конфигурацию. Проверяйте exit statuses каждой команды; файлы
-логов сами по себе не доказывают успех. Этот скрипт намеренно обнаруживает описанные
-текущие ограничения assertions; после их будущего исправления аудитный expected
-результат потребуется пересмотреть, а не использовать старый скрипт как policy test.
+Do not silently add `+S 4:4` to this reproduction: the original main and fresh controls
+used standard configuration. Check each command's exit status; log files
+alone do not prove success. This script intentionally detects the described
+current limitations with assertions; after future fixes, the expected audit
+result must be reconsidered rather than using the old script as a policy test.
 
 <!-- audit-source: audit_sites.erl -->
 ```erlang

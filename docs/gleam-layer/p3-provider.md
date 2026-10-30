@@ -1,5 +1,7 @@
 # P3 structured provider — PASS
 
+**English** · [Русский](../i18n/ru/gleam-layer/p3-provider.md) · [Español](../i18n/es/gleam-layer/p3-provider.md) · [简体中文](../i18n/zh-CN/gleam-layer/p3-provider.md) · [All languages](../i18n/README.md)
+
 Current P5 acceptance is recorded in [p5-validation.md](p5-validation.md).
 The handoff and pending-status statements below describe the historical phase run.
 

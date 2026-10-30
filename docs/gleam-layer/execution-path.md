@@ -1,5 +1,7 @@
 # Actual source map
 
+**English** · [Русский](../i18n/ru/gleam-layer/execution-path.md) · [Español](../i18n/es/gleam-layer/execution-path.md) · [简体中文](../i18n/zh-CN/gleam-layer/execution-path.md) · [All languages](../i18n/README.md)
+
 - efz_config:prepare/1 validates configuration, efz_cov_native_public:preflight/1
   or efz_instrument:preflight/1 verifies selected target artifacts.
 - efz_fuzzer:init/1 starts the existing corpus, statistics and worker supervisor.

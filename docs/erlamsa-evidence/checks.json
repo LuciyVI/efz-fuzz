@@ -1,0 +1,54 @@
+[
+  {
+    "check": "eunit",
+    "argv": [
+      "rebar3",
+      "eunit"
+    ],
+    "core_env": false,
+    "exit_code": 0,
+    "wall_seconds": 101.777
+  },
+  {
+    "check": "gleam_eunit",
+    "argv": [
+      "rebar3",
+      "as",
+      "gleam",
+      "eunit"
+    ],
+    "core_env": true,
+    "exit_code": 0,
+    "wall_seconds": 134.86
+  },
+  {
+    "check": "ct",
+    "argv": [
+      "rebar3",
+      "ct"
+    ],
+    "core_env": false,
+    "exit_code": 0,
+    "wall_seconds": 9.552
+  },
+  {
+    "check": "xref",
+    "argv": [
+      "rebar3",
+      "xref"
+    ],
+    "core_env": false,
+    "exit_code": 0,
+    "wall_seconds": 1.019
+  },
+  {
+    "check": "dialyzer",
+    "argv": [
+      "rebar3",
+      "dialyzer"
+    ],
+    "core_env": false,
+    "exit_code": 0,
+    "wall_seconds": 10.595
+  }
+]
