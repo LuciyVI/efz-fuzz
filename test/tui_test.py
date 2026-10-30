@@ -42,6 +42,23 @@ class MonitorTests(unittest.TestCase):
         measured['feature_stability']['percent'] = float('nan')
         self.assertIn('unavailable', tui.stability_lines(measured)[0])
 
+    def test_persistent_sequence_scope_and_phase(self):
+        snap = {'feature_stability': {'scope': 'audited_sequence_steps',
+            'status': 'measured', 'collection_status': 'collecting',
+            'percent': 75.0, 'stable_feature_pairs': 9,
+            'observed_feature_pairs': 12, 'groups_measured': 2},
+            'target_execution': {'mode': 'persistent_vm', 'state_policy': 'accumulate'},
+            'target_phase': 'audit', 'target_session': {'step': 2},
+            'sequence_journal': {'step': 2, 'complete': True},
+            'target_audit': {'repetition': 3, 'requested_repetitions': 4, 'calls': 6}}
+        self.assertIn('2 audited step groups', tui.stability_lines(snap)[0])
+        headline, detail = tui.target_lines(snap)
+        self.assertIn('persistent/accumulate', headline)
+        self.assertIn('audit', headline)
+        self.assertIn('replay 3/4', headline)
+        self.assertIn('Journal complete', detail)
+        self.assertEqual(('', ''), tui.target_lines({}))
+
     def test_partial_or_malformed_snapshot_is_bounded(self):
         self.assertEqual(tui.stability_lines({'feature_stability': 'broken'})[0],
                          'Stability: unavailable')

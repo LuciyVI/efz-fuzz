@@ -210,3 +210,11 @@ sampler monitor/lifecycle to this guardian; ownership/start gates/trace barriers
 and dirty-runner rules remain authoritative. Sampler failure is partial diagnostic
 evidence; guardian or unconfirmed lifecycle failure still retires the VM. Cleanup
 kills do not constitute process leaks. See [runtime diagnostics](runtime-diagnostics.md).
+# Optional stateful target epoch
+
+`execution.mode=persistent_vm` is a separate, opt-in lifecycle. It launches
+one target VM and one long-lived driver for many inputs, intentionally retains
+target-owned state, and opens a new coverage window for each step. It does not
+weaken the default per-case guardian contract. See
+[persistent-target.md](persistent-target.md) for supported backends, epoch
+termination, journal and the separate sequence audit.

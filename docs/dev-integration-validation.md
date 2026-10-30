@@ -73,3 +73,11 @@ this candidate are localized quick references with links to the English full
 contracts; full translations of the new technical guides are still pending.
 The remote recursive checkout gate also remains open while Git transport is
 unavailable. `main` was not changed.
+
+The later [persistent-target review validation](persistent-target-merge-validation.md)
+records the added native NIF and detached-child tests, final local independent
+checkout, and SDK mode matrix. This paragraph records the earlier `dev` stage;
+the persistent-target review branch has not been merged into `dev`.
+The same review validation now also records a successful fresh remote recursive
+checkout and standard/Erlamsa builds of both published `dev` and the review
+commit; the earlier `Proxy CONNECT aborted` result remains historical evidence.

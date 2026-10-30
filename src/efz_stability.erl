@@ -1,7 +1,7 @@
 %% Diagnostic repeats never touch corpus, feedback, mutation state or rand.
 -module(efz_stability).
 -export([snapshot/2, summarize/2, outcome/1, bounded_return/1, usable/1, failure/1, repeat/6,
-         new/2, observe/7, complete/3, public/1]).
+         new/2, observe/7, complete/3, end_audit/2, public/1]).
 outcome({ok,_})->ok;
 outcome({crash,C,R,_})->{crash,C,reason(R)};
 outcome({exit,R})->{exit,reason(R)};
@@ -128,6 +128,7 @@ observe(S,GroupId,InputId,ExecutionId,Requested,Features,ElapsedMs) ->
                 {ok,Existing}->Existing;
                 error->#{input_id=>InputId,valid=>0,attempted=>0,union=>[],intersection=>[],
                          union_count=>0,intersection_count=>0,
+                         variable_counts=>#{},
                          seen=>#{},status=>insufficient_samples,requested=>Requested,
                          episode_open=>true}
             end,
@@ -161,13 +162,22 @@ observe_new(S,Groups,GroupId,G0,ExecutionId,Requested,Features,ElapsedMs) ->
             case UnionCount=<maps:get(max_features_per_group,S) of
                 true->N=maps:get(valid,G0),
                     NewI=case N of 0->F;_->ordsets:intersection(OldI,F) end,
+                    Variables=ordsets:subtract(NewU,NewI),
+                    Sample=lists:sublist(Variables,64),
+                    PreviousCounts=maps:get(variable_counts,G0,#{}),
+                    Counts=maps:from_list([{X,
+                        maps:get(X,PreviousCounts,
+                            case ordsets:is_element(X,OldI) of true->N;false->0 end)+
+                        case ordsets:is_element(X,F) of true->1;false->0 end}
+                        || X<-Sample]),
                     {G1#{valid=>N+1,union=>NewU,intersection=>NewI,
+                        variable_counts=>Counts,
                         union_count=>UnionCount,intersection_count=>length(NewI)},0};
                 false->{G1#{status=>capped,union=>[],intersection=>[],
-                    union_count=>0,intersection_count=>0},0}
+                    union_count=>0,intersection_count=>0,variable_counts=>#{}},0}
             end;
         {limit,feature_limit}->{G1#{status=>capped,union=>[],intersection=>[],
-            union_count=>0,intersection_count=>0},0};
+            union_count=>0,intersection_count=>0,variable_counts=>#{}},0};
         _->{G1,1}
     end,
     New=contribution(G2),
@@ -213,8 +223,13 @@ complete(S,Requested,CollectionStatus) ->
         _ -> S
     end.
 
+end_audit(S,Status) ->
+    Groups=maps:map(fun(_,G)->G#{episode_open=>false} end,maps:get(groups,S)),
+    S#{groups=>Groups,collection_status=>Status,revision=>maps:get(revision,S)+1}.
+
 public(S) ->
-    Groups=maps:values(maps:get(groups,S)),
+    GroupPairs=maps:to_list(maps:get(groups,S)),
+    Groups=[G||{_,G}<-GroupPairs],
     Measured=[G||G<-Groups,group_status(G)=:=measured],
     Stable=maps:get(stable_feature_pairs,S),Observed=maps:get(observed_feature_pairs,S),
     Status=case maps:get(status,S) of
@@ -229,7 +244,11 @@ public(S) ->
         variable_feature_pairs=>Observed-Stable,groups_measured=>length(Measured),
         groups_unstable=>length([G||G<-Measured,maps:get(intersection_count,G)<maps:get(union_count,G)]),
         groups_incomplete=>length([G||G<-Groups,group_status(G)=:=insufficient_samples]),
-        groups_no_features=>length([G||G<-Groups,group_status(G)=:=no_observed_features])}.
+        groups_no_features=>length([G||G<-Groups,group_status(G)=:=no_observed_features]),
+        variable_examples=>lists:sublist([#{group_id=>Id,feature=>X,
+            observed_runs=>Count,valid_runs=>maps:get(valid,G)}
+            ||{Id,G}<-GroupPairs,group_status(G)=:=measured,
+              {X,Count}<-lists:sort(maps:to_list(maps:get(variable_counts,G,#{})))],16)}.
 
 contribution(G) ->
     case group_status(G) of

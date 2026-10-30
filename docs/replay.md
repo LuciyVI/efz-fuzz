@@ -311,3 +311,11 @@ Runtime schema v1 is independent from crash expectations/recipes. Replay with
 --runs 3`. Identity/hash/policy checks precede the same executor; output distinguishes
 `observed`, `not_observed`, `inconclusive`, including sample count and repeatability.
 One successful repeat cannot disprove instability. [Full format and limits](runtime-diagnostics.md).
+# Stateful sequence replay
+
+An isolated raw input replay does not restore a persistent target's prior
+inputs. For `execution.mode=persistent_vm`, use the complete schema-1 sequence
+journal and `scripts/sequence_replay.escript` or the Python
+`Client.sequence_replay` method. This replays exact bytes from init through the
+requested step with the pinned target build; Erlamsa regeneration is not
+needed. See [persistent-target.md](persistent-target.md).

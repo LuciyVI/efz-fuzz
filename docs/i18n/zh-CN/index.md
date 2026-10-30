@@ -93,3 +93,5 @@
 - [Persistent worker](erlamsa-performance.md)
 - [Feature stability](feature-stability.md)
 - [Python SDK](packages/pyefz/README.md)
+
+- [持久目标 VM](persistent-target.md)
