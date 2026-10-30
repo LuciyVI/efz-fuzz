@@ -17,6 +17,9 @@ python3 scripts/tui.py --demo --out _build/tui-demo-1
 The demo instruments the bundled parser, runs 10,000 mutations and deliberately
 contains artificial target exceptions. It does not test an external service.
 Use a new output directory each time; existing results are never replaced.
+The demo now enables live `feature_stability` diagnostics. See
+[feature-stability.md](feature-stability.md) for the formula, limits, and the
+cost of the additional target executions.
 
 For your own target, supply the same trusted Erlang campaign map accepted by
 `efz:start/1`, including raw binary seeds and prepared artifact maps:
@@ -50,7 +53,7 @@ external `--supervised` CLI protocol.
   Completion leaves the final result visible until the viewer is closed.
 
 The background bridge writes snapshot.json atomically about twice per second,
-plus campaign.log and the normal binary report.term at completion. A failed
+plus campaign.log, report.term, and report.json at completion. A failed
 bridge is reported in the launching viewer; details are in campaign.log.
 To stop a detached campaign explicitly, send SIGTERM to the printed bridge PID.
 This is process cancellation and does not promise a completed report; corpus

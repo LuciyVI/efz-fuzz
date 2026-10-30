@@ -187,10 +187,25 @@ dispatch(Id,raw_replay,A,S) ->
     case maps:get(campaign,S) of undefined->ok;_->fail(bad_config,replay_requires_fresh_session) end,
     no_replay(S),
     Prepared=prepare_replay(A),
-    job(Id,raw_replay,fun()->raw_replay(Prepared) end,S).
+    job(Id,raw_replay,fun()->raw_replay(Prepared) end,S);
+dispatch(Id,sequence_replay,A,S) ->
+    efz_control_json:keys(A,[<<"journal">>,<<"config">>,<<"step">>]),
+    case maps:get(campaign,S) of undefined->ok;_->fail(bad_config,replay_requires_fresh_session) end,
+    no_replay(S),
+    Journal=filename:absname(efz_control_json:path(maps:get(<<"journal">>,A))),
+    Step=efz_control_json:integer(maps:get(<<"step">>,A),1,1000000),
+    C0=efz_control_json:campaign(maps:get(<<"config">>,A)),
+    add_paths(maps:get(code_paths,C0,[])),
+    Artifacts=need(efz_instrument:discover(maps:get(artifacts,C0)),bad_config),
+    Target=need(efz_cli:local_target(maps:get(target,C0),Artifacts),bad_config),
+    C=need(efz_config:prepare((maps:without([out,code_paths],C0))#{
+        target=>Target,artifacts=>Artifacts,seeds=>[<<>>]}),bad_config),
+    persistent_vm=maps:get(mode,maps:get(execution,C)),
+    job(Id,sequence_replay,fun()->sequence_replay(Journal,C,Step) end,S).
 
 no_replay(S) ->
-    case lists:any(fun({_,{_,_,Op}})->Op=:=raw_replay end,maps:to_list(maps:get(jobs,S))) of
+    case lists:any(fun({_,{_,_,Op}})->Op=:=raw_replay orelse Op=:=sequence_replay end,
+            maps:to_list(maps:get(jobs,S))) of
         true->fail(bad_config,replay_already_running);
         false->ok
     end.
@@ -392,7 +407,22 @@ report_summary(R,Out) ->
       corpus_size=>length(maps:get(corpus,R,[])),
       paths=>#{out=>str(Out),report=>str(filename:join(Out,"report.term")),
           summary=>str(filename:join(Out,"report.json")),crashes=>str(filename:join(Out,"crashes"))}},
-    maps:merge(Base,snapshot(maps:with([provider,provider_stats],R))).
+    maps:merge(Base,snapshot(maps:with([provider,provider_stats,feature_stability,
+        target_report_schema_version,target_execution,target_session,sequence_journal,target_audit,
+        history_sensitivity,preflight_audit,target_timing,
+        epoch_end_outcome,epoch_end_reason],R))).
+
+sequence_replay(Journal,C,Step) ->
+    case efz_sequence_audit:replay(Journal,C,Step) of
+        {ok,Rows}->#{status=>complete,steps=>[sequence_result(R)||R<-Rows]};
+        {partial,Rows,Failed}->#{status=>partial,failed_step=>Failed,
+            steps=>[sequence_result(R)||R<-Rows]};
+        {error,Why}->fail(replay_error,Why)
+    end.
+sequence_result(R) ->
+    Base=maps:with([step,os_pid,driver,coverage_status,elapsed_us],R),
+    snapshot(Base#{outcome=>efz_control_json:text(maps:get(outcome,R)),
+        coverage_count=>length(maps:get(coverage,R,[]))}).
 status(A) when is_atom(A)->atom_to_binary(A,utf8);
 status({A,R}) when is_atom(A)->#{kind=>atom_to_binary(A,utf8),reason=>efz_control_json:text(R)};
 status(T)->efz_control_json:text(T).

@@ -348,6 +348,21 @@ class Client:
         self._campaign_started = True
         return Campaign(self, result)
 
+    def start_sequence(self, config, inputs, *, out=None):
+        """Start a stateful campaign with the exact ordered bytes, including duplicates."""
+        if not isinstance(config, dict):
+            raise BadConfig("Campaign configuration must be a dict")
+        sequence = list(itertools.islice(inputs, 10001))
+        if not 0 < len(sequence) <= 10000:
+            raise BadConfig("Sequence must contain 1..10000 inputs")
+        for data in sequence:
+            encode_bytes(data)
+        supplied = dict(config)
+        supplied["benchmark_replay_inputs"] = [bytes(data) for data in sequence]
+        supplied.setdefault("seeds", [b""])
+        supplied["max_iterations"] = 0
+        return self.start(supplied, out=out)
+
     def stats(self):
         return self._call("stats")
 
@@ -424,6 +439,20 @@ class Client:
         if max_input_bytes is not None:
             args["max_input_bytes"] = _limit(max_input_bytes)
         return self._call("raw_replay", args)
+
+    def sequence_replay(self, journal_path, *, config, step):
+        """Replay an exact journal prefix in one fresh stateful target VM.
+
+        Use a fresh Client without an active campaign. The trusted config must
+        select the same pinned target build and persistent execution settings.
+        """
+        if not isinstance(config, dict):
+            raise BadConfig("config must be a campaign configuration dict")
+        if type(step) is not int or not 1 <= step <= 1000000:
+            raise BadConfig("step must be in 1..1000000")
+        return self._call("sequence_replay", {
+            "journal": str(Path(journal_path).resolve()),
+            "config": _json_value(config), "step": step})
 
     def _reap(self, deadline):
         process = self._process

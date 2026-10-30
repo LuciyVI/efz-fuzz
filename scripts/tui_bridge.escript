@@ -25,6 +25,8 @@ loop(Out) ->
         running -> receive after 500 -> loop(Out) end;
         _Status -> R=efz:await(15000),
             ok=efz_fs:atomic_file(filename:join(Out,"report.term"),term_to_binary(R)),
+            Summary=efz_control:report_summary(R,Out),
+            ok=efz_fs:atomic_file(filename:join(Out,"report.json"),efz_control_json:encode(Summary)),
             case maps:get(infrastructure_failures,maps:get(stats,R),0) of 0->ok;_->halt(1) end
     end.
 configuration("--demo-continuous",Root,Out)->
@@ -35,9 +37,17 @@ configuration("--demo",Root,Out)->
         outdir=>filename:join(Out,"target")}),
     #{target=>efz_example_target,seeds=>[<<0>>,<<"BOOM!">>],artifacts=>[A],
       mutation_mode=>staged,max_iterations=>10000,timeout=>1000,
+      runtime_oracles=>#{enabled=>true,resources=>#{enabled=>false},hangs=>#{enabled=>false},
+          stability=>#{enabled=>true,seed_runs=>20,interesting_runs=>3,
+              suspicious_runs=>3,failure_runs=>3,max_extra_executions=>1000}},
       mutation=>#{seed=>{17,23,41},stages=>[havoc]},selection_seed=>{17,23,41}};
 configuration(Path,_,_)->
-    {ok,[C]}=file:consult(Path),true=is_map(C),C.
+    {ok,[C]}=file:consult(Path),true=is_map(C),
+    case maps:take(artifacts_dir,C) of
+        {Dir,Rest}->{ok,Artifacts}=efz_instrument:discover(Dir),
+            Rest#{artifacts=>Artifacts};
+        error->C
+    end.
 
 portable(M) when is_map(M)->maps:from_list([{key(K),portable(V)}||{K,V}<-maps:to_list(M)]);
 portable(L) when is_list(L)->[portable(X)||X<-L];

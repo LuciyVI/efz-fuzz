@@ -39,7 +39,8 @@ request(M) ->
     1 = maps:get(<<"version">>,M),
     Id = integer(maps:get(<<"id">>,M),0,9007199254740991),
     Op = enum(maps:get(<<"op">>,M),[start,stats,request_stop,await_result,close,
-                                   mutate,mutate_batch,cancel,results,raw_replay]),
+                                   mutate,mutate_batch,cancel,results,raw_replay,
+                                   sequence_replay]),
     Args = maps:get(<<"args">>,M,#{}), true = is_map(Args),
     {Id,Op,Args}.
 keys(M, Allowed) when is_map(M) ->
@@ -64,11 +65,11 @@ bytes(#{<<"base64">>:=B}=M, Max) when is_binary(B) ->
 bytes(_,_) -> error(expected_base64_bytes).
 
 campaign(M) ->
-    Allowed=[target,seeds,artifacts,code_paths,out,timeout,workers,max_iterations,
+    Allowed=[target,seeds,benchmark_replay_inputs,artifacts,code_paths,out,timeout,workers,max_iterations,
         max_input_bytes,mutation_mode,mutation_provider,mutation,coverage,
         coverage_backend,coverage_feedback,coverage_bitmap_bits,coverage_validation,
         coverage_policy,corpus_dir,corpus_build_policy,random_seed,selection_seed,
-        monitoring,gleam_layer,crash_policy,runtime_oracles],
+        monitoring,gleam_layer,crash_policy,runtime_oracles,execution],
     keys(M,[atom_to_binary(A,utf8)||A<-Allowed]),
     Max=integer(maps:get(<<"max_input_bytes">>,M,4096),0,1048576),
     maps:from_list([{K,campaign_value(K,V,Max)} || K<-Allowed,
@@ -78,6 +79,9 @@ campaign_value(target,V,_) ->
 campaign_value(seeds,V,Max) ->
     true=is_list(V) andalso length(V)=<4096,
     Bs=[bytes(B,Max)||B<-V], true=lists:sum([byte_size(B)||B<-Bs])=<4194304, Bs;
+campaign_value(benchmark_replay_inputs,V,Max) ->
+    true=is_list(V) andalso V=/=[] andalso length(V)=<10000,
+    Bs=[bytes(B,Max)||B<-V],true=lists:sum([byte_size(B)||B<-Bs])=<4194304,Bs;
 campaign_value(K,V,_) when K=:=artifacts;K=:=out;K=:=corpus_dir -> path(V);
 campaign_value(code_paths,V,_) -> true=is_list(V) andalso length(V)=<64,[path(P)||P<-V];
 campaign_value(max_iterations,<<"infinity">>,_) -> infinity;
@@ -99,7 +103,31 @@ campaign_value(gleam_layer,V,_) -> gleam(V);
 campaign_value(crash_policy,V,_) -> object(V,#{reason=>fun(X)->enum(X,[category,exact,ignore]) end,
     max_frames=>fun(X)->integer(X,1,32) end,max_representatives=>fun(X)->integer(X,1,32) end});
 campaign_value(runtime_oracles,V,_) -> runtime(V);
+campaign_value(execution,V,_) -> object(V,#{
+    mode=>fun(X)->enum(X,[isolated,persistent_vm]) end,
+    state_policy=>fun(X)->enum(X,[accumulate]) end,
+    target_init=>fun(X)->target_init(X) end,
+    max_journal_bytes=>fun(X)->integer(X,4096,67108864) end,
+    max_result_bytes=>fun(X)->integer(X,1024,8388608) end,
+    durability=>fun(X)->enum(X,[buffered,fsynced]) end,
+    max_iterations_per_epoch=>fun(<<"infinity">>)->infinity;
+        (X)->integer(X,1,1000000) end,
+    max_epoch_ms=>fun(X)->integer(X,1,3600000) end,
+    max_vm_memory_bytes=>fun(X)->integer(X,1048576,1099511627776) end,
+    max_processes=>fun(X)->integer(X,1,1000000) end,
+    max_ets_tables=>fun(X)->integer(X,1,1000000) end,
+    max_ports=>fun(X)->integer(X,0,1000000) end,
+    max_driver_mailbox=>fun(X)->integer(X,0,1000000) end});
 campaign_value(K,_,_) -> error({invalid_campaign_option,K}).
+
+target_init(V) when is_map(V),map_size(V)=<32 ->
+    true=lists:all(fun(K)->is_binary(K) andalso byte_size(K)=<64 end,maps:keys(V)),
+    maps:from_list([{K,target_init_value(X)}||{K,X}<-maps:to_list(V)]);
+target_init(_) -> error(invalid_target_init).
+target_init_value(X) when is_binary(X),byte_size(X)=<4096 -> X;
+target_init_value(X) when is_integer(X),X>=0,X=<1000000000 -> X;
+target_init_value(X) when is_boolean(X) -> X;
+target_init_value(_) -> error(invalid_target_init_value).
 
 provider(V) when is_binary(V) -> enum(V,[native,erlamsa,hybrid]);
 provider(V) -> object(V,#{mode=>fun(X)->enum(X,[native,erlamsa,hybrid]) end,
@@ -160,9 +188,29 @@ gleam(V) -> object(V,#{adapter=>fun(X)->enum(X,[efz_qs_adapter]) end,
 boolean(B) when is_boolean(B) -> B;
 boolean(_) -> error(expected_boolean).
 runtime(V) -> object(V,#{enabled=>fun boolean/1,
-    stability=>fun(X)->integer_object(X,[seed_runs,interesting_runs,suspicious_runs,failure_runs,max_extra_executions]) end,
-    resources=>fun(X)->integer_object(X,[sample_interval_ms]) end,
-    hangs=>fun(X)->integer_object(X,[max_sample_age_ms]) end}).
+    stability=>fun(X)->runtime_stability(X) end,
+    resources=>fun(X)->runtime_part(X,[enabled],
+        [sample_interval_ms,max_samples,max_sampled_processes,ets_interval_ms,
+         max_ets_tables,memory_bytes,mailbox_messages,ets_memory_bytes,
+         residual_memory_bytes,quiescence_ms,memory_observation_timeout_ms]) end,
+    hangs=>fun(X)->runtime_part(X,[enabled],
+        [max_stack_frames,busy_reductions,max_sample_age_ms]) end}).
+runtime_stability(V) ->
+    Fs=runtime_part(maps:remove(<<"sequence">>,V),[enabled,compare_return],
+        [seed_runs,interesting_runs,suspicious_runs,failure_runs,max_extra_executions,
+         max_groups,max_features_per_group]),
+    case maps:find(<<"sequence">>,V) of
+        {ok,Seq}->Fs#{sequence=>object(Seq,#{
+            policy=>fun(X)->enum(X,[off,deferred,preflight_and_deferred]) end,
+            repeats=>fun(X)->integer(X,2,256) end,
+            max_calls=>fun(X)->integer(X,0,100000) end,
+            max_elapsed_ms=>fun(X)->integer(X,100,3600000) end})};
+        error->Fs
+    end.
+runtime_part(V,Bools,Ints)->
+    BooleanFields=maps:from_list([{K,fun boolean/1}||K<-Bools]),
+    IntegerFields=maps:from_list([{K,fun(X)->integer(X,0,1099511627776) end}||K<-Ints]),
+    object(V,maps:merge(BooleanFields,IntegerFields)).
 integer_object(V,Ks) -> object(V,maps:from_list([{K,fun(X)->integer(X,0,1073741824) end}||K<-Ks])).
 object(V,Fs) ->
     keys(V,[atom_to_binary(K,utf8)||K<-maps:keys(Fs)]),

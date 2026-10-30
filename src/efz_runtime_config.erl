@@ -4,7 +4,10 @@
 defaults() ->
     #{enabled=>false,
       stability=>#{enabled=>true,seed_runs=>3,interesting_runs=>3,suspicious_runs=>3,
-          failure_runs=>3,compare_return=>false,max_extra_executions=>1000},
+          failure_runs=>3,compare_return=>false,max_extra_executions=>1000,
+          max_groups=>128,max_features_per_group=>8192,
+          sequence=>#{policy=>deferred,repeats=>3,max_calls=>1000,
+              max_elapsed_ms=>60000}},
       resources=>#{enabled=>true,sample_interval_ms=>20,max_samples=>64,
           max_sampled_processes=>128,ets_interval_ms=>100,max_ets_tables=>256,
           memory_bytes=>67108864,mailbox_messages=>1000,ets_memory_bytes=>16777216,
@@ -20,9 +23,17 @@ prepare(C) when is_map(C) ->
                 A#{K=>maps:merge(M,U)};
             _->A#{K=>maps:get(K,C,V)} end end,#{},D),
         true=is_boolean(maps:get(enabled,R)),
-        S=maps:get(stability,R),bool(S,enabled),bool(S,compare_return),
-        [range(S,K,1,16)||K<-[seed_runs,interesting_runs,suspicious_runs,failure_runs]],
+        S0=maps:get(stability,R),
+        SeqDefaults=maps:get(sequence,maps:get(stability,D)),
+        SeqInput=maps:get(sequence,S0),true=is_map(SeqInput),unknown(SeqInput,SeqDefaults),
+        Seq=maps:merge(SeqDefaults,SeqInput),
+        S=S0#{sequence=>Seq},bool(S,enabled),bool(S,compare_return),
+        true=lists:member(maps:get(policy,Seq),[off,deferred,preflight_and_deferred]),
+        range(Seq,repeats,2,256),range(Seq,max_calls,0,100000),
+        range(Seq,max_elapsed_ms,100,3600000),
+        [range(S,K,1,256)||K<-[seed_runs,interesting_runs,suspicious_runs,failure_runs]],
         range(S,max_extra_executions,0,1000000),
+        range(S,max_groups,1,1024),range(S,max_features_per_group,1,65536),
         P=maps:get(resources,R),bool(P,enabled),range(P,sample_interval_ms,1,10000),
         range(P,max_samples,2,256),range(P,max_sampled_processes,1,256),
         range(P,ets_interval_ms,10,60000),range(P,max_ets_tables,1,4096),
@@ -38,7 +49,7 @@ prepare(C) when is_map(C) ->
         true=maps:get(max_total_metadata_bytes,T)>=maps:get(max_metadata_bytes,T),
         %% Upper bound on resident sample slots (not a byte-accurate VM allocation limit).
         true=maps:get(max_samples,P)*maps:get(max_sampled_processes,P)=<32768,
-        {ok,R}
+        {ok,R#{stability=>S}}
     catch error:_->{error,invalid_runtime_oracles} end;
 prepare(_)->{error,invalid_runtime_oracles}.
 unknown(C,D)->true=(maps:keys(C)--maps:keys(D)=:=[]).

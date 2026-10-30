@@ -33,11 +33,28 @@ snapshot(S) ->
           {manual,_}->manual_units;{_,otp_native_public}->lines;{_,none}->disabled;_->probes end,
       covered_functions=>functions(Coverage,maps:get(monitor_index,S)),
       stats=>maps:remove(primary_infrastructure_failure,efz_stats:get()),corpus_size=>efz_corpus:size(),
-      outcomes=>maps:get(monitor_counts,S,#{}),last=>maps:get(monitor_last,S,null)},
+      outcomes=>maps:get(monitor_counts,S,#{}),last=>maps:get(monitor_last,S,null),
+      feature_stability=>efz_stability:public(maps:get(feature_stability,S))},
+    WithTarget=case maps:find(target_journal,S) of
+        {ok,J}->Base#{target_report_schema_version=>1,
+            target_execution=>maps:get(execution,S),
+            target_session=>maps:get(target_session_info,S,#{}),
+            sequence_journal=>efz_sequence_journal:public(J),
+            history_sensitivity=>maps:get(history_sensitivity,S,#{}),
+            target_phase=>primary,
+            target_audit=>maps:get(target_audit,S,#{status=>not_measured})};
+        error->case maps:get(mode,maps:get(execution,S)) of
+            persistent_vm->Base#{target_report_schema_version=>1,
+                target_execution=>maps:get(execution,S),
+                target_phase=>preflight,target_audit=>maps:get(target_audit,S,
+                    #{status=>pending,phase=>preflight})};
+            isolated->Base
+        end
+    end,
     case maps:find(provider,maps:get(mutation,S,#{})) of
-        {ok,P}->Base#{provider=>maps:without([core_context,core_path],P),
+        {ok,P}->WithTarget#{provider=>maps:without([core_context,core_path],P),
             provider_stats=>maps:get(provider_stats,S,#{})};
-        error->Base
+        error->WithTarget
     end.
 functions(Points,Index) ->
     lists:sublist(lists:usort([maps:get(P,Index)||P<-Points,maps:is_key(P,Index)]),64).
