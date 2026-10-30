@@ -1,5 +1,7 @@
 # Erlamsa provider performance and persistent sessions
 
+Localized quick references: [Русский](i18n/ru/erlamsa-performance.md) · [Español](i18n/es/erlamsa-performance.md) · [简体中文](i18n/zh-CN/erlamsa-performance.md).
+
 The default mutation transport remains `disposable` for older configs and
 one-shot requests. For a campaign or a `pyefz.Client` that makes repeated
 Erlamsa requests, set `mutation_provider.transport` to `persistent`; the

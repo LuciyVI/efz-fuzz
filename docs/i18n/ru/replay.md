@@ -323,3 +323,7 @@ Runtime schema v1 независима от crash expectations/recipes. Replay �
 различает `observed`, `not_observed`, `inconclusive`, включая sample count и
 repeatability. Один успешный repeat не опровергает instability.
 [Полный формат и лимиты](runtime-diagnostics.md).
+
+### Провайдер и raw replay
+
+Сохранённые байты можно воспроизвести без Erlamsa. Регенерация кандидата требует совместимых build/config identity и явно сообщает о несовпадении. См. [краткое руководство](erlamsa-integration.md).

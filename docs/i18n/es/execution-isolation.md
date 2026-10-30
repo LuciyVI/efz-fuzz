@@ -210,3 +210,7 @@ monitor/ciclo de vida acotado de sampler al guardian; propiedad, compuertas, bar
 y reglas dirty-runner siguen siendo la autoridad. El fallo del sampler aporta evidencia diagnóstica
 parcial; un fallo del guardian o del ciclo de vida no confirmado aún retira la VM. Las muertes de
 limpieza no son fugas de procesos. Véase [diagnóstico runtime](runtime-diagnostics.md).
+
+### VM externas independientes
+
+La VM persistente del proveedor Erlamsa sólo genera mutaciones y no ejecuta el objetivo. Su ciclo de vida no cambia la ejecución aislada predeterminada del objetivo. Véase la [guía del worker](erlamsa-performance.md).

@@ -422,3 +422,10 @@ ERL_FLAGS='+S 4:4' escript scripts/fuzz.escript \
 
 Режим supervised намеренно недоступен на системах без Linux: гарантии очистки
 worker и завершения при смерти родителя не ослабляются молча.
+
+## Новые возможности и актуальные инструкции
+
+- [Erlamsa](erlamsa-integration.md)
+- [Persistent worker](erlamsa-performance.md)
+- [Feature stability](feature-stability.md)
+- [Python SDK](packages/pyefz/README.md)

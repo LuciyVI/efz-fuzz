@@ -86,3 +86,10 @@
 - [План реализации bitmap coverage backend](plans/coverage-bitmap-implementation-plan.md)
 
 [Исходники и изображения UML-диаграмм](diagrams/README.md) сопровождаются отдельно.
+
+## Новые возможности и актуальные инструкции
+
+- [Erlamsa](erlamsa-integration.md)
+- [Persistent worker](erlamsa-performance.md)
+- [Feature stability](feature-stability.md)
+- [Python SDK](packages/pyefz/README.md)

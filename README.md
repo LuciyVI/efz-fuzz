@@ -17,6 +17,9 @@ Optional local Erlamsa provider: [configuration and replay](docs/erlamsa-integra
 [validation](docs/erlamsa-validation.md) · [measurements](docs/erlamsa-benchmark.md).
 Mutation providers and semantic adapters are independent settings. Native builds
 need neither Erlamsa nor Gleam. See the [local Python SDK](packages/pyefz/README.md).
+The optional persistent provider worker has a separate [lifecycle guide](docs/erlamsa-performance.md).
+Live [feature stability](docs/feature-stability.md) audits repeated coverage traces;
+it is opt-in and does not change the default mutation path.
 
 TUI: [terminal campaign dashboard](docs/tui.md) — `python3 scripts/tui.py --demo --out _build/tui-demo-1`.
 

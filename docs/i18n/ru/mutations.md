@@ -324,3 +324,7 @@ candidate/retention decision, а не доказательство, что ка�
 не объединяют crash-only coverage с successful-corpus novelty. Ограничения
 one-worker, one-target-process и fixed-build coverage/isolation из
 [coverage.md](coverage.md) по-прежнему действуют.
+
+### Erlamsa как источник кандидатов
+
+`native` остаётся режимом по умолчанию. `erlamsa` и `hybrid` включаются явно; semantic adapter настраивается независимо. Для core нужен закреплённый submodule и отдельная сборка. См. [краткое руководство](erlamsa-integration.md).

@@ -350,3 +350,10 @@ ERL_FLAGS='+S 4:4' escript scripts/fuzz.escript \
 ```
 
 非 Linux 系统刻意不提供 supervised 模式，而非悄悄削弱 worker 清理与父进程死亡保证。
+
+## 新增集成与当前指南
+
+- [Erlamsa](erlamsa-integration.md)
+- [Persistent worker](erlamsa-performance.md)
+- [Feature stability](feature-stability.md)
+- [Python SDK](packages/pyefz/README.md)
