@@ -10,6 +10,10 @@ run(Input) ->
     after finish_session(State) end.
 
 init_session(Config) ->
+    case maps:get(native_nif_dir,Config,undefined) of
+        undefined->ok;
+        NifDir when is_list(NifDir)->true=code:add_patha(NifDir)
+    end,
     put(efz_persistent_count,0),
     Table=ets:new(efz_persistent_fixture,[set,private]),
     {ok,Service}=efz_stateful_counter:start_link(),
@@ -39,6 +43,16 @@ handle_input(Input,#{table:=Table,service:=Service,variation:=Variation,
         <<"checkmail">> -> receive persistent_marker->mail_present
                              after 0->mail_absent end;
         <<"hang">> -> receive stop_hang->unexpected end;
+        <<"native_hang">> ->
+            %% Fixed test-only module name; the NIF is loaded only in the child VM.
+            NativeModule=binary_to_atom(<<"efz_native_fixture">>,utf8),
+            erlang:apply(NativeModule,act,[<<"HANG">>]);
+        <<"detach">> ->
+            Setsid=os:find_executable("setsid"),
+            Sleep=os:find_executable("sleep"),
+            Port=open_port({spawn_executable,Setsid},[exit_status,{args,["-w",Sleep,"30"]}]),
+            {os_pid,DetachedPid}=erlang:port_info(Port,os_pid),
+            {detached,DetachedPid};
         <<"boom">> -> erlang:error(synthetic_target_crash);
         <<"large">> -> binary:copy(<<"x">>,2048);
         <<"helper">> ->

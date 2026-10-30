@@ -70,7 +70,12 @@ handle_call({run,Input,Timeout},_,S=#{peer:=Peer,status:=ready}) ->
             Result=Remote#{execution_ref=>make_ref(),
                 execution_identities=>maps:get(pins,S),
                 target_vm_elapsed_us=>erlang:monotonic_time(microsecond)-Started},
-            Next=S#{step=>maps:get(step,S)+1},
+            %% Keep a bounded identity snapshot of target-owned OS children.
+            %% A child may leave the VM process group with setsid while still
+            %% remaining a descendant in /proc.
+            Next=S#{step=>maps:get(step,S)+1,
+                owned_os=>merge_owned(maps:get(owned_os,S,[]),
+                    owned_descendants(maps:get(os_pid,S)))},
             case maps:get(runner_reusable,Result,false) of
                 true->{reply,{ok,Result},Next};
                 false->{reply,{ok,Result},retire(Next,force)}
@@ -88,7 +93,9 @@ handle_cast(_,S) -> {noreply,S}.
 handle_info({'DOWN',Mon,process,Owner,_},S=#{owner_mon:=Mon,owner:=Owner}) ->
     {stop,owner_down,S};
 handle_info({'EXIT',Peer,_},S=#{peer:=Peer}) ->
-    kill_group(maps:get(os_pid,S)),{noreply,S#{status=>down}};
+    kill_group(maps:get(os_pid,S)),
+    kill_owned(maps:get(owned_os,S,[])),
+    {noreply,S#{status=>down}};
 handle_info(_,S) -> {noreply,S}.
 terminate(Reason,S) ->
     _=retire(S,case Reason of normal->orderly;_->force end),ok.
@@ -97,12 +104,61 @@ code_change(_,S,_) -> {ok,S}.
 retire(S)->retire(S,orderly).
 retire(#{status:=down}=S,_) -> S;
 retire(S=#{peer:=Peer},Policy) ->
+    Owned=merge_owned(maps:get(owned_os,S,[]),
+        owned_descendants(maps:get(os_pid,S))),
     case Policy of
         force->kill_group(maps:get(os_pid,S));
         orderly->_=try peer:call(Peer,efz_target_vm,stop,[],500) catch _:_ -> ok end
     end,
     _=try peer:stop(Peer) catch _:_ -> kill_os(maps:get(os_pid,S)) end,
+    kill_owned(Owned),
     S#{status=>down}.
+
+%% /proc task children includes children launched by any BEAM scheduler thread.
+%% The recorded start-time prevents signalling a recycled PID. This cleanup is
+%% bounded and does not claim to capture a child that double-forked and was
+%% reparented before the snapshot.
+owned_descendants(Root) -> owned_descendants([Root],#{Root=>true},[],1024).
+owned_descendants(_,_,Found,0) -> Found;
+owned_descendants([],_,Found,_) -> Found;
+owned_descendants([Pid|Rest],Seen,Found,Left) ->
+    Children=lists:usort(lists:flatmap(fun(Path)->
+        case file:read_file(Path) of
+            {ok,Bin}->[list_to_integer(Token)||Token<-string:tokens(binary_to_list(Bin)," \t\n"),
+                Token=/=[],lists:all(fun(C)->C>=$0 andalso C=<$9 end,Token)];
+            _->[]
+        end
+    end,filelib:wildcard("/proc/"++integer_to_list(Pid)++"/task/*/children"))),
+    New=[C||C<-Children,not maps:is_key(C,Seen)],
+    Allowed=lists:sublist(New,Left),
+    Entries=[{C,Start}||C<-Allowed,(Start=proc_start(C))=/=undefined],
+    MoreSeen=lists:foldl(fun(C,A)->A#{C=>true} end,Seen,Allowed),
+    owned_descendants(Rest++Allowed,MoreSeen,Entries++Found,Left-length(Allowed)).
+
+merge_owned(A,B) -> maps:values(maps:from_list([{Pid,{Pid,Start}}||
+    {Pid,Start}<-A++B,proc_start(Pid)=:=Start])).
+
+kill_owned(Entries) ->
+    lists:foreach(fun({Pid,Start})->
+        case proc_start(Pid) of Start->kill_os(Pid);_->ok end
+    end,Entries).
+
+proc_start(Pid) ->
+    case file:read_file("/proc/"++integer_to_list(Pid)++"/stat") of
+        {ok,Bin}->
+            case binary:matches(Bin,<<") ">>) of
+                []->undefined;
+                Matches->
+                    {At,_}=lists:last(Matches),
+                    Tail=binary:part(Bin,At+2,byte_size(Bin)-At-2),
+                    Fields=string:tokens(binary_to_list(Tail)," \t\n"),
+                    case length(Fields)>=20 of
+                        true->lists:nth(20,Fields);
+                        false->undefined
+                    end
+            end;
+        _->undefined
+    end.
 kill_group(Pid) when is_integer(Pid),Pid>1 ->
     case os:find_executable("kill") of
         false->kill_os(Pid);

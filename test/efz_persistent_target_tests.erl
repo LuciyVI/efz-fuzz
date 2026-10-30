@@ -17,6 +17,10 @@ preflight_sequential_test_() -> {timeout,60,fun preflight_sequential/0}.
 result_bound_test_() -> {timeout,30,fun result_bound/0}.
 session_budget_test_() -> {timeout,30,fun session_budget/0}.
 crash_ends_epoch_test_() -> {timeout,60,fun crash_ends_epoch/0}.
+native_nif_timeout_reaps_test_() -> {timeout,30,fun native_nif_timeout_reaps/0}.
+detached_os_child_reaps_test_() -> {timeout,30,fun detached_os_child_reaps/0}.
+detached_child_after_native_timeout_test_() ->
+    {timeout,30,fun detached_child_after_native_timeout/0}.
 json_configuration_test() ->
     C=efz_control_json:campaign(#{<<"target">>=><<"efz_persistent_fixture">>,
         <<"execution">>=>#{<<"mode">>=><<"persistent_vm">>,
@@ -127,6 +131,79 @@ timeout_retires_epoch() ->
         ?assertEqual(false,maps:get(runner_reusable,R)),
         ?assertEqual({error,epoch_retired},efz_target_session:run(Session,<<"fire">>,100))
     after efz_target_session:close(Session),unload() end.
+
+native_nif_timeout_reaps() ->
+    {_Base,C0,_}=prepared(),
+    Dir=compile_native_fixture(),
+    Exec=(maps:get(execution,C0))#{target_init=>#{native_nif_dir=>Dir}},
+    C=C0#{execution=>Exec},
+    try
+        {ok,Session}=efz_target_session:open(C),
+        Pid=maps:get(os_pid,efz_target_session:info(Session)),
+        try
+            {ok,R}=efz_target_session:run(Session,<<"native_hang">>,100),
+            ?assertMatch({timeout,_},maps:get(outcome,R)),
+            ?assertEqual(false,maps:get(runner_reusable,R)),
+            ?assertEqual({error,epoch_retired},
+                efz_target_session:run(Session,<<"fire">>,100))
+        after efz_target_session:close(Session) end,
+        wait_process_dead(Pid,2000)
+    after file:del_dir_r(Dir),unload() end.
+
+detached_os_child_reaps() ->
+    {_Base,C,_}=prepared(),
+    {ok,Session}=efz_target_session:open(C),
+    Root=maps:get(os_pid,efz_target_session:info(Session)),
+    try
+        {ok,R}=efz_target_session:run(Session,<<"detach">>,3000),
+        {detached,Child}=reply(R),
+        ?assert(filelib:is_dir("/proc/"++integer_to_list(Child))),
+        ?assertNotEqual(Root,Child),
+        ?assertEqual(Child,process_group(Child)),
+        ok=efz_target_session:close(Session),
+        wait_process_dead(Root,2000),
+        wait_process_dead(Child,2000)
+    after efz_target_session:close(Session),unload() end.
+
+detached_child_after_native_timeout() ->
+    {_Base,C0,_}=prepared(),
+    Dir=compile_native_fixture(),
+    Exec=(maps:get(execution,C0))#{target_init=>#{native_nif_dir=>Dir}},
+    C=C0#{execution=>Exec},
+    try
+        {ok,Session}=efz_target_session:open(C),
+        Root=maps:get(os_pid,efz_target_session:info(Session)),
+        try
+            {ok,A}=efz_target_session:run(Session,<<"detach">>,3000),
+            {detached,Child}=reply(A),
+            ?assertEqual(Child,process_group(Child)),
+            {ok,B}=efz_target_session:run(Session,<<"native_hang">>,100),
+            ?assertMatch({timeout,_},maps:get(outcome,B)),
+            wait_process_dead(Root,2000),
+            wait_process_dead(Child,2000)
+        after efz_target_session:close(Session) end
+    after file:del_dir_r(Dir),unload() end.
+
+process_group(Pid) ->
+    {ok,Bin}=file:read_file("/proc/"++integer_to_list(Pid)++"/stat"),
+    {At,_}=lists:last(binary:matches(Bin,<<") ">>)),
+    Fields=string:tokens(binary_to_list(binary:part(Bin,At+2,
+        byte_size(Bin)-At-2))," \t\n"),
+    list_to_integer(lists:nth(3,Fields)).
+
+compile_native_fixture() ->
+    Dir="_build/persistent-native-"++integer_to_list(erlang:unique_integer([positive])),
+    ok=file:make_dir(Dir),
+    {ok,efz_native_fixture}=compile:file("fixtures/external/efz_native_fixture.erl",
+        [{outdir,Dir},report_errors,report_warnings]),
+    CC=os:find_executable("cc"),
+    Include=filename:join([code:root_dir(),"usr","include"]),
+    Port=open_port({spawn_executable,CC},[exit_status,{args,["-O2","-fPIC",
+        "-shared","-I",Include,"-o",filename:join(Dir,"efz_native_fixture.so"),
+        "fixtures/external/efz_native_fixture.c"]}]),
+    receive {Port,{exit_status,0}}->Dir;
+        {Port,{exit_status,_}}->error(native_fixture_compile_failed)
+    after 5000->error(native_fixture_compile_timeout) end.
 
 thousand_steps_one_vm() ->
     {_Dir,C,_}=prepared(),
