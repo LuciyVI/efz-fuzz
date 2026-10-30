@@ -73,12 +73,18 @@ handle_call({run,Input,Timeout},_,S=#{peer:=Peer,status:=ready}) ->
             %% Keep a bounded identity snapshot of target-owned OS children.
             %% A child may leave the VM process group with setsid while still
             %% remaining a descendant in /proc.
+            {TreeStatus,Tree}=owned_descendants(maps:get(os_pid,S)),
             Next=S#{step=>maps:get(step,S)+1,
-                owned_os=>merge_owned(maps:get(owned_os,S,[]),
-                    owned_descendants(maps:get(os_pid,S)))},
-            case maps:get(runner_reusable,Result,false) of
-                true->{reply,{ok,Result},Next};
-                false->{reply,{ok,Result},retire(Next,force)}
+                owned_os=>merge_owned(maps:get(owned_os,S,[]),Tree)},
+            case TreeStatus of
+                limit ->
+                    {reply,{error,{infrastructure,target_os_descendant_limit}},
+                        retire(Next,force)};
+                complete ->
+                    case maps:get(runner_reusable,Result,false) of
+                        true->{reply,{ok,Result},Next};
+                        false->{reply,{ok,Result},retire(Next,force)}
+                    end
             end;
         Other -> {reply,{error,{target_vm_protocol,Other}},retire(S,force)}
     catch exit:{timeout,_} ->
@@ -104,8 +110,8 @@ code_change(_,S,_) -> {ok,S}.
 retire(S)->retire(S,orderly).
 retire(#{status:=down}=S,_) -> S;
 retire(S=#{peer:=Peer},Policy) ->
-    Owned=merge_owned(maps:get(owned_os,S,[]),
-        owned_descendants(maps:get(os_pid,S))),
+    {_,Tree}=owned_descendants(maps:get(os_pid,S)),
+    Owned=merge_owned(maps:get(owned_os,S,[]),Tree),
     case Policy of
         force->kill_group(maps:get(os_pid,S));
         orderly->_=try peer:call(Peer,efz_target_vm,stop,[],500) catch _:_ -> ok end
@@ -119,8 +125,8 @@ retire(S=#{peer:=Peer},Policy) ->
 %% bounded and does not claim to capture a child that double-forked and was
 %% reparented before the snapshot.
 owned_descendants(Root) -> owned_descendants([Root],#{Root=>true},[],1024).
-owned_descendants(_,_,Found,0) -> Found;
-owned_descendants([],_,Found,_) -> Found;
+owned_descendants([],_,Found,_) -> {complete,Found};
+owned_descendants(_,_,Found,0) -> {limit,Found};
 owned_descendants([Pid|Rest],Seen,Found,Left) ->
     Children=lists:usort(lists:flatmap(fun(Path)->
         case file:read_file(Path) of
@@ -133,7 +139,11 @@ owned_descendants([Pid|Rest],Seen,Found,Left) ->
     Allowed=lists:sublist(New,Left),
     Entries=[{C,Start}||C<-Allowed,(Start=proc_start(C))=/=undefined],
     MoreSeen=lists:foldl(fun(C,A)->A#{C=>true} end,Seen,Allowed),
-    owned_descendants(Rest++Allowed,MoreSeen,Entries++Found,Left-length(Allowed)).
+    case length(New)>Left of
+        true->{limit,Entries++Found};
+        false->owned_descendants(Rest++Allowed,MoreSeen,
+            Entries++Found,Left-length(Allowed))
+    end.
 
 merge_owned(A,B) -> maps:values(maps:from_list([{Pid,{Pid,Start}}||
     {Pid,Start}<-A++B,proc_start(Pid)=:=Start])).
