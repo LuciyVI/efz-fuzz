@@ -1,5 +1,7 @@
 # Stateful persistent target VM (first implementation)
 
+Localized quick references: [Русский](i18n/ru/persistent-target.md) · [Español](i18n/es/persistent-target.md) · [简体中文](i18n/zh-CN/persistent-target.md).
+
 `execution => #{mode => persistent_vm, state_policy => accumulate}` starts one
 separate OTP VM for the target epoch. The target driver PID survives successive
 inputs. Its process dictionary, mailbox, callback state and target-owned OTP
@@ -16,6 +18,16 @@ stops the peer. It does not resume a partly interrupted target state or start
 another primary VM automatically. `target_epoch_terminated` is distinct from
 provider or EFZ infrastructure failure. A normal returned target error does
 not retire the epoch.
+
+On Linux, the session owner also records a bounded `/proc` descendant snapshot
+after each completed step and immediately before retirement. It checks each
+recorded PID's kernel start time before signalling it, so a target child that
+entered a new process group with `setsid` is still terminated. The synthetic
+tests cover orderly close and an external timeout while a native NIF blocks the
+target VM. This is not an OS container: a child that double-forks and is
+reparented before any snapshot, or more than 1024 live descendants, exceeds
+the proven cleanup boundary. Run such targets under a dedicated OS supervisor
+or cgroup and keep the epoch resource budgets conservative.
 
 Target callbacks can use the existing `run(Binary)` contract; it is invoked
 repeatedly in the same driver process. For explicit state, export all three:

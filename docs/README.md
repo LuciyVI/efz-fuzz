@@ -51,6 +51,7 @@ paths are retained as provenance.
 - [Erlamsa provider and replay](erlamsa-integration.md)
 - [Erlamsa persistent worker](erlamsa-performance.md)
 - [Feature stability](feature-stability.md)
+- [Persistent target VM and sequence audit](persistent-target.md)
 - [Python SDK](../packages/pyefz/README.md)
 - [hit count experiment](hit-count-experiment.md)
 - [input and storage](input-and-storage.md)

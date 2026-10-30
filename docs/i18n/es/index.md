@@ -93,3 +93,5 @@ Las [fuentes e imágenes de los diagramas UML](diagrams/README.md) se mantienen 
 - [Persistent worker](erlamsa-performance.md)
 - [Feature stability](feature-stability.md)
 - [Python SDK](packages/pyefz/README.md)
+
+- [VM persistente del objetivo](persistent-target.md)

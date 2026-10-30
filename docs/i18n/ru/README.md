@@ -429,3 +429,5 @@ worker и завершения при смерти родителя не осл�
 - [Persistent worker](erlamsa-performance.md)
 - [Feature stability](feature-stability.md)
 - [Python SDK](packages/pyefz/README.md)
+
+- [Постоянная VM тестируемой цели](persistent-target.md)

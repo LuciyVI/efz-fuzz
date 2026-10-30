@@ -191,10 +191,11 @@ The implementation is described in [coverage API, supported syntax, manifests, m
 [architecture decision record](docs/adr/0002-automatic-coverage.md) and
 [validation results](docs/phase2-validation.md).
 
-Coverage and cleanup include the root and controlled child processes.
-Arbitrarily spawned children, stateful OTP applications, shared VM state, native
-failures, distributed campaigns, grammar-aware mutations and corpus minimization
-are outside this phase. An Erlang process is not a VM- or OS-level sandbox.
+In the default isolated mode, coverage and cleanup include the root and
+controlled child processes. The opt-in persistent target mode has a separate
+[epoch and coverage-window contract](docs/persistent-target.md). An Erlang
+process alone is not a VM- or OS-level sandbox. Distributed campaigns and
+arbitrary VM snapshots are outside these execution modes.
 
 Exact coverage identities are validated once per campaign. The default `ets`
 backend uses `insert_new` and independently reports the first observation to the
@@ -410,3 +411,6 @@ ERL_FLAGS='+S 4:4' escript scripts/fuzz.escript \
 
 Supervised mode is deliberately unavailable on non-Linux systems rather than
 silently weakening worker cleanup and parent-death guarantees.
+
+The opt-in [persistent target VM](docs/persistent-target.md) retains target state
+within an epoch and supports sequence journal, replay and same-sequence audits.

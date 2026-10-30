@@ -357,3 +357,5 @@ ERL_FLAGS='+S 4:4' escript scripts/fuzz.escript \
 - [Persistent worker](erlamsa-performance.md)
 - [Feature stability](feature-stability.md)
 - [Python SDK](packages/pyefz/README.md)
+
+- [持久目标 VM](persistent-target.md)

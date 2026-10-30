@@ -266,6 +266,11 @@
       "source": "packages/pyefz/README.md",
       "localized": "packages/pyefz/README.md",
       "translation_status": "summary"
+    },
+    {
+      "source": "docs/persistent-target.md",
+      "localized": "persistent-target.md",
+      "translation_status": "summary"
     }
   ]
 }

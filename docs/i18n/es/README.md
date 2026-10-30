@@ -442,3 +442,5 @@ worker y de muerte del padre.
 - [Persistent worker](erlamsa-performance.md)
 - [Feature stability](feature-stability.md)
 - [Python SDK](packages/pyefz/README.md)
+
+- [VM persistente del objetivo](persistent-target.md)
