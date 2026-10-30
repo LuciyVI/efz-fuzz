@@ -42,6 +42,7 @@ help() ->
     "  --timeout MS             Per-input timeout, nonnegative integer (default: 100)\n"
     "  --max-iterations N|infinity  Mutation limit; infinity runs until stopped\n"
     "                           Stop infinity campaigns with OUT/stop.request\n"
+    "  --stop-after-no-new-coverage-seconds N  Stop after N seconds without new target coverage (1..86400)\n"
     "  --max-input-bytes N      Campaign/replay input bound, 0..1048576 (default: 4096)\n"
     "  --gleam-layer            Enable legacy optional QS layer; new adapters use --config (build profile gleam)\n"
     "  --structured-fraction N  Structured branch percent 0..100 (default: 10)\n"
@@ -120,6 +121,7 @@ option("--provider-max-requests") -> provider_max_requests;
 option("--provider-core") -> provider_core;
 option("--timeout") -> timeout;
 option("--max-iterations") -> max_iterations;
+option("--stop-after-no-new-coverage-seconds") -> stop_after_no_new_coverage_seconds;
 option("--max-input-bytes") -> max_input_bytes;
 option(Unknown) -> fail("Unknown option: ~ts (use --help)", [Unknown]).
 value(target, Name) when Name =/= [], length(Name) =< 255 -> Name;
@@ -170,6 +172,8 @@ value(coverage_feedback, "presence") -> presence;
 value(coverage_feedback, "hit_count") -> hit_count;
 value(coverage_feedback, _) -> fail("--coverage-feedback must be presence or hit_count", []);
 value(max_iterations,"infinity")->infinity;
+value(stop_after_no_new_coverage_seconds,Text)->
+    provider_integer(Text,1,86400,"--stop-after-no-new-coverage-seconds");
 value(K, Text) when K =:= timeout; K =:= max_iterations; K =:= max_input_bytes; K =:= runtime_runs; K =:= verification_budget; K =:= sample_interval; K=:=structured_fraction; K=:=oracle_budget ->
     case Text =/= [] andalso lists:all(fun(C) -> C >= $0 andalso C =< $9 end, Text) of
         true -> list_to_integer(Text);
@@ -198,7 +202,7 @@ launch(#{config_file:=Path}=O) ->
         Other->fail("Config must contain one campaign map: ~tp",[Other]) end,
     case maps:find(out,O) of error->fail("--config requires --out",[]);{ok,_}->ok end,
     C1=maps:merge(C0,maps:with([corpus_dir,corpus_build_policy,coverage_policy,coverage_feedback,
-        mutation_mode,timeout,max_iterations,max_input_bytes],O)),
+        mutation_mode,timeout,max_iterations,max_input_bytes,stop_after_no_new_coverage_seconds],O)),
     C2=case maps:find(artifacts,O) of error->C1;{ok,Dir}->
         C1#{artifacts=>require(efz_instrument:discover(Dir),"Invalid artifacts")} end,
     C3=case maps:find(target,O) of error->C2;{ok,Name}->
@@ -258,7 +262,8 @@ launch(O) ->
     Crashes = filename:join(Out, "crashes"),
     writable_directory(Out), writable_directory(Crashes),
     try
-        case efz:start(maps:merge(C#{crash_dir => Crashes}, maps:with([corpus_dir,corpus_build_policy,coverage_policy,coverage_feedback],O))) of
+        case efz:start(maps:merge(C#{crash_dir => Crashes}, maps:with([corpus_dir,corpus_build_policy,coverage_policy,coverage_feedback,
+            stop_after_no_new_coverage_seconds],O))) of
             {ok, _} -> finish(await_campaign(C,Out), Out);
             {error, Why} -> fail("Cannot start campaign: ~ts", [start_error(Why)])
         end
@@ -390,6 +395,7 @@ finish(Report, Out) ->
         stopped_by_user -> 0;
         {mutation_exhausted, _} -> 0;
         {mutation_stopped, idle_budget_exhausted} -> 0;
+        {stopped,no_new_coverage} -> 0;
         _ -> io:format(standard_error, "EFZ infrastructure failure: ~tp~n", [Status]), 1
     end.
 

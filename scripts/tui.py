@@ -24,6 +24,21 @@ def chart(values, width):
     return ''.join(blocks[min(7, max(0, int(v / high * 7)))] for v in values)
 
 
+def coverage_idle_line(snapshot):
+    data = snapshot.get('coverage_idle')
+    if not isinstance(data, dict) or data.get('enabled') is not True:
+        return ''
+    limit = data.get('limit_seconds')
+    elapsed = data.get('elapsed_ms')
+    if type(limit) is not int or limit < 1:
+        return ''
+    if data.get('status') == 'waiting_for_mutation':
+        return f'No new coverage: waiting / {limit}s'
+    if type(elapsed) is int and elapsed >= 0:
+        return f'No new coverage: {elapsed / 1000:.1f}s / {limit}s'
+    return f'No new coverage: limit {limit}s'
+
+
 def stability_lines(snapshot, age_seconds=None):
     data = snapshot.get('feature_stability')
     if not isinstance(data, dict):
@@ -322,6 +337,7 @@ def screen(stdscr, directory, process=None):
                     coverage += f' / {total} ({covered / total:.0%})'
                 put(6, 1, 'COVERAGE  ' + coverage, accent)
                 put(8, 1, chart(samples.coverage, left_width))
+                put(9, 1, coverage_idle_line(snap)[:left_width])
                 limit = snap.get('max_iterations', '∞')
                 if limit == 'infinity':
                     limit = '∞'

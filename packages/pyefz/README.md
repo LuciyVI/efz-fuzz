@@ -123,6 +123,7 @@ with Client("/absolute/path/to/efz", code_paths=["/trusted/harness-ebin"]) as ef
         "mutation_provider": "native",
         "mutation": {"seed": [17, 23, 41], "stages": ["havoc"]},
         "max_iterations": "infinity",
+        "stop_after_no_new_coverage_seconds": 60,
         "timeout": 100,
     }, out="/absolute/path/to/new-output")
     print(campaign.stats())
@@ -138,6 +139,9 @@ the current bounded target execution. Unsupported campaign keys and adapters
 raise `BadConfig`. The JSON adapter supports the usual campaign scalar options,
 raw seeds, artifact directories, corpus options, staged mutation options,
 bounded runtime diagnostics, and the optional `efz_qs_adapter` Gleam example.
+`stop_after_no_new_coverage_seconds` accepts 1..86400 and stops an active
+mutation campaign when no new target coverage arrives for that interval.
+The final report includes `coverage_idle` and status `stopped/no_new_coverage`.
 For that example, use `profile="gleam"` and the trusted compiled Gleam code path,
 then pass a `gleam_layer` map such as:
 

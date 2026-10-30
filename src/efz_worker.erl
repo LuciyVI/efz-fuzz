@@ -60,7 +60,8 @@ init(C) ->
             mutation_state=>MutationState,
             mutation_trace=>[],trace_count=>0,coverage_seen=>efz_coverage:new_global(),coverage_empty=>0,coverage_broken=>0,coverage_unstarted=>0,
             profile=>#{},input_size_buckets=>#{},input_bytes_total=>0,input_count=>0,
-            calibration_started_at => erlang:monotonic_time(microsecond)},
+            calibration_started_at => erlang:monotonic_time(microsecond),
+            coverage_idle=>efz_coverage_idle:new(maps:get(stop_after_no_new_coverage_seconds,C1))},
     case provider_init(Initial) of
         {ok,Ready} ->
             ok=efz_external_worker:ready(),
@@ -84,21 +85,15 @@ handle_info(iterate, #{pending_seeds := [], phase := calibration} = S) ->
         _ -> ok
     end,
     self() ! iterate,
-    {noreply, S#{phase => mutation, mutation_started_at => erlang:monotonic_time(microsecond)}};
+    {noreply, S#{phase => mutation, mutation_started_at => erlang:monotonic_time(microsecond),
+        coverage_idle=>efz_coverage_idle:start(maps:get(coverage_idle,S),
+            erlang:monotonic_time(millisecond))}};
 handle_info(iterate, #{iteration := N, max_iterations := N} = S) -> finish(completed, S);
-handle_info(iterate, #{mutation_mode := staged} = S) -> staged_iteration(begin_iteration(S));
-handle_info(iterate, #{mutator := Mu, iteration := N} = S) ->
-    S0=begin_iteration(S),Profile=maps:get(performance_profile,S0),
-    {E,SelectUs}=efz_perf_profile:measure(Profile,fun efz_corpus:select/0),
-    S1=efz_perf_profile:add_state(S0,corpus_select,SelectUs),
-    {Mutation,MutationUs}=efz_perf_profile:measure(Profile,fun() ->
-        try {ok,Mu:mutate(maps:get(input, E), #{iteration => N + 1, max_input_bytes => maps:get(max_input_bytes,S)})}
-         catch Class:Reason->{error,{mutator,Class,Reason}} end
-        end),
-    S2=efz_perf_profile:add_state(S1,mutation,MutationUs),
-    case Mutation of
-        {ok,Input} when is_binary(Input)->execute(Input, E, mutation, S2#{iteration => N + 1});
-        Bad->infrastructure(Bad,S2)
+handle_info(iterate, #{phase:=mutation,coverage_idle:=disabled}=S) -> mutate_iteration(S);
+handle_info(iterate, #{phase:=mutation}=S) ->
+    case efz_coverage_idle:expired(maps:get(coverage_idle,S),erlang:monotonic_time(millisecond)) of
+        true->finish({stopped,no_new_coverage},S);
+        false->mutate_iteration(S)
     end;
 handle_info({efz_mutation_reply,Ref,Result,RuntimeMeta},
         #{pending_mutation:=#{ref:=Ref}=Pending}=S)->
@@ -119,6 +114,21 @@ handle_info({'DOWN',Monitor,process,Guardian,Why},
     Failed=provider_worker_error(Cleared),
     infrastructure({mutation_provider,{request_down,Why}},Failed);
 handle_info(_, S) -> {noreply, S}.
+
+mutate_iteration(#{mutation_mode:=staged}=S) -> staged_iteration(begin_iteration(S));
+mutate_iteration(#{mutator := Mu, iteration := N} = S) ->
+    S0=begin_iteration(S),Profile=maps:get(performance_profile,S0),
+    {E,SelectUs}=efz_perf_profile:measure(Profile,fun efz_corpus:select/0),
+    S1=efz_perf_profile:add_state(S0,corpus_select,SelectUs),
+    {Mutation,MutationUs}=efz_perf_profile:measure(Profile,fun() ->
+        try {ok,Mu:mutate(maps:get(input, E), #{iteration => N + 1, max_input_bytes => maps:get(max_input_bytes,S)})}
+         catch Class:Reason->{error,{mutator,Class,Reason}} end
+        end),
+    S2=efz_perf_profile:add_state(S1,mutation,MutationUs),
+    case Mutation of
+        {ok,Input} when is_binary(Input)->execute(Input, E, mutation, S2#{iteration => N + 1});
+        Bad->infrastructure(Bad,S2)
+    end.
 
 staged_iteration(S=#{mutation_state:=Plan}) ->
     Profile=maps:get(performance_profile,S),
@@ -437,7 +447,14 @@ execute_result(Input, Parent, Phase, Result, F, S) ->
             WithMutation=case {Phase,maps:find(current_recipe,SFeedback)} of
                 {mutation,{ok,Recipe}}->Meta#{mutation=>Recipe};_->Meta
             end,
-            semantic_result(Input,Result,WithMutation,F1,SFeedback,Profile)
+            Idle=case {Phase,maps:get(coverage_idle,SFeedback)} of
+                {mutation,disabled}->disabled;
+                {calibration,Current}->Current;
+                {mutation,Current}->efz_coverage_idle:observe(Current,
+                    maps:get(new_probes,Decision,[]),
+                    {erlang:monotonic_time(millisecond),maps:get(iteration,SFeedback)})
+            end,
+            semantic_result(Input,Result,WithMutation,F1,SFeedback#{coverage_idle=>Idle},Profile)
     end.
 
 semantic_result(Input,Result,Meta,F1,S,Profile) ->
@@ -930,6 +947,8 @@ finish(Status0, SIn) ->
         _->FeatureReport
     end,
     Base0 = #{max_input_bytes=>maps:get(max_input_bytes,S), status => Status, timing => Timing, stats => efz_stats:get(), corpus => efz_corpus:all(),
+               coverage_idle=>efz_coverage_idle:public(maps:get(coverage_idle,S),
+                   erlang:monotonic_time(millisecond)),
                feature_stability=>FinalFeature,
                execution_identities=>maps:get(execution_identities,S),coverage_diagnostics=>Diagnostic,
                decisions => lists:reverse(maps:get(decisions, S)),

@@ -47,6 +47,8 @@ init(C) ->
            worker => Worker, worker_monitor => WorkerRef,execution_context=>undefined,
            stop_requested=>false,monitor_pending=>false,monitor_snapshot=>#{schema_version=>1,target=>maps:get(target,C),
              status=>running,max_iterations=>maps:get(max_iterations,C),elapsed_ms=>0,stats=>#{},last=>null,
+             coverage_idle=>efz_coverage_idle:public(
+                 efz_coverage_idle:new(maps:get(stop_after_no_new_coverage_seconds,C)),0),
              feature_stability=>efz_stability:public(efz_stability:new(
                  maps:get(runtime_oracles,C),{maps:get(coverage,C),maps:get(coverage_backend,C)}))},
            execution_identities=>maps:get(execution_identities,C),max_input_bytes=>maps:get(max_input_bytes,C)}}.
@@ -68,7 +70,8 @@ handle_call(monitor_snapshot, _, #{worker:=Worker,report:=Report}=S) ->
     Cached=maps:get(monitor_snapshot,S),
     Reply=case Report of pending->Cached;_->Cached#{status=>maps:get(status,Report),
         stats=>maps:remove(primary_infrastructure_failure,maps:get(stats,Report)),
-        feature_stability=>maps:get(feature_stability,Report,maps:get(feature_stability,Cached))} end,
+        feature_stability=>maps:get(feature_stability,Report,maps:get(feature_stability,Cached)),
+        coverage_idle=>maps:get(coverage_idle,Report,maps:get(coverage_idle,Cached))} end,
     {reply,Reply,S#{monitor_pending=>Pending orelse Request}};
 handle_call(benchmark_snapshot, _, #{worker := Worker, report := Report} = S) ->
     Reply = case Report of
