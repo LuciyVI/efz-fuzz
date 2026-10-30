@@ -1,5 +1,7 @@
 # P0 baseline
 
+**English** · [Русский](../i18n/ru/gleam-layer/baseline.md) · [Español](../i18n/es/gleam-layer/baseline.md) · [简体中文](../i18n/zh-CN/gleam-layer/baseline.md) · [All languages](../i18n/README.md)
+
 HEAD 79d76221c6bc5df30b80e6b0de947f3860f4fa4b; initial tracked/index diffs empty.
 User requirement directory and zip preserved (hashes in the run artifacts).
 Runtime: OTP 27.0, ERTS 15.0, Rebar3, +S 2:2, JIT x86_64 Linux.

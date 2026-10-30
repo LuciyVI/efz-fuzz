@@ -1,13 +1,15 @@
-# Целостность automatic coverage
+# Automatic coverage integrity
 
-Контракт применяется к executor с [controlled descendant lifecycle](execution-isolation.md).
-Пустой список probes сам по себе не доказывает, что наблюдение работало. EFZ
-проверяет загруженный код, attachment context, ошибки hooks и сохранность уже
-опубликованных probes независимо от успешного возвращаемого значения harness.
+**English** · [Русский](i18n/ru/coverage-integrity.md) · [Español](i18n/es/coverage-integrity.md) · [简体中文](i18n/zh-CN/coverage-integrity.md) · [All languages](i18n/README.md)
 
-## Закреплённые identities
+The contract applies to the executor with a [controlled descendant lifecycle](execution-isolation.md).
+An empty probe list alone does not prove that observation worked. EFZ checks the
+loaded code, attachment context, hook errors and preservation of already published
+probes independently of a successful harness return value.
 
-`efz_config:prepare/1` формирует `execution_identities`:
+## Pinned identities
+
+`efz_config:prepare/1` constructs `execution_identities`:
 
 ```erlang
 #{harness => #{module => my_harness, beam_md5 => <<...>>,
@@ -18,120 +20,132 @@
                              compile => [...]}}}.
 ```
 
-Harness закрепляется отдельно, даже если он не instrumented и не входит в
-`artifacts`. `build_id => undefined` у обычного harness ожидаем. Идентичность
-берётся из **загруженного кода** через `erlang:get_module_info/1`, а не из файла,
-найденного в code path. `beam_md5` — OTP checksum исполняемого кода, не SHA-256
-полного BEAM-файла; отдельно проверяются attributes и compile metadata.
-[OTP описывает различие code checksum и compilation attributes](https://www.erlang.org/doc/apps/stdlib/beam_lib#md5/1).
+The harness is pinned separately, even when it is not instrumented and is not
+included in `artifacts`. `build_id => undefined` is expected for an ordinary
+harness. Identity comes from the **loaded code** through
+`erlang:get_module_info/1`, not from a file found on the code path. `beam_md5` is
+the OTP checksum of executable code, not the SHA-256 of the whole BEAM file;
+attributes and compile metadata are checked separately.
+[OTP describes the difference between the code checksum and compilation attributes](https://www.erlang.org/doc/apps/stdlib/beam_lib#md5/1).
 
-Preflight сверяет manifest sidecar с embedded manifest, затем checksum кода
-artifact BEAM и manifest с загруженным модулем. Копирование старого manifest в
-другую реализацию больше не позволяет пройти проверку. `efz_cov_manifest:prepare/2`
-сохраняет loaded identities выбранных модулей в protected validation plan.
+Preflight checks the manifest sidecar against the embedded manifest, then checks
+the artifact BEAM code checksum and manifest against the loaded module. Copying
+an old manifest into a different implementation no longer lets it pass validation.
+`efz_cov_manifest:prepare/2` stores the loaded identities of selected modules in
+a protected validation plan.
 
-Worker передаёт campaign pins в оба режима validation: `prepared` и
-`per_execution`. Pins входят в execution results, retained metadata и итоговый
-report. Поле `builds` обозначает **ожидаемые выбранные builds**; при ошибке identity
-его нельзя интерпретировать как подтверждение исполнения прежнего кода.
+The worker passes campaign pins to both validation modes: `prepared` and
+`per_execution`. Pins are included in execution results, retained metadata and
+the final report. The `builds` field denotes the **expected selected builds**;
+when an identity check fails, it cannot be interpreted as confirmation that the
+previous code executed.
 
-Standalone `efz_executor:run/4` без `execution_identities` закрепляет harness на
-время одного вызова; plan сохраняет identities выбранных модулей между вызовами.
-Для campaign используются pins, созданные при `efz_config:prepare/1`. Replay
-сравнивает явно предоставленные target/artifacts с сохранёнными build IDs и
-harness identity из `artifact.replay`, затем создаёт pins для execution. Низкоуровневый
-`efz_recipe:execute/5` требует `expected_harness`; сама mutation recipe старую
-версию harness не доказывает. Attributes hash использует deterministic ETF,
-чтобы совпадать между VM. Подробности: [replay](replay.md).
+Standalone `efz_executor:run/4` without `execution_identities` pins the harness
+for one call; the plan preserves selected-module identities across calls.
+Campaigns use the pins created by `efz_config:prepare/1`. Replay compares explicitly
+supplied target/artifacts with the saved build IDs and harness identity from
+`artifact.replay`, then creates execution pins. Low-level
+`efz_recipe:execute/5` requires `expected_harness`; a mutation recipe alone does
+not prove the old harness version. The attributes hash uses deterministic ETF
+to match across VMs. Details: [replay](replay.md).
 
-## Проверка replacement
+## Replacement checks
 
-Guardian сравнивает pins до запуска target и после его termination. В течение
-execution отдельная OTP trace session наблюдает запросы загрузки/удаления
-выбранных модулей через `code_server`, включая batch `code:finish_loading/1` с
-кодом, подготовленным до execution. Попытка загрузки выбранного модуля делает
-результат недостоверным, даже если загрузчик затем вернул исходный BEAM.
-Это консервативное правило: повторная загрузка тех же bytes или неудачная попытка
-замены выбранного модуля тоже отклоняется. Загрузка обычных новых зависимостей
-через code server разрешена, если они не входят в pins.
+The guardian compares pins before starting the target and after its termination.
+During execution, a separate OTP trace session observes requests to load/delete
+selected modules through `code_server`, including batch `code:finish_loading/1`
+with code prepared before execution. An attempt to load a selected module makes
+the result untrustworthy even if the loader later restores the original BEAM.
+This is a conservative rule: reloading identical bytes or an unsuccessful attempt
+to replace a selected module is also rejected. Loading ordinary new dependencies
+through the code server is allowed if they are not included in the pins.
 
-Дополнительно отслеживаются ERTS `delete_module/1`, `finish_after_on_load/2`
-для выбранных модулей и `finish_loading/1` вне code server. Прямой ERTS commit
-консервативно даёт `unsupported_direct_code_loading`: opaque prepared-code
-handles не дают надёжно отфильтровать выбранные модули. Это закрывает замену
-через ERTS с последующим восстановлением исходной сборки.
+ERTS `delete_module/1` and `finish_after_on_load/2` for selected modules, and
+`finish_loading/1` outside the code server, are also tracked. A direct ERTS commit
+conservatively produces `unsupported_direct_code_loading`: opaque prepared-code
+handles do not permit reliable filtering of selected modules. This covers
+replacement through ERTS followed by restoration of the original build.
 
-Перед final result guardian дожидается DOWN и trace barriers всех owned
-processes, затем глобального delivery barrier для loader traces, проверяет
-snapshot и identities и удаляет execution resources. Невалидный или уничтоженный
-prepared plan также даёт infrastructure failure, в том числе при пустом snapshot.
+Before the final result, the guardian waits for DOWN and trace barriers for all
+owned processes, then a global delivery barrier for loader traces, checks the
+snapshot and identities, and removes execution resources. An invalid or destroyed
+prepared plan also produces an infrastructure failure, including when the
+snapshot is empty.
 
-## Context и observation states
+## Context and observation states
 
-`efz_coverage_observers` — named **protected ETS**, принадлежащая guardian.
-До открытия start gate в неё записывается `PID → expected context`; там же
-хранятся execution pins. Таблица не хранит global coverage и не служит глобальным
-«текущим input»: hook ищет только запись собственного PID. Один local execution
-на VM уже ограничен lifecycle guardian.
+`efz_coverage_observers` is a named **protected ETS** table owned by the guardian.
+Before the start gate opens, `PID → expected context` is recorded in it; execution
+pins are stored there too. The table does not store global coverage and is not
+a global “current input”: a hook looks up only the record for its own PID. The
+guardian lifecycle already limits the VM to one local execution.
 
-Hook сверяет process dictionary с этой записью. Поэтому `erase()` или malformed
-value не превращают активный hook в inactive. Ошибка отправляется guardian до
-исключения; target не может скрыть её своим `catch`. Trace `put/erase` сохраняет
-свидетельство изменения context, даже если target восстановил ключ либо был
-убит до проверки на выходе. Ошибки sticky: последующий корректный hit их не
-снимает. Controlled descendants проверяются так же, как root.
+The hook checks the process dictionary against this record. Therefore, `erase()`
+or a malformed value does not turn an active hook inactive. The error is sent
+to the guardian before the exception; the target cannot hide it with its own
+`catch`. Tracing `put/erase` preserves evidence of context changes even if the
+target restores the key or is killed before the exit check. Errors are sticky:
+a later valid hit does not clear them. Controlled descendants are checked in
+the same way as the root.
 
-Каждый новый probe сначала синхронно вставляется в observation ETS, затем
-сообщается guardian. В конце все такие сообщения должны соответствовать
-сохранившимся ETS rows. Стирание опубликованных observations без повторной записи
-даёт `coverage_observations_lost`. Дубликаты не создают поток одинаковых сообщений.
+Each new probe is first inserted synchronously into observation ETS and then
+reported to the guardian. At the end, every such message must match a preserved
+ETS row. Erasing published observations without rewriting them produces
+`coverage_observations_lost`. Duplicates do not create a stream of identical
+messages.
 
-| `coverage_observation.classification` | `state` | Значение |
+| `coverage_observation.classification` | `state` | Meaning |
 |---|---|---|
-| `observed_coverage` | `observed` | Целое наблюдение с probes |
-| `valid_empty_coverage` | `attached` | Root attachment подтверждён, ошибок нет, probes отсутствуют |
-| `broken_coverage_observation` | `failed`, `detached` или `invalid` | Ошибка hook, context, identity, validation или потеря observations |
-| `unstarted_coverage_observation` | `unattached` | Target не успел attach, например timeout до открытия gate; это не successful empty execution |
+| `observed_coverage` | `observed` | Intact observation containing probes |
+| `valid_empty_coverage` | `attached` | Root attachment confirmed, no errors, no probes |
+| `broken_coverage_observation` | `failed`, `detached` or `invalid` | Hook, context, identity or validation error, or lost observations |
+| `unstarted_coverage_observation` | `unattached` | Target did not attach in time, for example a timeout before the gate opened; this is not a successful empty execution |
 
-Map содержит `attached_processes`, `probe_count`, при ошибке — `reason`.
-Successful outcome без подтверждённого root attachment запрещён. При нарушении
-`outcome = {infrastructure, Reason}`, `coverage_status = {error, Reason}`;
-`target_outcome` сохраняет отдельный результат target, если он получен. Worker
-увеличивает `infrastructure_failures`, сохраняет exact input/result в
-`failure_context` и останавливает campaign. Частично записанные probes можно
-диагностировать, но они не участвуют в successful feedback.
+The map contains `attached_processes`, `probe_count`, and `reason` when an error
+occurs. A successful outcome without confirmed root attachment is forbidden.
+A violation produces `outcome = {infrastructure, Reason}` and
+`coverage_status = {error, Reason}`; `target_outcome` preserves the target's
+separate result if it was obtained. The worker increments
+`infrastructure_failures`, stores the exact input/result in `failure_context`,
+and stops the campaign. Partially recorded probes can be diagnosed, but do not
+participate in successful feedback.
 
-## Настоящий zero-hit и disconnected campaign
+## Real zero-hit and disconnected campaigns
 
-Вызов instrumented function может закончиться `function_clause` до входа в тело
-любого clause. Обычный harness может поймать это исключение и вернуть `zero`.
-Это настоящий `valid_empty_coverage`. Harness, пропустивший target для конкретного
-input, тоже может дать валидный пустой результат. По одному такому запуску нельзя
-доказать, что harness ошибочно подключён.
+Calling an instrumented function may end in `function_clause` before entering
+any clause body. An ordinary harness can catch the exception and return `zero`.
+This is real `valid_empty_coverage`. A harness that skips the target for a
+particular input can also produce a valid empty result. One such execution alone
+cannot prove that the harness is connected incorrectly.
 
-Campaign считает наблюдавшиеся модули **по всем целым execution observations**,
-включая target crashes, отдельно от successful global coverage. Report содержит:
+The campaign counts observed modules **across all intact execution observations**,
+including target crashes, separately from successful global coverage. The report
+contains:
 
 ```erlang
 #{coverage_diagnostics => #{policy => diagnostic,
-    status => no_probes_observed, % либо observed / manual
+    status => no_probes_observed, % or observed / manual
     observed_modules => [],
     unused_artifacts => [#{module => my_parser, build_id => <<...>>}],
     empty_executions => 1, unstarted_executions => 0, broken_observations => 0}}.
 ```
 
-- `coverage_policy => diagnostic` — default: отсутствие probes явно видно в
-  report, CLI печатает diagnostic. Campaign может завершиться обычным status.
-- `coverage_policy => strict` — при окончании campaign без единого достоверного
-  instrumented probe возвращается `{infrastructure_failure, #{kind =>
-  coverage_not_observed, ...}}`, счётчик infrastructure failures увеличивается,
-  CLI возвращает **1**. Существующая primary infrastructure error не заменяется.
-- Отдельный unused artifact перечисляется даже когда другие дали probes. Strict
-  требует хотя бы один probe суммарно, а не hits каждого выбранного artifact.
-- Нулевая calibration вызывает warning, но не прерывает mutation: первый полезный
-  input может появиться позже. Это также даёт раннюю диагностику infinite campaign.
-  Счётчики `coverage_*_executions` и `coverage_broken_observations` доступны через
-  `efz:stats/0` во время работы.
+- `coverage_policy => diagnostic` is the default: the absence of probes is
+  explicit in the report, and the CLI prints a diagnostic. The campaign may
+  finish with a normal status.
+- `coverage_policy => strict`: if the campaign ends without any trustworthy
+  instrumented probe, it returns `{infrastructure_failure, #{kind =>
+  coverage_not_observed, ...}}`, increments the infrastructure-failure count,
+  and the CLI returns **1**. An existing primary infrastructure error is not
+  replaced.
+- Each unused artifact is listed even when other artifacts emitted probes.
+  Strict requires at least one probe in total, not hits from every selected
+  artifact.
+- Zero-hit calibration triggers a warning but does not stop mutation: the first
+  useful input may appear later. This also provides early diagnostics for an
+  infinite campaign. The `coverage_*_executions` and
+  `coverage_broken_observations` counters are available through `efz:stats/0`
+  while the campaign is running.
 
 ```sh
 escript scripts/fuzz.escript --target my_harness --code-path ./ebin \
@@ -139,29 +153,30 @@ escript scripts/fuzz.escript --target my_harness --code-path ./ebin \
   --coverage-policy strict --max-iterations 1000
 ```
 
-Campaign policy независима от `strict` parse transform, проверяющего поддержку
-Erlang syntax при instrumentation. Ни одна из этих проверок не меняет novelty:
+Campaign policy is independent of the `strict` parse transform, which checks
+Erlang syntax support during instrumentation. Neither check changes novelty:
 
 ```text
 New = Current - Global
 successful valid execution: Global := Global union Current
-broken observation: error, без merge и без retain
+broken observation: error, no merge and no retain
 ```
 
-## Границы и проверки
+## Boundaries and validation
 
-Это проверка correctness в доверенной shared VM, не защита от произвольного
-враждебного Erlang-кода. Замена самого EFZ, отключение tracing, подделка protocol
-messages/ETS rows и remote execution не входят в supported model. Для полного
-async OTP scope нужен отдельный disposable VM backend. Trace-адаптер code server
-проверен на OTP 27.0; при поддержке других OTP его regression tests обязательны.
-Identity/trace проверки добавляют стоимость execution; старые benchmark numbers
-не характеризуют этот backend после усиления integrity.
+This is a correctness check in a trusted shared VM, not protection against
+arbitrary hostile Erlang code. Replacing EFZ itself, disabling tracing, forging
+protocol messages/ETS rows, and remote execution are outside the supported model.
+The full asynchronous OTP scope requires a separate disposable VM backend.
+The code-server trace adapter was verified on OTP 27.0; its regression tests
+are required when supporting other OTP versions. Identity/trace checks add
+execution cost; old benchmark numbers do not characterize this backend after
+the integrity checks were strengthened.
 
-[efz_integrity_tests](../test/efz_integrity_tests.erl) покрывает normal/zero-hit,
+[efz_integrity_tests](../test/efz_integrity_tests.erl) covers normal/zero-hit,
 disconnected/unused artifacts, strict policy, unchanged novelty, dictionary
-erase/malformed/restore, caught hook exceptions, потерю ETS rows, child context,
-kill, pre-execution/during-execution/transient reload, отдельный harness pin,
-prepared plan, copied manifest, public atomic load и прямой ERTS commit.
-[efz_cli_tests](../test/efz_cli_tests.erl) проверяет diagnostic/strict/invalid policy
-в отдельных fresh Erlang VM.
+erase/malformed/restore, caught hook exceptions, lost ETS rows, child context,
+kill, pre-execution/during-execution/transient reload, a separate harness pin,
+prepared plans, copied manifests, public atomic loads and direct ERTS commits.
+[efz_cli_tests](../test/efz_cli_tests.erl) checks diagnostic/strict/invalid policy
+in separate fresh Erlang VMs.

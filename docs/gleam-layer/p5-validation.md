@@ -1,5 +1,7 @@
 # P5: final replay, regression and same-engine acceptance
 
+**English** · [Русский](../i18n/ru/gleam-layer/p5-validation.md) · [Español](../i18n/es/gleam-layer/p5-validation.md) · [简体中文](../i18n/zh-CN/gleam-layer/p5-validation.md) · [All languages](../i18n/README.md)
+
 This report supersedes the historical P5 handoff notes in P1–P4 and the
 10 October universal-validation report. The gate covers the supported bounded,
 synchronous Linux workflow. Performance superiority and discovery of an

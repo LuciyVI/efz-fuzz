@@ -1,5 +1,7 @@
 # Universal fuzz launcher
 
+**English** · [Русский](i18n/ru/cli.md) · [Español](i18n/es/cli.md) · [简体中文](i18n/zh-CN/cli.md) · [All languages](i18n/README.md)
+
 `scripts/fuzz.escript` loads the compiled EFZ application relative to the script
 location, so it can be invoked from another working directory. Argument paths are
 relative to the caller's working directory. Run `rebar3 compile` first.

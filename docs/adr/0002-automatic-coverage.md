@@ -1,5 +1,7 @@
 # ADR 0002: source clause/outcome probes with execution-owned ETS
 
+**English** · [Русский](../i18n/ru/adr/0002-automatic-coverage.md) · [Español](../i18n/es/adr/0002-automatic-coverage.md) · [简体中文](../i18n/zh-CN/adr/0002-automatic-coverage.md) · [All languages](../i18n/README.md)
+
 Status: accepted before transform implementation, 2026-09-08.
 
 Baseline: OTP 27.0 / ERTS 15.0, x86_64-pc-linux-gnu; Rebar3 3.25.0.

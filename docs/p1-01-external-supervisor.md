@@ -1,5 +1,7 @@
 # P1-01 External supervisor
 
+**English** · [Русский](i18n/ru/p1-01-external-supervisor.md) · [Español](i18n/es/p1-01-external-supervisor.md) · [简体中文](i18n/zh-CN/p1-01-external-supervisor.md) · [All languages](i18n/README.md)
+
 Status: **DONE** on Linux. Validation date: 2026-09-21. Implementation baseline:
 `9303c6e0734cc135700e62b0774f4a0011e97d48`.
 

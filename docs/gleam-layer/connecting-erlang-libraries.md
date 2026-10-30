@@ -1,43 +1,45 @@
-# Подключение Erlang-библиотеки к Gleam Layer
+# Connecting an Erlang library to Gleam Layer
 
-Подключение использует существующие EFZ execution, corpus, scheduler, coverage,
-RNG и replay. Один campaign выбирает один адаптер. Harness сохраняет внешний
-контракт `run(binary()) -> term()`; фактическая функция библиотеки может иметь
-другую арность и принимать Erlang-термы. Generic adapter не требует собственной
-Gleam-модели для каждого API. Протокольные plugins сохраняют исходные wire bytes
-и не обязаны использовать generic term codec.
+**English** · [Русский](../i18n/ru/gleam-layer/connecting-erlang-libraries.md) · [Español](../i18n/es/gleam-layer/connecting-erlang-libraries.md) · [简体中文](../i18n/zh-CN/gleam-layer/connecting-erlang-libraries.md) · [All languages](../i18n/README.md)
 
-[Результаты реализации и границы проверки](universal-validation.md) содержат
-сохранённые команды/логи, compatibility evidence и предварительные измерения.
-Этот исторический отчёт относится к указанным в нём ревизиям; результаты новых
-проверок следует связывать с конкретным build. Актуальные команды генерации и
-контракт совместимости приведены в [руководстве по коннекторам](connector-generation.md).
+The [implementation results and validation limits](universal-validation.md) are
+historical evidence tied to the revisions recorded there. For current connector
+commands and compatibility rules, see the [connector guide](connector-generation.md).
 
-## 1. Выбрать API и уровень подключения
+The integration uses the existing EFZ execution, corpus, scheduler, coverage,
+RNG and replay. Each campaign selects one adapter. The harness retains the public
+contract `run(binary()) -> term()`; the actual library function may have a
+different arity and accept Erlang terms. The generic adapter does not require a
+separate Gleam model for each API. Protocol plugins preserve the original wire
+bytes and do not have to use the generic term codec.
 
-| Способ | Когда использовать | Реальный пример |
+[Implementation results and validation limits](universal-validation.md) contains
+saved commands/logs, compatibility evidence and preliminary measurements.
+## 1. Choose an API and integration level
+
+| Method | When to use it | Real example |
 | --- | --- | --- |
-| Generic term/API | Аргументы описываются bounded Erlang-термами | `lists:reverse/1`, `maps:find/2`, `efz_term_tuple_library:combine/2` |
-| Domain/protocol | Нужны wire grammar, коррелированные поля или независимая модель | `efz_xmlrpc_adapter`, `efz_qs_adapter` |
-| Stateful harness | Нужны setup/reset/cleanup и список команд | `efz_stateful_target`, `efz_stateful_counter` |
+| Generic term/API | Arguments can be described as bounded Erlang terms | `lists:reverse/1`, `maps:find/2`, `efz_term_tuple_library:combine/2` |
+| Domain/protocol | A wire grammar, correlated fields or an independent model is needed | `efz_xmlrpc_adapter`, `efz_qs_adapter` |
+| Stateful harness | Setup/reset/cleanup and a command list are needed | `efz_stateful_target`, `efz_stateful_counter` |
 
-Проверенный envelope: модуль доступен на code path, вызов выполняется локально
-на BEAM через воспроизводимый harness, EFZ управляет timeout/cleanup execution.
-Harness обеспечивает необходимые ресурсы. Наличие `-spec` или имени модуля не
-доказывает корректность произвольного результата. Сокеты, драйверы, внешние
-сервисы, аппаратные ресурсы и специальные ОС-зависимости требуют собственного
-harness и отдельной проверки execution environment.
+Validated envelope: the module is available on the code path, the call runs
+locally on BEAM through a reproducible harness, and EFZ manages execution
+timeout/cleanup. The harness supplies the required resources. A `-spec` or module
+name does not prove that an arbitrary result is correct. Sockets, drivers,
+external services, hardware resources and special OS dependencies require their
+own harness and separate validation of the execution environment.
 
-## 2. Создать harness
+## 2. Create a harness
 
-Если у API есть `-spec` и BEAM собран с `debug_info`, harness, конфигурацию и
-seed можно [сгенерировать автоматически](connector-generation.md) командой
-`semantic_scaffold.escript from-beam OUT HARNESS LIBRARY.beam FUNCTION ARITY`.
-Поддерживаемые типы преобразуются в схему общего адаптера; ручное описание
-аргументов для них не требуется.
+If the API has a `-spec` and its BEAM was built with `debug_info`, the harness,
+configuration and seed can be [generated automatically](connector-generation.md)
+with `semantic_scaffold.escript from-beam OUT HARNESS LIBRARY.beam FUNCTION ARITY`.
+Supported types are converted into the shared adapter's schema; they do not
+require a manually written argument description.
 
 
-Готовый generic пример:
+Ready-to-use generic example:
 
 ```erlang
 -module(example_library_target).
@@ -48,32 +50,32 @@ semantic_contract() -> (options())#{kind => term_api}.
 run(Raw) -> efz_term_codec:execute(Raw, options()).
 ```
 
-Для своей `example_library` меняются `entrypoint`, `arguments` и harness;
-ядро EFZ не редактируется. `prepare/3` проверяет доступность функции, арность и
-совпадение метаданных harness с adapter options. Новый специализированный
-пакет для такой библиотеки не нужен. Поддерживается экспортированная арность от
-0 до `min(collection, 255)`: default `collection => 32` допускает до 32 аргументов,
-а 255 — предел арности BEAM. Нулевой арности соответствует `arguments => []`.
-Результат описывается независимо от argument constraints.
+For your own `example_library`, change `entrypoint`, `arguments` and the harness;
+the EFZ core is not edited. `prepare/3` checks function availability, arity and
+agreement between harness metadata and adapter options. No new specialized
+package is needed for such a library. Exported arities from 0 to
+`min(collection, 255)` are supported: the default `collection => 32` permits up
+to 32 arguments, while 255 is BEAM's arity limit. Zero arity uses
+`arguments => []`. The result is described independently of argument constraints.
 
-`efz_term_codec:execute/2` декодирует canonical packet и вызывает
-`apply(Module, Function, Args)` без semantic dispatch или model dependencies.
-Прежний `efz_term_api_adapter:execute/2` сохраняется как compatibility delegate.
-Unsupported/malformed packet возвращает `{efz_term_input_rejected, Reason}`.
-Обычные библиотечные `{error, Reason}` остаются обычными результатами. Harness
-определяет, какие исключения API являются ожидаемым отказом, и явно преобразует
-их, если этого требует контракт выбранного API.
+`efz_term_codec:execute/2` decodes the canonical packet and calls
+`apply(Module, Function, Args)` without semantic dispatch or model dependencies.
+The earlier `efz_term_api_adapter:execute/2` remains as a compatibility delegate.
+An unsupported/malformed packet returns `{efz_term_input_rejected, Reason}`.
+Ordinary library `{error, Reason}` values remain ordinary results. The harness
+defines which API exceptions are expected rejections and explicitly converts
+them when required by the selected API's contract.
 
-Harness имеет собственный фиксированный decode envelope. Если он не объявляет
-`semantic_contract().input_limits`, используются defaults codec. Campaign limits
-`bytes`, `depth`, `nodes`, `collection` должны быть не выше этих границ;
-превышение отклоняется до старта с `term_api_input_limits_mismatch`. Более строгие
-campaign limits допускаются как структурно поддерживаемое подмножество harness,
-если argument constraints остаются допустимыми. Raw mutation при этом может
-попадать в более широкую область входов harness.
+The harness has its own fixed decoding envelope. If it does not declare
+`semantic_contract().input_limits`, codec defaults apply. Campaign limits for
+`bytes`, `depth`, `nodes` and `collection` must not exceed those bounds;
+exceeding them is rejected before startup with `term_api_input_limits_mismatch`.
+Stricter campaign limits are allowed as a structurally supported subset of the
+harness, provided the argument constraints remain valid. Raw mutation can still
+reach the harness's wider input domain.
 
-Для расширения envelope harness передаёт одни и те же limits своему codec и
-объявляет их в metadata, например:
+To expand its envelope, the harness passes the same limits to its codec and
+declares them in metadata, for example:
 
 ```erlang
 input_limits() -> #{bytes => 4096, depth => 8, nodes => 256,
@@ -83,15 +85,15 @@ semantic_contract() -> (options())#{kind => term_api,
 run(Raw) -> efz_term_codec:execute(Raw, (options())#{limits => input_limits()}).
 ```
 
-Adapter options остаются `entrypoint`, `arguments` и optional `property`;
-`input_limits` относится к контракту harness. Metadata принимает только общие
-ключи limits с документированными finite диапазонами; invalid metadata даёт
-`invalid_term_api_input_limits`. В replay тот же harness/code identity сохраняет
-свой decode envelope, а semantic identity дополнительно проверяет effective
-campaign limits. Рабочая граница collection 64 проверяется отдельным fixture
-`efz_term_custom_limits_target` со списком длиной более 32.
+Adapter options remain `entrypoint`, `arguments` and optional `property`;
+`input_limits` belongs to the harness contract. Metadata accepts only the common
+limit keys within their documented finite ranges; invalid metadata produces
+`invalid_term_api_input_limits`. During replay, the same harness/code identity
+retains its decoding envelope, while semantic identity additionally checks the
+effective campaign limits. A working collection bound of 64 is checked by the
+separate `efz_term_custom_limits_target` fixture with a list longer than 32.
 
-Scaffolding создаёт компилируемые исходники, config и seed без перезаписи:
+Scaffolding creates compilable sources, a config and a seed without overwriting:
 
 ```sh
 ERL_FLAGS='+S 2:2' rebar3 compile
@@ -99,22 +101,22 @@ escript scripts/semantic_scaffold.escript generic /tmp/new-api efz_example_targe
 escript scripts/semantic_scaffold.escript domain /tmp/new-domain efz_protocol_target
 ```
 
-Generic defaults используют настоящий `lists:reverse/1`. Для другой библиотеки
-можно передать четвёртым аргументом доверенный `options.term`, содержащий ровно
-`#{entrypoint => {Module, Function, Arity}, arguments => Specs}`. Resource specs
-scaffolder отклоняет с `resource_harness_required`: lifecycle следует написать
-явно. Domain skeleton реализует независимое length-prefixed сообщение и
-observer-only plugin; отсутствующая модель не выдаёт успешный oracle.
-Инструкции компиляции и CLI находятся в сгенерированном `README.md`.
+Generic defaults use the real `lists:reverse/1`. For another library, pass a
+trusted `options.term` as the fourth argument, containing exactly
+`#{entrypoint => {Module, Function, Arity}, arguments => Specs}`. The scaffolder
+rejects resource specs with `resource_harness_required`: their lifecycle must be
+written explicitly. The domain skeleton implements an independent length-prefixed
+message and an observer-only plugin; a missing model does not produce a passing
+oracle. Compilation and CLI instructions are in the generated `README.md`.
 
-### Автоматическое описание API из BEAM
+### Generate an API description from BEAM
 
-Режим `inspect` читает экспорты, `-spec` и локальные `-type` из BEAM,
-собранного с `+debug_info`. Он печатает одну Erlang map schema version 1:
-точки входа со статусом `supported`/`unsupported`, исходные сигнатуры,
-`options` для term/API adapter и diagnostics с code, argument path и location.
-BEAM библиотеки при анализе не загружается; `on_load` и target не выполняются.
-Читается только стандартный Erlang debug backend, без загрузки remote types.
+`inspect` reads exports, `-spec` and local `-type` declarations from a BEAM
+compiled with `+debug_info`. It prints a version 1 Erlang map with supported and
+unsupported entrypoints, source signatures, term/API adapter options, and
+structured diagnostics. It reads only the standard Erlang debug backend; the
+library BEAM is not loaded, and neither `on_load` nor target code runs. Remote
+types are not loaded.
 
 ```sh
 ERL_FLAGS='+S 2:2' rebar3 compile
@@ -127,119 +129,120 @@ escript scripts/semantic_scaffold.escript spec \
   _build/default/lib/efz/ebin/efz_term_tuple_library.beam combine 2
 ```
 
-Режим `spec` передаёт выведенные `entrypoint`/`arguments` существующему generic
-scaffold. Помимо harness, campaign и seed он сохраняет `options.term` и
-`spec-report.term` с SHA-256 исходного BEAM, limits, сигнатурой и diagnostics.
-Команда `from-beam` — совместимый alias к тому же генератору; дополнительно
-она сохраняет прежний `inference.term`. Диагностические коды общие для обоих
-CLI. Имя harness должно отличаться от модуля библиотеки; конфликт отклоняется
-до создания файлов. Подробности и пример Cowlib:
-[генерация коннекторов](connector-generation.md).
-Oracle выключен, structural coverage не включается. Compile/run описаны в
-сгенерированном README; добавьте code paths библиотеки и её dependencies.
-После изменения исходников пересоберите ordinary и optional profiles.
+`spec` passes the inferred `entrypoint` and `arguments` to the existing generic
+scaffold. It saves the harness, campaign, seed, `options.term` and a
+`spec-report.term` containing the source BEAM SHA-256, limits, signature and
+diagnostics. `from-beam` is a compatibility alias and additionally saves the old
+`inference.term`. The two commands use the same diagnostic codes. The harness
+name must differ from the library module; a conflict is rejected before files
+are created. See the [connector generation guide](connector-generation.md) for
+a Cowlib example.
 
-| Входной тип/ограничение | Автоматический вывод |
+The generated scaffold leaves the oracle and structural coverage disabled. Its
+README describes compilation, code paths and dependency setup. Rebuild the
+ordinary and optional profiles after changing source code.
+
+| Input type or constraint | Inference result |
 | --- | --- |
-| Integer и literal range, finite float, boolean, finite atom union | Схемы codec; явный range должен помещаться в int64 |
-| `binary()`, nonempty binary, byte-aligned fixed size | Raw bytes с явным предупреждением: UTF-8/JSON/grammar не выводятся |
-| Proper/nonempty list, fixed tuple, `string()` | Bounded схемы элементов; string сохраняется как list of `char()` integers |
-| `#{K => V}`, `#{}` | Однородная map либо пустая map |
-| Локальный nonrecursive `-type`, параметры и однозначный `when T :: Type` | Раскрываются с сохранением scope |
-| Overload, смешанный union, обязательные/несколько map fields | Отказ: контракт нельзя сохранить существующей схемой |
-| Unbound variables, `atom()`/`term()`, remote/opaque/recursive types, PID/ref/port/fun, bitstrings/size strides, integer expressions кроме unary `+`/`-` | Отказ с причиной и переходом на manual schema/harness |
+| Integer/literal range, finite float, boolean, finite atom union | Codec schema; explicit ranges must fit int64 |
+| `binary()`, nonempty binary, byte-aligned fixed size | Raw bytes; UTF-8, JSON and grammar constraints cannot be inferred |
+| Proper/nonempty list, fixed tuple, `string()` | Bounded element schemas; string remains a list of `char()` integers |
+| `#{K => V}`, `#{}` | Homogeneous map or empty map |
+| Local nonrecursive `-type`, parameters, unambiguous `when T :: Type` | Expanded while preserving scope |
+| Overloads, mixed unions, required or multiple map fields | Rejected because the current schema cannot preserve the contract |
+| Unbound variables, `atom()`/`term()`, remote/opaque/recursive types, PID/ref/port/fun, bitstrings/size strides, integer expressions except unary `+`/`-` | Rejected with a reason; use a manual schema and harness |
 
-Генерируется ограниченное подмножество сигнатуры: default integers/finite floats
-±1000000, collection 32, bytes 4096, depth 8, nodes 128. Область задаётся codec,
-а не выводится как требование библиотеки; diagnostics явно это сообщают.
-Начальный seed выбирается из первых 32 детерминированных индексов adapter;
-если они не помещаются в envelope, генерация отклоняется. При отказе до создания
-scaffold файлы не пишутся; существующие файлы не перезаписываются.
+Inference generates a bounded signature subset: default integers and finite
+floats within ±1000000, collection 32, bytes 4096, depth 8, nodes 128. These are
+codec limits, not inferred requirements of the library. The first seed is chosen
+from the first 32 deterministic adapter indices; generation fails if none fits
+the envelope. Failure before scaffold creation writes no files, and existing
+files are never overwritten.
 
-Сигнатура не задаёт инварианты, допустимые исключения, stateful setup/reset/cleanup
-или независимый correctness oracle. Эти части остаются ручными. Неподдерживаемый
-тип не заменяется молча на `term()`. Для выбранного вручную контракта используйте
-прежний режим `generic ... options.term`; для protocol/stateful API — свой harness.
+A signature does not define invariants, expected exceptions, stateful
+setup/reset/cleanup, or an independent correctness oracle. These remain manual.
+Unsupported types are never silently replaced with `term()`. Use the existing
+`generic ... options.term` mode for a manually chosen contract, or write a
+protocol/stateful harness.
 
-## 3. Описать аргументы, сценарии и capabilities
+## 3. Describe arguments, scenarios and capabilities
 
-Generic codec schema 1 использует собственный binary envelope, а не ETF:
-`<<"EFZT", 1, ArgumentCount:16, TaggedArguments/binary>>`. Целочисленные поля
-кодируются big-endian. Он сохраняет список аргументов, type tags, ограниченные
-размеры и детерминированный порядок map keys. Atom/resource tags являются
-индексами отсортированного конечного набора из доверенной конфигурации.
-Fuzz input не создаёт atoms.
+Generic codec schema 1 uses its own binary envelope rather than ETF:
+`<<"EFZT", 1, ArgumentCount:16, TaggedArguments/binary>>`. Integer fields are
+encoded big-endian. It preserves the argument list, type tags, bounded sizes
+and deterministic map-key order. Atom/resource tags are indices into a sorted
+finite set from the trusted configuration. Fuzz input does not create atoms.
 
-| `kind` | Дополнительные поля и границы |
+| `kind` | Additional fields and bounds |
 | --- | --- |
 | `integer` | Signed 64-bit, `min`/`max`; defaults −1000000..1000000 |
 | `float` | Finite 64-bit float, finite float `min`/`max`; defaults −1000000.0..1000000.0 |
 | `boolean` | `true`/`false` |
-| `binary` | Произвольные bytes, `min_length`/`max_length` |
-| `charlist` | Proper list Unicode scalar integers, без surrogates; encoding задаёт API |
-| `atom` | Обязательный конечный непустой `values => [existing_atom, ...]` |
+| `binary` | Arbitrary bytes, `min_length`/`max_length` |
+| `charlist` | Proper list of Unicode scalar integers, without surrogates; encoding is defined by the API |
+| `atom` | Required finite nonempty `values => [existing_atom, ...]` |
 | `list` | `item => Spec`, `min_length`/`max_length`, proper lists |
-| `tuple` | `items => [Spec, ...]`, фиксированная арность tuple |
-| `map` | `key => Spec`, `value => Spec`, bounded размер, duplicate keys запрещены codec |
-| `term` | Поддерживаемые вложенные scalar/list/tuple/map combinations; atoms только из `atoms => [...]` |
-| `resource` | `values => [handle_name, ...]`, сохраняется `{'$efz_resource', Handle}` |
+| `tuple` | `items => [Spec, ...]`, fixed tuple arity |
+| `map` | `key => Spec`, `value => Spec`, bounded size, duplicate keys rejected by the codec |
+| `term` | Supported nested scalar/list/tuple/map combinations; atoms only from `atoms => [...]` |
+| `resource` | `values => [handle_name, ...]`, stored as `{'$efz_resource', Handle}` |
 
-`min_length` по умолчанию равен 0, `max_length` — `collection` (default 32,
-maximum 256), в том числе для binary/charlist. При этих defaults binary argument
-ограничен 32 bytes, даже если весь packet допускает 4096 bytes. Длина charlist
-считается в Unicode codepoints: codec сохраняет каждый codepoint как tagged
-signed 64-bit integer, а не как UTF-8 bytes. Преобразование charlist в текстовую
-кодировку конкретного API выполняет harness. Atom/resource enum в отдельном
-spec содержит не более 256 existing atoms.
+`min_length` defaults to 0 and `max_length` to `collection` (default 32,
+maximum 256), including for binary/charlist. With these defaults, a binary
+argument is limited to 32 bytes even if the whole packet permits 4096 bytes.
+Charlist length is counted in Unicode codepoints: the codec stores each codepoint
+as a tagged signed 64-bit integer, not as UTF-8 bytes. The harness converts a
+charlist into the text encoding required by the specific API. Each atom/resource
+enum in a spec contains at most 256 existing atoms.
 
-Defaults общих limits: `bytes => 4096`, `depth => 8`, `nodes => 128`,
-`collection => 32`, `operations => 1`; preflight допускает максимум 1 MiB,
-depth 16, nodes 4096 и collection 256. `bytes` включает header и type tags.
-Корни аргументов имеют depth 1; каждый list/tuple element, map key/value и
-charlist codepoint расходует node budget. Envelope списка аргументов сам не
-считается отдельным узлом. Конфигурация аргументов и данные проходят отдельную
-валидацию. PID/ref/port/fun не являются переносимыми literal inputs. Observer
-может сообщать их конечный класс в результате, не сохраняя сами значения.
+Common limit defaults: `bytes => 4096`, `depth => 8`, `nodes => 128`,
+`collection => 32`, `operations => 1`; preflight permits at most 1 MiB,
+depth 16, nodes 4096 and collection 256. `bytes` includes the header and type tags.
+Argument roots have depth 1; every list/tuple element, map key/value and charlist
+codepoint consumes the node budget. The argument-list envelope itself does not
+count as a separate node. Argument configuration and data undergo separate
+validation. PID/ref/port/fun are not portable literal inputs. The observer can
+report their finite result class without storing the values themselves.
 
-Stateful пример кодирует один argument: список не более 16 tuples
-`{ResourceHandle, Command, Integer}`. Команды `get`, `put`, `add`, `reset`
-выбираются из конечного набора. `semantic_contract/0` объявляет
+The stateful example encodes one argument: a list of at most 16 tuples
+`{ResourceHandle, Command, Integer}`. Commands `get`, `put`, `add`, `reset`
+are selected from a finite set. `semantic_contract/0` declares
 `resource_lifetime => execution, resource_handles => [counter]`.
-`efz_stateful_target:scenario/1` создаёт новый unregistered gen_server через
-разрешённый EFZ child spawn `efz_target:spawn_link/1`, устанавливает OTP 27
-`proc_lib` metadata (`'$ancestors'`, `'$initial_call'`) и входит в публичный
-`gen_server:enter_loop/3`. Harness не вызывает внутренних функций `proc_lib`,
-но эти process dictionary keys привязаны к проверенному OTP 27 lifecycle.
-Это проверенный OTP 27 bootstrap fixture, а не
-обещание поддержки произвольного OTP lifecycle: обычный unmanaged
-`gen_server:start_link/3` внутри EFZ execution будет отклонён. При отдельном
-прямом запуске вне EFZ harness использует обычный `start_link`. Harness
-разрешает symbolic handle в PID, выполняет команды и останавливает процесс в
-`after`; `semantic_contract/0` объявляет `execution_modules => [efz_stateful_counter]`.
-Каждое execution/replay начинает с нулевого состояния. Один input
-является одним primary execution; bounded итог содержит отдельно
-`scenario_executions => 1`, `library_operations => N`, `trace => [...]`.
-`N` считает команды сценария; setup и остановка процесса в него не входят.
-Для иных ресурсов пользователь расширяет harness, а не scheduler или worker.
+`efz_stateful_target:scenario/1` creates a new unregistered gen_server through
+the permitted EFZ child spawn `efz_target:spawn_link/1`, sets OTP 27 `proc_lib`
+metadata (`'$ancestors'`, `'$initial_call'`) and enters the public
+`gen_server:enter_loop/3`. The harness does not call internal `proc_lib` functions,
+but these process dictionary keys are tied to the validated OTP 27 lifecycle.
+This is a validated OTP 27 bootstrap fixture, not a promise to support arbitrary
+OTP lifecycles: an ordinary unmanaged `gen_server:start_link/3` inside an EFZ
+execution will be rejected. When run directly outside EFZ, the harness uses
+ordinary `start_link`. The harness resolves the symbolic handle to a PID,
+executes commands and stops the process in `after`; `semantic_contract/0`
+declares `execution_modules => [efz_stateful_counter]`. Every execution/replay
+starts from zero state. One input is one primary execution; the bounded result
+contains separate `scenario_executions => 1`, `library_operations => N`,
+`trace => [...]`. `N` counts scenario commands; setup and process shutdown are
+excluded. For other resources, the user extends the harness rather than the
+scheduler or worker.
 
-## 4. Выбрать стандартный адаптер или свой plugin
+## 4. Choose a standard adapter or your own plugin
 
-Точный публичный интерфейс описан в [adapter-contract.md](adapter-contract.md).
-Обязательны `descriptor/0` и cold `prepare/3`; подготовленный context immutable.
-Descriptor фиксирует adapter ID/API/model/observer/recipe/operation versions,
-capabilities, operation IDs, model modules и properties. Опциональный cold
+The exact public interface is described in [adapter-contract.md](adapter-contract.md).
+`descriptor/0` and cold `prepare/3` are required; the prepared context is immutable.
+The descriptor fixes adapter ID/API/model/observer/recipe/operation versions,
+capabilities, operation IDs, model modules and properties. The optional cold
 `code_dependencies(Context) -> #{semantic => [module()], target => [module()]}`
-позволяет привязать дополнительные helper/property и target dependency BEAMs к
-существующему механизму identities. Descriptor уже привязывает сам adapter и
-его model modules. Зависимость в identity сама по себе не добавляет coverage.
-Generic adapter дополнительно привязывает `efz_term_codec` как semantic
-dependency: изменение decode/normalization helper отвергает старый semantic
-replay так же, как изменение модели. Cold generic prepare проверяет реальные
-Gleam exports `scalar/4` и `observe/6`; отсутствие модельного модуля или
-несовместимый ABI отклоняется до campaign. Model-free harness execution и
-создание seed через codec не требуют этой проверки.
+binds additional helper/property and target dependency BEAMs to the existing
+identity mechanism. The descriptor already binds the adapter itself and its
+model modules. An identity dependency does not itself add coverage.
+The generic adapter additionally binds `efz_term_codec` as a semantic dependency:
+changing the decode/normalization helper rejects old semantic replay just as
+changing the model does. Cold generic preparation checks the real Gleam exports
+`scalar/4` and `observe/6`; a missing model module or incompatible ABI is rejected
+before the campaign. Model-free harness execution and seed creation through the
+codec do not require this check.
 
-Операционные callbacks обязательны только для объявленных capabilities:
+Operational callbacks are required only for declared capabilities:
 
 ```erlang
 generate(Index, Context) -> {ok, Raw} | {skip, Reason} | {error, Reason}.
@@ -252,36 +255,39 @@ oracle(Raw, PrimaryOutcome, Context) ->
 shrink(Raw, Context) -> {ok, Candidates} | {skip, Reason} | {error, Reason}.
 ```
 
-`Reason` для skip/inconclusive — atom; `Property` — ровно `{Id, Version}` из
-descriptor. Features: максимум 64 local IDs 0..255. Dispatcher добавляет
-`{AdapterId, ObserverVersion, LocalId}`; одинаковые local IDs разных adapters
-не смешиваются со structural coverage или друг с другом. Generation/mutation
-детерминированы; `choice` 0..65535 приходит из EFZ RNG и записывается в recipe.
-Adapter не заводит свой RNG, registry, worker или process per callback.
+`Reason` for skip/inconclusive is an atom; `Property` is exactly `{Id, Version}`
+from the descriptor. Features: at most 64 local IDs 0..255. The dispatcher adds
+`{AdapterId, ObserverVersion, LocalId}`; identical local IDs from different
+adapters are not mixed with structural coverage or with each other.
+Generation/mutation are deterministic; `choice` 0..65535 comes from the EFZ RNG
+and is recorded in the recipe. The adapter does not create its own RNG,
+registry, worker or process per callback.
 
-Для `example_library` со специальным wire format используется domain skeleton:
-заменить target call, metadata и observer; при необходимости добавить собственную
-Gleam-модель, её имя в `model_modules`, bounded generation/mutation и независимое
-свойство. Центральный dispatch не содержит ветвей по имени этой библиотеки.
-Observer-only descriptor может иметь `model_modules => []`, `operations => []`,
-`properties => []`; config тогда использует `structured_fraction => 0`,
-`oracle => disabled`. Generator-only plugin также допустим без observer/oracle,
-с отключённым feedback и fraction 0.
+For an `example_library` with a special wire format, use the domain skeleton:
+replace the target call, metadata and observer; if needed, add your own Gleam
+model, its name in `model_modules`, bounded generation/mutation and an independent
+property. Central dispatch contains no branches based on that library's name.
+An observer-only descriptor may have `model_modules => []`, `operations => []`,
+`properties => []`; its config then uses `structured_fraction => 0`,
+`oracle => disabled`. A generator-only plugin is also allowed without an
+observer/oracle, with feedback disabled and fraction 0.
 
-Gleam-модель можно поставлять отдельным Erlang/rebar3 dependency: compile/export
-её BEAMs заранее, добавить dependency `ebin` и нужные runtime dependencies на
-code path opt-in campaign, объявить model modules в descriptor. Обычный EFZ
-build не должен скачивать или компилировать такой пакет. Repo optional build
-использует pinned Gleam 1.10.0; runtime-off и обычный build не вызывают models.
+A Gleam model can be supplied as a separate Erlang/rebar3 dependency: compile/export
+its BEAMs in advance, add the dependency's `ebin` and required runtime dependencies
+to the opt-in campaign's code path, and declare model modules in the descriptor.
+An ordinary EFZ build must not download or compile that package. The repository's
+optional build uses pinned Gleam 1.10.0; runtime-off and ordinary builds do not
+call models.
 
-## 5. Настроить seeds, mutation, observer и oracle
+## 5. Configure seeds, mutation, observer and oracle
 
-Рабочие campaign maps в [examples/semantic_configs](../../examples/semantic_configs):
+Working campaign maps are in [examples/semantic_configs](../../examples/semantic_configs):
 `lists_reverse.term`, `maps_find.term`, `tuple_api.term`, `stateful.term`,
-`xmlrpc.term`, `cow_qs.term` и `cow_qs_legacy.term`. Seeds созданы реальным codec
-с argument specs каждого harness; XML/QS seeds остаются исходными wire binaries.
-Эти configs используют `coverage_backend => none` для исполнения и semantic
-smoke. Они не заявляют измеренное structural coverage stdlib API.
+`xmlrpc.term`, `cow_qs.term` and `cow_qs_legacy.term`. Seeds were created with the
+real codec using each harness's argument specs; XML/QS seeds remain original
+wire binaries. These configs use `coverage_backend => none` for execution and
+semantic smoke testing. They do not claim measured structural coverage of stdlib
+APIs.
 
 ```erlang
 gleam_layer => #{adapter => efz_term_api_adapter,
@@ -293,57 +299,59 @@ gleam_layer => #{adapter => efz_term_api_adapter,
                 collection => 32, operations => 1}}
 ```
 
-Generic observer классифицирует outcome и bounded result tree; он не доказывает
-корректность библиотеки. Generic oracle остаётся отключённым, пока пользователь
-не задаст `adapter_options.property => #{callback => {Module, Function}}` и
-`oracle => inline`. Callback получает `(DecodedArgs, PrimaryOutcome)` и возвращает
-`true`, `false` либо `inconclusive`; predicate имеет ID
-`{generic_custom_property, 1}`, code identity callback фиксируется отдельно.
-`stateful.term` явно выбирает независимый counter trace property.
+The generic observer classifies the outcome and bounded result tree; it does not
+prove library correctness. The generic oracle stays disabled until the user
+sets `adapter_options.property => #{callback => {Module, Function}}` and
+`oracle => inline`. The callback receives `(DecodedArgs, PrimaryOutcome)` and
+returns `true`, `false` or `inconclusive`; the predicate has ID
+`{generic_custom_property, 1}`, and the callback's code identity is recorded
+separately. `stateful.term` explicitly selects an independent counter-trace
+property.
 
-`guided` admits semantic novelty в обычный corpus и parent selection.
-`observation_only` сообщает features, но не направляет corpus/scheduler.
-`disabled` отключает observer. `structured_fraction => 0` не делает branch RNG
-draw или mutation decode; включённые observer/oracle продолжают работать.
-`gleam_layer => false` отключает весь dispatch и сохраняет обычный RNG path.
+`guided` admits semantic novelty to the ordinary corpus and parent selection.
+`observation_only` reports features but does not guide the corpus/scheduler.
+`disabled` disables the observer. `structured_fraction => 0` performs no branch
+RNG draw or mutation decode; enabled observer/oracle callbacks continue working.
+`gleam_layer => false` disables all dispatch and preserves the ordinary RNG path.
 
-`skip`, unchanged и limit mutation используют обычный byte fallback. Layer
-exception/invalid result завершает campaign как infrastructure error самого
-adapter; это не library finding и не успешный fallback. `inconclusive` означает
-отсутствие обоснованного verdict.
-Ожидаемый parser rejection не становится finding без нарушения явно заданного
-поддерживаемого свойства. Callbacks inline; исключения перехватываются, но это
-не останавливает бесконечный callback. Plugin обязан иметь конечные алгоритмы и
-проверять budgets до дорогостоящих allocation/recursion.
+`skip`, unchanged and limit mutation use the ordinary byte fallback. A layer
+exception/invalid result ends the campaign as an infrastructure error in the
+adapter itself; this is neither a library finding nor a successful fallback.
+`inconclusive` means there is no justified verdict.
+An expected parser rejection does not become a finding without violating an
+explicitly specified supported property. Callbacks run inline; exceptions are
+caught, but this does not stop an infinite callback. A plugin must have finite
+algorithms and check budgets before costly allocation/recursion.
 
-Для QS старый config без `adapter` работает только через изолированный legacy
-shim исторических `efz_qs_target`/`efz_qs_defect_target`. Это правило не участвует
-в подключении новых targets. Явный `efz_qs_adapter` проверяет harness metadata
-`#{kind => query_string, outcome => accepted_pairs}`. QS-specific `fields` и
-`component` находятся в `adapter_options`, не в общих limits.
+For QS, the old config without `adapter` works only through the isolated legacy
+shim for the historical `efz_qs_target`/`efz_qs_defect_target`. This rule does not
+participate in connecting new targets. An explicit `efz_qs_adapter` checks the
+harness metadata `#{kind => query_string, outcome => accepted_pairs}`.
+QS-specific `fields` and `component` belong in `adapter_options`, not in common
+limits.
 
-XML-RPC использует [pinned etnt/xmlrpc preparation](../../examples/xmlrpc/README.md).
-`efz_xmlrpc_target` вызывает `xmlrpc_decode:payload/1` на charlist. Independent
-model v1 проверяет printable ASCII methodCall, int/boolean/string и nested
-array/struct, с bytes/depth/nodes/collection/string limits. Имена нормализуются
-из existing atoms или charlists в binaries, без atom creation.
-Response/fault корректность, i4/double/date/base64/nil, implicit strings,
-non-ASCII UTF-8 и широкий XML grammar не поддерживаются oracle v1. Observation
-может классифицировать response/fault; это не доказательство их корректности.
+XML-RPC uses the [pinned etnt/xmlrpc preparation](../../examples/xmlrpc/README.md).
+`efz_xmlrpc_target` calls `xmlrpc_decode:payload/1` on a charlist. Independent
+model v1 checks printable ASCII methodCall, int/boolean/string and nested
+array/struct, with bytes/depth/nodes/collection/string limits. Names are normalized
+from existing atoms or charlists to binaries without atom creation.
+Response/fault correctness, i4/double/date/base64/nil, implicit strings,
+non-ASCII UTF-8 and the wider XML grammar are not supported by oracle v1.
+Observation can classify response/fault; this does not prove their correctness.
 
-## 6. Подготовить target-only coverage artifacts
+## 6. Prepare target-only coverage artifacts
 
-Использовать существующие `efz_instrument:compile/2` либо
-`efz_cov_native_public:compile/3`, затем штатный artifact preflight. Выбираются
-модули самой библиотеки; adapter/model/property helpers исключаются. Harness
-и инфраструктурный codec не являются заменой library coverage. Для built-in
-OTP API без подготовленного coverage backend следует честно использовать
-`none`/diagnostic и отдельно фиксировать эту границу.
+Use the existing `efz_instrument:compile/2` or
+`efz_cov_native_public:compile/3`, followed by the standard artifact preflight.
+Select the library's own modules; exclude adapter/model/property helpers.
+The harness and infrastructure codec do not replace library coverage. For
+built-in OTP APIs without a prepared coverage backend, honestly use
+`none`/diagnostic and record this limitation separately.
 
-XML-RPC preparation инструментирует `xmlrpc_decode` и `xmlrpc_util`. OTP xmerl
-остаётся dependency, его внутреннее coverage не измеряется. `xmerl.hrl`
-record defaults требуют документированного `strict => false`; executable
-decoder clauses остаются probed. Например для counter fixture:
+XML-RPC preparation instruments `xmlrpc_decode` and `xmlrpc_util`. OTP xmerl
+remains a dependency; its internal coverage is not measured. `xmerl.hrl` record
+defaults require the documented `strict => false`; executable decoder clauses
+remain probed. For example, for the counter fixture:
 
 ```erlang
 {ok, A} = efz_instrument:compile("examples/stateful/efz_stateful_counter.erl",
@@ -351,16 +359,16 @@ decoder clauses остаются probed. Например для counter fixture
       source_root => ".", erl_opts => [debug_info, warnings_as_errors]}).
 ```
 
-После подготовки config меняется на `coverage_backend => ets, artifacts => [A]`
-либо CLI получает `--artifacts /tmp/counter-artifacts`. Одного наличия dependency
-на code path недостаточно для утверждения, что его coverage измерено.
-Для counter fixture отдельно проверены ETS probes в admitted child и cleanup
-без оставшихся процессов. Это coverage самого `efz_stateful_counter`; внутренние
-модули OTP `gen_server`/`proc_lib` в него не входят.
+After preparation, change the config to `coverage_backend => ets, artifacts => [A]`
+or pass `--artifacts /tmp/counter-artifacts` to the CLI. Merely having a dependency
+on the code path is not enough to claim its coverage was measured.
+For the counter fixture, ETS probes in the admitted child and cleanup without
+remaining processes were checked separately. This covers `efz_stateful_counter`
+itself; internal OTP `gen_server`/`proc_lib` modules are not included.
 
-## 7. Запустить validation и campaign
+## 7. Run validation and a campaign
 
-Из корня EFZ:
+From the EFZ root:
 
 ```sh
 ERL_FLAGS='+S 2:2' rebar3 compile
@@ -374,58 +382,60 @@ ERL_FLAGS='+S 2:2' escript scripts/fuzz.escript \
   --code-path _build/gleam/lib/efz/ebin --out /tmp/counter-run
 ```
 
-`--config` читает ровно одну доверенную Erlang campaign map через `file:consult`.
-Code paths загружаются до consult/preflight. Существующие явно переданные CLI
-flags переопределяют config; `--seeds DIR` импортирует raw файлы, `--artifacts DIR`
-переопределяет artifacts. `--out` остаётся обязательным. Config не хранит
-исполняемый closure, resource PID или секрет. Trusted config может задавать atoms;
-это отдельная граница от недоверенных fuzz bytes. Прежние CLI flags не переименованы.
+`--config` reads exactly one trusted Erlang campaign map through `file:consult`.
+Code paths are loaded before consult/preflight. Existing explicitly supplied CLI
+flags override the config; `--seeds DIR` imports raw files and `--artifacts DIR`
+overrides artifacts. `--out` remains required. A config stores no executable
+closure, resource PID or secret. A trusted config can specify atoms; this is a
+separate boundary from untrusted fuzz bytes. Earlier CLI flags have not been
+renamed.
 
-Startup выявляет неизвестный adapter, отсутствующий обязательный callback/model,
-несовместимые metadata/options, неподдерживаемые capabilities и coverage selection.
-`--gleam-layer` без explicit adapter остаётся историческим QS CLI compatibility
-path; новые integrations используют config с `adapter`.
+Startup detects unknown adapters, missing required callbacks/models,
+incompatible metadata/options, unsupported capabilities and coverage selection.
+`--gleam-layer` without an explicit adapter remains the historical QS CLI
+compatibility path; new integrations use a config with `adapter`.
 
-Для XML-RPC сначала выполнить `examples/xmlrpc/prepare.escript`, затем добавить
-`_build/xmlrpc-example/dependency-ebin` и `_build/xmlrpc-example/harness-ebin`
-через `--code-path`. Для QS добавить `_build/default/lib/cowlib/ebin`.
-Полная проверка изменения включает ordinary/optional build, runtime-off,
-релевантные EUnit/CT, xref/Dialyzer и finite campaigns с report/artifact evidence.
-Сравнительные результаты должны отдельно указывать wall-clock, execution budget,
-calibration/mutation/extra executions, provider outcomes, coverage и adapter-local
-semantic novelty. Feature counts разных adapters не являются общей шкалой.
-Callback microbenchmark не заменяет campaign throughput или discovery evidence.
+For XML-RPC, first run `examples/xmlrpc/prepare.escript`, then add
+`_build/xmlrpc-example/dependency-ebin` and `_build/xmlrpc-example/harness-ebin`
+through `--code-path`. For QS, add `_build/default/lib/cowlib/ebin`.
+Full validation of a change includes ordinary/optional builds, runtime-off,
+relevant EUnit/CT, xref/Dialyzer and finite campaigns with report/artifact evidence.
+Comparative results must report wall-clock time, execution budget,
+calibration/mutation/extra executions, provider outcomes, coverage and
+adapter-local semantic novelty separately. Feature counts from different adapters
+are not a common scale. A callback microbenchmark does not replace campaign
+throughput or discovery evidence.
 
-## 8. Проверить persistence, replay и минимизацию
+## 8. Check persistence, replay and minimization
 
-Canonical corpus хранит raw binaries. Restart калибрует inputs заново текущим
-adapter и не доверяет сохранённым semantic features другой модели. Existing
-`corpus_build_policy => reject | recalibrate` определяет mismatch policy.
-Adapter/model/options/limits, observer/property и operation catalogue versions,
-code/execution identities и RNG provenance входят в существующую metadata.
-Identity также фиксирует SHA-256 детерминированного portable prepared context;
-cold context должен воспроизводиться, иначе replay получает mismatch.
+The canonical corpus stores raw binaries. Restart recalibrates inputs with the
+current adapter and does not trust saved semantic features from another model.
+The existing `corpus_build_policy => reject | recalibrate` defines mismatch policy.
+Adapter/model/options/limits, observer/property and operation-catalogue versions,
+code/execution identities and RNG provenance are included in existing metadata.
+Identity also records the SHA-256 of the deterministic portable prepared context;
+the cold context must be reproducible, otherwise replay gets a mismatch.
 
-Восстановление raw input и его выполнение — отдельные операции.
-`efz_recipe:load/1` и `efz_recipe:regenerate/1` для schema 4 восстанавливают
-сохранённые raw replacement bytes и проверяют recipe/RNG provenance средствами
-ядра EFZ. Они не загружают adapter/model, не выполняют target и не декодируют
-opaque adapter options/RecipeData. Historical QS recipe schemas сохраняют
-прежние raw replay гарантии.
+Reconstructing raw input and executing it are separate operations.
+`efz_recipe:load/1` and `efz_recipe:regenerate/1` for schema 4 reconstruct saved raw
+replacement bytes and validate recipe/RNG provenance through the EFZ core.
+They do not load the adapter/model, execute the target or decode opaque adapter
+options/RecipeData. Historical QS recipe schemas retain their earlier raw-replay
+guarantees.
 
-Выполнение восстановленного input требует target/harness/dependency artifacts,
-без semantic callback dispatch, adapter или model BEAM. Generic harnesses из
-этого руководства используют model-free `efz_term_codec:execute/2`: требуется
-codec BEAM, как обычная execution dependency. Wire-format harnesses вызывают
-библиотеку напрямую. Пользовательские harnesses также должны отделять свои
-execution dependencies от optional semantic callbacks.
+Executing reconstructed input requires target/harness/dependency artifacts,
+without semantic callback dispatch, adapter or model BEAMs. The generic harnesses
+in this guide use model-free `efz_term_codec:execute/2`: the codec BEAM is needed
+as an ordinary execution dependency. Wire-format harnesses call the library
+directly. Custom harnesses must also separate their execution dependencies from
+optional semantic callbacks.
 
-`efz_recipe:regenerate_semantic(Recipe, PreparedLayer)` заново вызывает
-structured mutation с сохранёнными operation/params и проверяет совпадение
-raw bytes и RecipeData. Эта opt-in проверка требует свежего prepared context
-из доверенного config, точного adapter identity и доступных adapter/model
-BEAMs. Она также не выполняет target. Semantic property replay ниже проверяет
-уже outcome реального target execution и требует собственный property contract.
+`efz_recipe:regenerate_semantic(Recipe, PreparedLayer)` reruns structured mutation
+with the saved operation/params and checks that raw bytes and RecipeData match.
+This opt-in check requires a fresh prepared context from a trusted config,
+exact adapter identity and available adapter/model BEAMs. It does not execute
+the target either. Semantic property replay below checks the actual target
+execution's outcome and requires its own property contract.
 
 ```erlang
 {ok, Expected} = efz_semantic_replay:load("finding.semantic"),
@@ -436,10 +446,11 @@ efz_semantic_replay:minimize(Raw, Target, TargetArtifacts, Expected,
     ReplayOptions#{minimization_timeout_ms => 30000}, 64).
 ```
 
-`none` соответствует smoke configs выше. Для сохранённых ETS/native artifacts
-нужно выбрать исходный `coverage_backend` и передать именно эти artifacts.
+`none` matches the smoke configs above. For saved ETS/native artifacts, select
+the original `coverage_backend` and supply those exact artifacts.
 
-Тот же контракт доступен через общий CLI без библиотечных ветвей:
+The same contract is available through the general CLI without library-specific
+branches:
 
 ```sh
 ERL_FLAGS='+S 2:2' escript scripts/gleam_replay.escript \
@@ -448,40 +459,42 @@ ERL_FLAGS='+S 2:2' escript scripts/gleam_replay.escript \
   --code-path _build/gleam/lib/efz/ebin --code-path /path/to/harness/ebin
 ```
 
-Trusted config задаёт `target`, `artifacts`, `coverage_backend`, `gleam_layer`,
-`timeout` и optional `max_input_bytes`; seeds и corpus не выполняются этим CLI.
-Replay поддерживает `ets`, `ets_member`, `otp_native_public` и `none`;
-campaign backend `bitmap` этим replay execution API пока не поддерживается и
-отвергается до target execution. Ошибки options/config завершаются с exit2.
-CLI сначала выполняет cold validation с effective limits доверенного config и
-сравнивает полный adapter identity. Увеличение или уменьшение этих limits
-относительно finding приводит к mismatch до target execution; recorded byte
-cap finding не подменяет явно выбранный больший лимит config. При этом ни cold
-validation, ни чтение finding не вызывают target.
-Finding не выбирает executable code: читаются только `.input` и `.semantic`,
-diagnostic `.term` не нужен. Output directory должен отсутствовать, включая
-symlink; результаты создаются только после фактического reproduction.
-`not_reproduced` и `inconclusive` завершают CLI с exit1 до minimization и без
-output. Budget 1..10000 включает initial replay и все target executions
-минимизатора: при budget 1 сохраняется только `replay.*`, при большем budget
-также `minimized.input`, `minimized.semantic` и `minimization.term`.
-Настоящий deadline/budget status и total executions сохраняются в результате.
-Минимизатор использует deadline 30000 ms: после него новые candidate executions
-не планируются; уже начатый execution ограничивает отдельный target `timeout`.
-Если final verification пропущена из-за budget/deadline, это явно записано как
-`{skipped,budget}` или `{skipped,deadline}`. Сохранённый input воспроизвёл predicate
-при последней проверке кандидата (либо initial reproduction, если input не
-менялся); дополнительная финальная проверка в этом случае не заявляется.
+The trusted config specifies `target`, `artifacts`, `coverage_backend`,
+`gleam_layer`, `timeout` and optional `max_input_bytes`; this CLI does not execute
+seeds or the corpus. Replay supports `ets`, `ets_member`, `otp_native_public`
+and `none`; campaign backend `bitmap` is not yet supported by this replay
+execution API and is rejected before target execution. Options/config errors
+exit with status 2. The CLI first performs cold validation using the trusted
+config's effective limits and compares the full adapter identity. Increasing or
+decreasing these limits relative to the finding causes a mismatch before target
+execution; the finding's recorded byte cap does not replace an explicitly chosen
+larger config limit. Neither cold validation nor reading a finding calls the
+target.
+The finding does not select executable code: only `.input` and `.semantic` are
+read; diagnostic `.term` is unnecessary. The output directory must not exist,
+including as a symlink; results are created only after actual reproduction.
+`not_reproduced` and `inconclusive` exit with status 1 before minimization and
+without output. Budget 1..10000 includes the initial replay and all minimizer
+target executions: budget 1 saves only `replay.*`; larger budgets also save
+`minimized.input`, `minimized.semantic` and `minimization.term`.
+The actual deadline/budget status and total executions are saved in the result.
+The minimizer uses a 30000 ms deadline: no new candidate executions are scheduled
+after it; an already started execution is bounded by the separate target
+`timeout`. If final verification is skipped because of budget/deadline, this is
+explicitly recorded as `{skipped,budget}` or `{skipped,deadline}`. The saved input
+reproduced the predicate at the last candidate check (or initial reproduction
+if the input did not change); no additional final check is claimed in that case.
 
-Прежняя пятиаргументная команда сохраняется как явно ограниченный QS legacy
-helper и делегирует `scripts/gleam_replay_legacy.escript`. Его исторические
-target names, native `cow_qs` artifact и diagnostic JSON остаются только в
-этом helper; новые подключения используют `--config`.
+The earlier five-argument command remains as an explicitly limited QS legacy
+helper and delegates to `scripts/gleam_replay_legacy.escript`. Its historical
+target names, native `cow_qs` artifact and diagnostic JSON remain only in that
+helper; new integrations use `--config`.
 
-Semantic property replay требует explicit trusted caller config, matching
-adapter/model/property/target identities и code path. Artifact сам не выбирает
-adapter или callback module. Несовместимость отвергается, predicate не заменяется
-тихо. Минимизация использует тот же property ID/version и predicate, учитывает
-каждое target execution, initial reproduction и final verification. Она не
-обещает глобальный минимум и сообщает исчерпание deadline/budget. Результаты
-сохраняются отдельно; canonical corpus и исходные finding groups не перезаписываются.
+Semantic property replay requires an explicit trusted caller config, matching
+adapter/model/property/target identities and code path. The artifact itself does
+not select an adapter or callback module. Incompatibility is rejected; the
+predicate is not silently replaced. Minimization uses the same property
+ID/version and predicate, accounts for every target execution, initial
+reproduction and final verification. It does not promise a global minimum and
+reports deadline/budget exhaustion. Results are saved separately; the canonical
+corpus and original finding groups are not overwritten.

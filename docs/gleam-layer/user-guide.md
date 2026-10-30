@@ -1,4 +1,6 @@
 > This document describes the historical QS compatibility interface. The current
+
+**English** · [Русский](../i18n/ru/gleam-layer/user-guide.md) · [Español](../i18n/es/gleam-layer/user-guide.md) · [简体中文](../i18n/zh-CN/gleam-layer/user-guide.md) · [All languages](../i18n/README.md)
 > public plugin and generic API guide is [Connecting Erlang libraries](connecting-erlang-libraries.md).
 
 # Optional native Gleam layer
@@ -103,7 +105,7 @@ Replay/minimize the artificial fixture used in tests (not a real Cowlib defect):
 
 The following five-positional-argument command is the QS legacy helper. New
 adapters use the explicit `--config` interface in the
-[library connection guide](connecting-erlang-libraries.md#8-проверить-persistence-replay-и-минимизацию).
+[library connection guide](connecting-erlang-libraries.md#8-check-persistence-replay-and-minimization).
 
 ```sh
 escript scripts/gleam_replay.escript ARTIFACT_PREFIX NATIVE_ARTIFACT_DIR \

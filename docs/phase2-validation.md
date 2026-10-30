@@ -1,5 +1,7 @@
 # Phase 2 validation record
 
+**English** · [Русский](i18n/ru/phase2-validation.md) · [Español](i18n/es/phase2-validation.md) · [简体中文](i18n/zh-CN/phase2-validation.md) · [All languages](i18n/README.md)
+
 Date: 2026-09-08. All execution targets and corpora are local artificial fixtures.
 Environment: OTP 27.0, ERTS 15.0, x86_64-pc-linux-gnu; Rebar3 3.25.0.
 

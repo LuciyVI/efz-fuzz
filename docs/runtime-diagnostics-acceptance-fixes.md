@@ -1,5 +1,7 @@
 # P0 acceptance fixes — 2026-09-21
 
+**English** · [Русский](i18n/ru/runtime-diagnostics-acceptance-fixes.md) · [Español](i18n/es/runtime-diagnostics-acceptance-fixes.md) · [简体中文](i18n/zh-CN/runtime-diagnostics-acceptance-fixes.md) · [All languages](i18n/README.md)
+
 ## Verdict: ACCEPT
 
 P0-01, P0-02, P0-03, P0-04: PASS. Canonical compile, EUnit twice, CT,

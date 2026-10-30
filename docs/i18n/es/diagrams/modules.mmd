@@ -1,0 +1,134 @@
+classDiagram
+    direction TB
+    accTitle: EFZ — dependencias de módulos
+    accDescr: UML estructural de dependencias de módulos; no indica un proceso por función.
+    class efz_cli {
+        <<módulo>>
+        main(Args)
+    }
+    class efz {
+        <<API>>
+        start(Config)
+        await(Timeout)
+        stop()
+    }
+    class efz_fuzzer {
+        <<gen_server>>
+        start_link(Config)
+        init(Config)
+    }
+    class efz_config {
+        <<módulo>>
+        prepare(Config)
+    }
+    class efz_instrument {
+        <<módulo>>
+        compile(File, Opts)
+        preflight(Artifacts)
+    }
+    class efz_worker {
+        <<gen_server>>
+        handle_info(iterate, State)
+    }
+    class efz_mutation_plan {
+        <<módulo>>
+        next(State, Entries)
+    }
+    class efz_mutation {
+        <<módulo>>
+        apply_operation(B, Op, C)
+    }
+    class efz_executor {
+        <<módulo>>
+        run(M, B, T, Opts)
+    }
+    class efz_guardian {
+        <<propietario del ciclo>>
+        run(Caller, Request, M, B, T, Opts)
+        status()
+    }
+    class efz_target {
+        <<API del harness>>
+        spawn(Fun)
+        spawn_link(Fun)
+    }
+    class efz_cov_integrity {
+        <<módulo>>
+        pin(Harness, Selected)
+        validate(Identities)
+        trace_event(Event, Context, Seen)
+        observation(Hits, Status, Attached)
+    }
+    class efz_feedback {
+        <<módulo>>
+        evaluate(F, Result, Phase)
+    }
+    class efz_corpus {
+        <<gen_server>>
+        mutation_entries()
+        add(Input, Metadata)
+    }
+    class efz_corpus_store {
+        <<módulo>>
+        restore(Dir, Id, Policy, Max)
+        save(Store, B, Id, Meta)
+    }
+    class efz_recipe {
+        <<módulo>>
+        make(P, B, C, Builds)
+        regenerate(Recipe)
+    }
+    class efz_crash {
+        <<módulo>>
+        signature(Outcome, Policy)
+        remember(Crash, Groups, Limit)
+        save(B, Result, Meta, Opts)
+    }
+    class efz_replay {
+        <<módulo>>
+        load(ExpectationPath)
+        run(Kind, Path, Target, Artifacts, Expected, Options)
+    }
+    class efz_replay_cli {
+        <<módulo>>
+        main(Args)
+    }
+    class efz_crash_store {
+        <<módulo>>
+        save(Dir, Identity, Limit, Write)
+        read(Group)
+    }
+    class efz_fs {
+        <<módulo>>
+        atomic_group(Dir, Name, Files)
+        atomic_file(Path, Bytes)
+    }
+    efz_cli ..> efz : start / await / stop
+    efz ..> efz_fuzzer : hijo del supervisor
+    efz_fuzzer ..> efz_config : prepare antes de init
+    efz_config ..> efz_instrument : preflight
+    efz_config ..> efz_cov_integrity : fijar harness y builds
+    efz_config ..> efz_corpus_store : restore
+    efz_fuzzer ..> efz_worker : vía efz_worker_sup
+    efz_fuzzer ..> efz_corpus : start_link
+    efz_worker ..> efz_mutation_plan : planificación por etapas
+    efz_mutation_plan ..> efz_mutation : operación
+    efz_worker ..> efz_executor : ejecutar binario
+    efz_executor ..> efz_guardian : poseer ciclo de ejecución
+    efz_guardian ..> efz_cov_integrity : registro / trazas / validación
+    efz_target ..> efz_guardian : admisión controlada
+    efz_worker ..> efz_feedback : clasificar / novedad
+    efz_worker ..> efz_corpus : entradas / retención
+    efz_worker ..> efz_recipe : registrar procedencia
+    efz_worker ..> efz_crash : fallo del objetivo
+    efz_corpus ..> efz_corpus_store : persistencia opcional
+    efz_crash ..> efz_crash_store : representantes y conteo acotados
+    efz_crash_store ..> efz_fs : validar / confirmar resumen
+    efz_crash ..> efz_recipe : validar / codificar
+    efz_corpus_store ..> efz_fs : E/S con sync
+    efz_replay_cli ..> efz_replay : veredicto raw o receta
+    efz_replay ..> efz_crash
+    efz_replay ..> efz_recipe : regenerate / execute
+    efz_recipe ..> efz_executor : ejecutar objetivo compatible
+    efz_replay ..> efz_cov_integrity : verificar identidad del harness
+    efz_crash ..> efz_replay : guardar expectativa

@@ -1,5 +1,7 @@
 # EFZ terminal dashboard
 
+**English** · [Русский](i18n/ru/tui.md) · [Español](i18n/es/tui.md) · [简体中文](i18n/zh-CN/tui.md) · [All languages](i18n/README.md)
+
 The optional Python/curses viewer combines a rolling execution-rate and coverage
 chart with the last completed input in hex/ASCII and covered function names.
 It requires Python 3 with curses, an interactive UTF-8 terminal and the normal

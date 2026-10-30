@@ -1,5 +1,7 @@
 # Reusable durable corpus
 
+**English** · [Русский](i18n/ru/corpus.md) · [Español](i18n/es/corpus.md) · [简体中文](i18n/zh-CN/corpus.md) · [All languages](i18n/README.md)
+
 Persistence is opt-in through `corpus_dir` in the campaign map or `--corpus-dir`
 in the launcher. Without it the existing in-memory campaign path remains in use.
 The store preserves initial inputs and successful new-coverage discoveries across
