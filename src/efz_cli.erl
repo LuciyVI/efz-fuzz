@@ -33,6 +33,10 @@ help() ->
     "  --erlamsa-profile balanced|bytes|formats|fields  Provider profile (default: balanced)\n"
     "  --provider-strategy preserve|perturb|mixed  Structure policy (default: mixed)\n"
     "  --provider-timeout MS    Isolated provider request deadline, 1..60000 (default: 1000)\n"
+    "  --provider-transport disposable|persistent  Reuse one isolated VM per campaign\n"
+    "  --provider-startup-timeout MS  Persistent startup/handshake budget (default: 10000)\n"
+    "  --provider-cleanup-timeout MS  Bounded worker shutdown/recycle budget (default: 3000)\n"
+    "  --provider-max-requests N  Recycle between requests; default: 10000\n"
     "  --provider-core PATH     Trusted local Erlamsa core root or ebin directory\n"
     "                           Enabled providers require staged mode; Gleam is independent\n"
     "  --timeout MS             Per-input timeout, nonnegative integer (default: 100)\n"
@@ -109,6 +113,10 @@ option("--mutation-provider") -> provider_mode;
 option("--erlamsa-profile") -> provider_profile;
 option("--provider-strategy") -> provider_strategy;
 option("--provider-timeout") -> provider_timeout;
+option("--provider-transport") -> provider_transport;
+option("--provider-startup-timeout") -> provider_startup_timeout;
+option("--provider-cleanup-timeout") -> provider_cleanup_timeout;
+option("--provider-max-requests") -> provider_max_requests;
 option("--provider-core") -> provider_core;
 option("--timeout") -> timeout;
 option("--max-iterations") -> max_iterations;
@@ -144,6 +152,12 @@ value(provider_timeout,Text)->
         true->case list_to_integer(Text) of N when N>=1,N=<60000->N;
             _->fail("--provider-timeout must be 1..60000",[]) end;
         false->fail("--provider-timeout must be 1..60000",[]) end;
+value(provider_transport,"disposable")->disposable;
+value(provider_transport,"persistent")->persistent;
+value(provider_transport,_)->fail("--provider-transport must be disposable or persistent",[]);
+value(provider_startup_timeout,Text)->provider_integer(Text,1,60000,"--provider-startup-timeout");
+value(provider_cleanup_timeout,Text)->provider_integer(Text,1,30000,"--provider-cleanup-timeout");
+value(provider_max_requests,Text)->provider_integer(Text,1,1000000,"--provider-max-requests");
 value(provider_core,[])->fail("--provider-core must not be empty",[]);
 value(provider_core,Text)->filename:absname(Text);
 value(corpus_build_policy, "reject") -> reject;
@@ -163,6 +177,11 @@ value(K, Text) when K =:= timeout; K =:= max_iterations; K =:= max_input_bytes; 
     end;
 value(_, []) -> fail("Directory arguments must not be empty", []);
 value(_, Text) -> Text.
+provider_integer(Text,Min,Max,Flag)->
+    case Text=/=[] andalso lists:all(fun(C)->C>=$0 andalso C=<$9 end,Text) of
+        true->case list_to_integer(Text) of N when N>=Min,N=<Max->N;
+            _->fail("~ts must be in range ~B..~B",[Flag,Min,Max]) end;
+        false->fail("~ts must be in range ~B..~B",[Flag,Min,Max]) end.
 flag(runtime_runs) -> "--runtime-runs";
 flag(structured_fraction)->"--structured-fraction";
 flag(oracle_budget)->"--oracle-budget";
@@ -248,13 +267,15 @@ launch(O) ->
 %% Explicit CLI values override only their own nested provider fields. The
 %% trusted map's source weights, limits and other options remain caller-owned.
 with_provider(C,O)->
-    Keys=[provider_mode,provider_profile,provider_strategy,provider_timeout,provider_core],
+    Keys=[provider_mode,provider_profile,provider_strategy,provider_timeout,provider_core,
+          provider_transport,provider_startup_timeout,provider_cleanup_timeout,provider_max_requests],
     case maps:with(Keys,O) of
         M when map_size(M)=:=0->C;
         Overrides->C#{mutation_provider=>provider_options(maps:get(mutation_provider,C,native),Overrides)}
     end.
 provider_options(Base,O)->
-    Keys=[provider_mode,provider_profile,provider_strategy,provider_timeout,provider_core],
+    Keys=[provider_mode,provider_profile,provider_strategy,provider_timeout,provider_core,
+          provider_transport,provider_startup_timeout,provider_cleanup_timeout,provider_max_requests],
     case maps:with(Keys,O) of
         M when map_size(M)=:=0->Base;
         Overrides->
@@ -275,9 +296,15 @@ provider_options(Base,O)->
                         {ok,V}->Acc#{To=>V};error->Acc end end,Options0,
                         [{provider_profile,profile},{provider_strategy,strategy}]),
                     Result=B#{mode=>Mode,options=>Options},
-                    lists:foldl(fun({From,To},Acc)->case maps:find(From,Overrides) of
+                    TuningResult=lists:foldl(fun({From,To},Acc)->case maps:find(From,Overrides) of
                         {ok,V}->Acc#{To=>V};error->Acc end end,Result,
-                        [{provider_timeout,timeout},{provider_core,core_path}])
+                        [{provider_timeout,timeout},{provider_core,core_path}]),
+                    lists:foldl(fun({From,To},Acc)->case maps:find(From,Overrides) of
+                        {ok,V}->Acc#{To=>V};error->Acc end end,TuningResult,
+                        [{provider_transport,transport},
+                         {provider_startup_timeout,startup_timeout},
+                         {provider_cleanup_timeout,cleanup_timeout},
+                         {provider_max_requests,max_requests}])
             end
     end.
 

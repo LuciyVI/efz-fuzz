@@ -12,6 +12,10 @@ success_only_after_reap_test() ->
     ?assertMatch({ok,<<1,2,0>>,#{operation:=fixture}}, Result),
     assert_reaped(Runtime),
     ?assert(maps:get(latency_us,Runtime) > maps:get(core_us,Runtime)),
+    ?assert(maps:get(worker_startup_us,Runtime) > 0),
+    ?assert(maps:get(request_total_us,Runtime) >= maps:get(worker_startup_us,Runtime)),
+    ?assert(maps:get(parent_encode_us,Runtime) > 0),
+    ?assert(maps:get(response_frame_bytes,Runtime) > 0),
     await_dead(Guardian,1000),
     await(fun() -> directories() =:= Before end,1000),
     ?assertEqual(Ports,lists:sort(erlang:ports())).

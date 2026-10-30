@@ -1,0 +1,54 @@
+escript: exception error: no match of right hand side value
+                 {error,
+                     {{mutation_provider_configuration,unknown_option},
+                      {child,undefined,efz_fuzzer,
+                          {efz_fuzzer,start_link,
+                              [#{timeout => 1000,
+                                 target => efz_benchmark_erlamsa_target,
+                                 seeds =>
+                                     [<<>>,<<"a=">>,<<"a=%00%FF">>,
+                                      <<"a=%20%26%3D%25&a=1">>,<<"plain=1">>,
+                                      <<"a=1&x=%">>],
+                                 artifacts =>
+                                     [#{module => cow_qs,
+                                        beam =>
+                                            "/home/fbogoslavskii/test/efz-fuzz/_build/erlamsa-evidence/performance-persistent-acceptance-20261028/target/cow_qs.beam",
+                                        build_id =>
+                                            <<184,172,214,23,125,215,130,229,
+                                              32,201,149,207,220,234,52,148,
+                                              210,212,140,153,51,55,254,227,
+                                              234,251,201,205,161,242,239,113>>,
+                                        beam_md5 =>
+                                            <<173,9,220,37,101,32,27,227,196,
+                                              185,252,179,96,62,128,81>>,
+                                        coverage_kind => otp_native_line}],
+                                 coverage_backend => otp_native_public,
+                                 max_input_bytes => 4096,
+                                 mutation_mode => staged,max_iterations => 10,
+                                 mutation =>
+                                     #{seed => {89,90,91},
+                                       stages => [havoc],
+                                       trace_limit => 0},
+                                 selection_seed => {89,90,91},
+                                 random_seed => {89,90,91},
+                                 performance_profile => true,
+                                 crash_dir =>
+                                     "/home/fbogoslavskii/test/efz-fuzz/_build/erlamsa-evidence/performance-persistent-profile-diagnostic-20261028/erlamsa_persistent-s89/warmup-crashes",
+                                 mutation_provider =>
+                                     #{timeout => 2000,mode => erlamsa,
+                                       options => #{profile => bytes},
+                                       core_path =>
+                                           "/home/fbogoslavskii/test/efz-fuzz/vendor/erlamsa",
+                                       transport => persistent,
+                                       max_requests => 10000,
+                                       on_skip => native,
+                                       weights =>
+                                           [{native,70},{erlamsa,30}]}}]},
+                          temporary,false,infinity,worker,
+                          [efz_fuzzer]}}}
+  in function  benchmark_erlamsa_escript__escript__1793__189981__192330__563:main/1 (/home/fbogoslavskii/test/efz-fuzz/scripts/benchmark_erlamsa.escript, line 32)
+  in call from escript:run/2 (escript.erl, line 904)
+  in call from escript:start/1 (escript.erl, line 418)
+  in call from init:start_it/1
+  in call from init:start_em/1
+  in call from init:do_boot/3

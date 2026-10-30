@@ -46,7 +46,8 @@ prepare(_,_) -> {error,invalid_mutation_configuration}.
 config_identity(C)->
     %% Sorted pairs avoid ETF map ordering differences between VMs. Trace is observational.
     Portable=case maps:find(provider,C) of
-        {ok,P}->C#{provider=>maps:without([core_context,core_path],P)};
+        {ok,P}->C#{provider=>maps:without([core_context,core_path,runtime_modules,
+            transport,startup_timeout,cleanup_timeout,max_requests],P)};
         error->C
     end,
     efz_mutation:hash(term_to_binary(lists:sort(maps:to_list(maps:without([trace_limit,config_id],Portable))))).

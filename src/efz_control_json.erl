@@ -39,7 +39,7 @@ request(M) ->
     1 = maps:get(<<"version">>,M),
     Id = integer(maps:get(<<"id">>,M),0,9007199254740991),
     Op = enum(maps:get(<<"op">>,M),[start,stats,request_stop,await_result,close,
-                                   mutate,mutate_batch,results,raw_replay]),
+                                   mutate,mutate_batch,cancel,results,raw_replay]),
     Args = maps:get(<<"args">>,M,#{}), true = is_map(Args),
     {Id,Op,Args}.
 keys(M, Allowed) when is_map(M) ->
@@ -107,6 +107,10 @@ provider(V) -> object(V,#{mode=>fun(X)->enum(X,[native,erlamsa,hybrid]) end,
     limits=>fun(X)->integer_object(X,[input_bytes,output_bytes,intermediate_bytes,depth,nodes,
         entries,entry_bytes,unpacked_bytes,expansion_ratio,operations,repeats,block_bytes]) end,
     timeout=>fun(X)->integer(X,1,60000) end,on_skip=>fun(X)->enum(X,[native,skip]) end,
+    transport=>fun(X)->enum(X,[disposable,persistent]) end,
+    startup_timeout=>fun(X)->integer(X,1,60000) end,
+    cleanup_timeout=>fun(X)->integer(X,1,30000) end,
+    max_requests=>fun(X)->integer(X,1,1000000) end,
     core_path=>fun(X)->P=path(X),true=filename:pathtype(P)=:=absolute,P end}).
 provider_options(V) -> object(V,#{profile=>fun(X)->enum(X,[balanced,bytes,formats,fields]) end,
     strategy=>fun(X)->enum(X,[preserve,perturb,mixed]) end,

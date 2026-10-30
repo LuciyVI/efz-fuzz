@@ -18,6 +18,10 @@ class ProviderFailure(EFZError):
     code = "provider_failure"
 
 
+class ProviderBusy(EFZError):
+    code = "provider_busy"
+
+
 class RequestTimeout(EFZError, TimeoutError):
     code = "request_timeout"
 
@@ -46,7 +50,7 @@ class ReplayFailure(EFZError):
     code = "replay_failure"
 
 
-_ERRORS = {cls.code: cls for cls in (BadConfig, ProviderFailure, RequestTimeout, ProviderTimeout,
+_ERRORS = {cls.code: cls for cls in (BadConfig, ProviderFailure, ProviderBusy, RequestTimeout, ProviderTimeout,
     Cancelled, ProtocolError, RuntimeUnavailable, StorageError, ReplayFailure)}
 
 

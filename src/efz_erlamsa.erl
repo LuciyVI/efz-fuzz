@@ -1,13 +1,20 @@
 %% The optional, trusted-local Erlamsa core. This module starts no application.
 %% Operational calls use the fixed local-data API in EFZ's request child.
 -module(efz_erlamsa).
--export([prepare/3, mutate/3, identity_valid/1, live/1]).
+-export([prepare/3, prepare_timed/3, mutate/3, mutate_timed/3, mutate_session_timed/3,
+         core_option_atoms/0, identity_valid/1, live/1]).
 -include_lib("kernel/include/file.hrl").
 
 -define(MAX_FILE, 2097152).
 -define(MAX_APP, 65536).
 
 prepare(Options, Limits, CorePath) when is_map(Options), is_map(Limits) ->
+    {Result, _Timing} = prepare_timed(Options, Limits, CorePath),
+    Result;
+prepare(_, _, _) -> {error, invalid_core_configuration}.
+
+prepare_timed(Options, Limits, CorePath) when is_map(Options), is_map(Limits) ->
+    Started = erlang:monotonic_time(microsecond),
     try
         Root = absolute_path(CorePath),
         require(filelib:is_dir(Root), missing_core),
@@ -28,26 +35,113 @@ prepare(Options, Limits, CorePath) when is_map(Options), is_map(Limits) ->
             otp_release => list_to_binary(erlang:system_info(otp_release)),
             erts_version => list_to_binary(erlang:system_info(version))},
         require(identity_valid(Identity), version_mismatch),
+        IdentityUs = max(0, erlang:monotonic_time(microsecond) - Started),
+        ContextStarted = erlang:monotonic_time(microsecond),
         case core_call(prepare, [Options, Limits]) of
             {ok, Context} ->
                 require(valid_context(Context, Versions), version_mismatch),
-                {ok, #{core_context => Context, core_identity => Identity, core_path => Root}};
-            {error, CoreReason} when is_atom(CoreReason) -> {error, CoreReason};
-            _ -> {error, version_mismatch}
+                RuntimeModules = [{maps:get(atom, A), maps:get(beam_md5, A)} || A <- Artifacts],
+                Result = {ok, #{core_context => Context, core_identity => Identity,
+                                core_path => Root, runtime_modules => RuntimeModules}},
+                Timing = #{identity_check_us => IdentityUs,
+                    core_prepare_us => max(0, erlang:monotonic_time(microsecond) - ContextStarted),
+                    prepare_total_us => max(0, erlang:monotonic_time(microsecond) - Started)},
+                {Result, Timing};
+            {error, CoreReason} when is_atom(CoreReason) ->
+                { {error, CoreReason}, #{identity_check_us => IdentityUs,
+                    core_prepare_us => max(0, erlang:monotonic_time(microsecond) - ContextStarted),
+                    prepare_total_us => max(0, erlang:monotonic_time(microsecond) - Started)} };
+            _ ->
+                { {error, version_mismatch}, #{identity_check_us => IdentityUs,
+                    core_prepare_us => max(0, erlang:monotonic_time(microsecond) - ContextStarted),
+                    prepare_total_us => max(0, erlang:monotonic_time(microsecond) - Started)} }
         end
     catch
-        throw:{erlamsa_configuration, Reason} -> {error, Reason};
-        _:_ -> {error, unavailable_build}
+        throw:{erlamsa_configuration, Reason} ->
+            {{error, Reason}, #{identity_check_us => max(0,
+                erlang:monotonic_time(microsecond) - Started), core_prepare_us => 0,
+                prepare_total_us => max(0, erlang:monotonic_time(microsecond) - Started)}};
+        _:_ ->
+            {{error, unavailable_build}, #{identity_check_us => max(0,
+                erlang:monotonic_time(microsecond) - Started), core_prepare_us => 0,
+                prepare_total_us => max(0, erlang:monotonic_time(microsecond) - Started)}}
     end;
-prepare(_, _, _) -> {error, invalid_core_configuration}.
+prepare_timed(_, _, _) -> {{error, invalid_core_configuration},
+    #{identity_check_us => 0, core_prepare_us => 0, prepare_total_us => 0}}.
 
 mutate(Input, Request, #{core_context := Context, core_identity := Identity}) ->
-    %% Loading and filesystem/Git checks belong to the cold startup handshake.
-    case runtime_live(Identity) of
-        true -> core_call(mutate, [Input, Request, Context]);
-        false -> {error, version_mismatch}
-    end;
+    {Result, _Timing} = mutate_timed(Input, Request,
+        #{core_context => Context, core_identity => Identity}),
+    Result;
 mutate(_, _, _) -> {error, invalid_core_context}.
+
+%% Keep the historical mutate/3 wrapper intact while exposing phase timings.
+%% The direct timer surrounds only erlamsa_core:mutate/3; runtime_live/1 is
+%% reported separately and remains enforced on every request.
+mutate_timed(Input, Request, #{core_context := Context, core_identity := Identity}) ->
+    IdentityStarted = erlang:monotonic_time(microsecond),
+    Live = runtime_live(Identity),
+    IdentityUs = max(0, erlang:monotonic_time(microsecond) - IdentityStarted),
+    case Live of
+        true ->
+            CoreStarted = erlang:monotonic_time(microsecond),
+            Result = core_call(mutate, [Input, Request, Context]),
+            CoreUs = max(0, erlang:monotonic_time(microsecond) - CoreStarted),
+            {Result, #{identity_check_us => IdentityUs,
+                       direct_core_mutation_us => CoreUs}};
+        false ->
+            {{error, version_mismatch}, #{identity_check_us => IdentityUs,
+                                          direct_core_mutation_us => 0}}
+    end;
+mutate_timed(_, _, _) ->
+    {{error, invalid_core_context}, #{identity_check_us => 0,
+                                     direct_core_mutation_us => 0}}.
+
+%% Persistent sessions have already validated the complete source/build identity
+%% during handshake. On each request retain a cheap loaded-code fingerprint
+%% check: a module replacement or runtime mismatch still fails closed, while
+%% filesystem, Git, regex/schema and full core-version checks stay at startup.
+mutate_session_timed(Input, Request,
+        #{core_context := Context, runtime_modules := RuntimeModules,
+          core_identity := Identity}) ->
+    IdentityStarted = erlang:monotonic_time(microsecond),
+    Live = loaded_identity_live(Identity, RuntimeModules),
+    IdentityUs = max(0, erlang:monotonic_time(microsecond) - IdentityStarted),
+    case Live of
+        true ->
+            CoreStarted = erlang:monotonic_time(microsecond),
+            Result = core_call(mutate, [Input, Request, Context]),
+            CoreUs = max(0, erlang:monotonic_time(microsecond) - CoreStarted),
+            {Result, #{identity_check_us => IdentityUs,
+                       direct_core_mutation_us => CoreUs}};
+        false -> {{error, version_mismatch},
+                  #{identity_check_us => IdentityUs, direct_core_mutation_us => 0}}
+    end;
+mutate_session_timed(_, _, _) ->
+    {{error, invalid_core_context}, #{identity_check_us => 0,
+                                     direct_core_mutation_us => 0}}.
+
+loaded_identity_live(Identity, RuntimeModules) ->
+    try
+        maps:get(otp_release, Identity) =:= list_to_binary(erlang:system_info(otp_release))
+        andalso maps:get(erts_version, Identity) =:= list_to_binary(erlang:system_info(version))
+        andalso lists:all(fun({Module, MD5}) ->
+            code:is_loaded(Module) =/= false andalso
+            erlang:get_module_info(Module, md5) =:= MD5
+        end, RuntimeModules)
+    catch _:_ -> false
+    end.
+
+%% Loading this EFZ-owned module interns only the finite option/operator names
+%% used by the fixed core API before safe ETF decoding of the startup frame.
+core_option_atoms() ->
+    [profile, balanced, bytes, formats, fields, strategy, preserve, perturb,
+     mixed, operators, patterns, inner_operator, auto, byte_flip, byte_insert,
+     byte_drop, block_repeat, block_drop, block_swap, line_repeat, line_drop,
+     line_swap, number, delimiter, unicode, json, sgml, base64, gzip, zlib,
+     zip, length, xor8, crc32, field_operator, length_field, xor8_field,
+     crc32_field, offset, width, endian, big, little, payload_offset,
+     payload_length, once, many, burst, skip].
 
 live(#{core_identity := Identity}) -> live(Identity);
 live(Identity) ->

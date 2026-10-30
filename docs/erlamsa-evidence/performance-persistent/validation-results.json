@@ -1,0 +1,160 @@
+{
+  "checks": [
+    {
+      "exit_code": 0,
+      "name": "rebar3 compile",
+      "result": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "rebar3 eunit",
+      "passed": 400,
+      "result": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "rebar3 ct",
+      "passed": 3,
+      "result": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "rebar3 xref",
+      "result": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "rebar3 dialyzer",
+      "result": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "rebar3 as erlamsa compile",
+      "result": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "rebar3 as gleam compile",
+      "result": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "rebar3 as gleam eunit",
+      "passed": 457,
+      "result": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "rebar3 as gleam ct",
+      "passed": 3,
+      "result": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "rebar3 as gleam xref",
+      "result": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "rebar3 as gleam dialyzer",
+      "result": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "installed pyefz local IPC suite",
+      "note": "wheel built from final source using --no-deps --no-build-isolation and installed into /tmp",
+      "passed": 3,
+      "result": "PASS"
+    },
+    {
+      "exit_code": 0,
+      "name": "pyefz runtime/control end-to-end",
+      "note": "synthetic simple-parser raw-replay case skipped because this run used the cow_qs target artifact",
+      "passed": 5,
+      "result": "PASS",
+      "skipped": 1
+    },
+    {
+      "exit_code": 0,
+      "name": "Python syntax and CLI help",
+      "python_files": 14,
+      "result": "PASS"
+    },
+    {
+      "command": "ERL_FLAGS=+S 2:2 escript scripts/benchmark_erlamsa_core.escript _build/default vendor/erlamsa /tmp/efz-direct-core-final-head.json",
+      "core": "191f3d9d30d8932319b98f4af25d3dff9ddc5824",
+      "exit_code": 0,
+      "final_head": "cbd92d121db949ea8be7b2656fafd15031cdf4ae",
+      "name": "direct core microbench",
+      "result": "PASS",
+      "samples_per_fixture": 1000
+    },
+    {
+      "cleanup_samples": 5,
+      "exit_code": 0,
+      "name": "benchmark driver recycle percentile smoke",
+      "note": "1 second probe with max_requests=3, includes Python roll-up; not an acceptance run",
+      "recycle_cleanup_p50_us": 12770,
+      "recycle_cleanup_p95_us": 18892,
+      "recycle_startup_p50_us": 197299,
+      "result": "PASS",
+      "samples": 1,
+      "startup_samples": 5,
+      "vm_starts": 6,
+      "worker_restarts": 6
+    },
+    {
+      "efz_commit": "cbd92d121db949ea8be7b2656fafd15031cdf4ae",
+      "exit_code": 0,
+      "name": "final HEAD steady-state acceptance benchmark",
+      "result": "PASS",
+      "runs": 40,
+      "seconds_per_mode_seed": 30,
+      "seeds": [
+        17,
+        29,
+        43,
+        61,
+        89
+      ]
+    },
+    {
+      "efz_commit": "cbd92d121db949ea8be7b2656fafd15031cdf4ae",
+      "exit_code": 0,
+      "max_requests": 1000,
+      "name": "final HEAD periodic recycle acceptance benchmark",
+      "result": "PASS",
+      "runs": 15,
+      "seconds_per_mode_seed": 30,
+      "seeds": [
+        17,
+        29,
+        43,
+        61,
+        89
+      ]
+    },
+    {
+      "exit_code": 127,
+      "name": "final benchmark driver wrong-profile attempt",
+      "note": "Used _build/default without efz_qs_model; no benchmark samples. Re-run with _build/gleam is the accepted matrix.",
+      "result": "EXPECTED_CONFIG_FAILURE_RETAINED",
+      "runs": 1
+    }
+  ],
+  "environment": {
+    "erts": "15.0",
+    "gleam": "1.10.0",
+    "otp": "27",
+    "platform": "Linux x86_64",
+    "python": "3.12.3",
+    "rebar3": "3.25.0"
+  },
+  "notes": [
+    "A restricted-sandbox EUnit attempt failed during launcher/socket creation with eperm; reruns with local IPC permission passed as reported.",
+    "The initial recycle and stale-profile attempts are preserved separately and are not mixed into successful summaries.",
+    "One full-suite rerun returned provider_setup_failed in 22 tests; the new disposable/provider lifecycle modules passed standalone, and a complete final default EUnit retry then passed all 400 tests with exit 0. The transient cause was not established.",
+    "The final accepted 40-run and 15-run benchmark matrices were collected from committed EFZ HEAD cbd92d121db949ea8be7b2656fafd15031cdf4ae using _build/gleam; their manifests contain final source and BEAM identities."
+  ],
+  "schema_version": 1
+}

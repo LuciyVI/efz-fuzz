@@ -68,6 +68,37 @@ with Client("/absolute/path/to/efz") as efz:
     )
 ```
 
+For repeated local mutations, opt into the persistent transport explicitly:
+
+```python
+from pyefz import Client
+
+provider = {
+    "mode": "erlamsa",
+    "transport": "persistent",
+    "core_path": "/absolute/path/to/efz/vendor/erlamsa",
+    "timeout": 2000,
+    "max_requests": 10000,
+    "options": {"profile": "bytes"},
+}
+with Client("/absolute/path/to/efz", runtime="/absolute/path/to/erl") as efz:
+    one = efz.mutate(b"first\x00input", provider=provider, seed=(17, 23, 41))
+    two = efz.mutate(b"second input", provider=provider, seed=(29, 31, 37))
+    batch = efz.mutate_batch(
+        [b"batch one", b"batch two"], provider=provider,
+        seeds=[(43, 47, 53), (59, 61, 67)],
+    )
+    print(one.runtime, two.runtime, batch[0].runtime)
+```
+
+One `Client` reuses one isolated provider VM for matching provider configuration.
+Requests are serialized; no candidate is prefetched. Batch items retain their
+own seed and result. A cancellation or provider fault ends that worker; the
+next explicit mutation may create a newly checked worker. `max_requests` causes
+an orderly recycle between items. Use `mutate_async()` or
+`mutate_batch_async()` when a caller needs a cancellation handle, and always
+close the client (the context manager does this).
+
 Each batch item has its own seed/request and result. Omitting seeds generates
 independent unsigned 64-bit triples. Explicit triples provide reproducibility.
 Batches contain 1–64 items, with at most 2 MiB of input and 2 MiB of aggregate
@@ -158,9 +189,9 @@ mutation worker deadline is `ProviderTimeout`.
 Validation uses synthetic local fixtures:
 
 ```sh
-python3 -m unittest discover -s test -p 'pyefz_*test.py' -v
-PYEFZ_EFZ_ROOT="$PWD" PYEFZ_RUNTIME="$(command -v erl)" \
-  python3 -m unittest discover -s test -p 'pyefz_e2e_test.py' -v
+PYTHONPATH=packages/pyefz/src PYEFZ_EFZ_ROOT="$PWD" \
+PYEFZ_RUNTIME="$(command -v erl)" \
+  python3 -m unittest discover -s packages/pyefz/test -p 'test_*.py' -v
 ```
 
 Set `PYEFZ_CORE_PATH` to enable real core mutation checks. Set

@@ -1,0 +1,460 @@
+{
+  "accepted": true,
+  "completed": true,
+  "groups": {
+    "baseline": {
+      "accepted_fraction": {
+        "max": 0.728921124206709,
+        "median": 0.6923712269109475,
+        "min": 0.4573567216089521
+      },
+      "coverage": {
+        "max": 48,
+        "median": 48,
+        "min": 48
+      },
+      "direct_core_p50_us": null,
+      "executions_per_second": {
+        "max": 443.3149680615499,
+        "median": 440.2883479216716,
+        "min": 373.58263517082804
+      },
+      "identity_check_p50_us": null,
+      "input_bytes": {
+        "max": 94.68985331921972,
+        "median": 67.15796507483962,
+        "min": 47.045859776367486
+      },
+      "legacy_core_wrapper_p50_us": null,
+      "legacy_core_wrapper_p95_us": null,
+      "process_tree_rss_bytes": {
+        "median": 113152000
+      },
+      "provider_p50_us": null,
+      "provider_p95_us": null,
+      "recycle_cleanup_p50_us": null,
+      "recycle_cleanup_p95_us": null,
+      "recycle_startup_p50_us": null,
+      "samples": 5,
+      "steady_state_executions_per_second": {
+        "max": 443.89795466634644,
+        "median": 440.8429346220195,
+        "min": 374.1319989292038
+      },
+      "warm_request_p50_us": null,
+      "warm_request_p95_us": null,
+      "worker_startup_p50_us": null
+    },
+    "erlamsa": {
+      "accepted_fraction": {
+        "max": 0.7191780821917808,
+        "median": 0.6917808219178082,
+        "min": 0.5102040816326531
+      },
+      "coverage": {
+        "max": 47,
+        "median": 45,
+        "min": 44
+      },
+      "direct_core_p50_us": 15,
+      "executions_per_second": {
+        "max": 4.8902361544939374,
+        "median": 4.856858726155069,
+        "min": 4.4904528481994435
+      },
+      "identity_check_p50_us": 70,
+      "input_bytes": {
+        "max": 38.585034013605444,
+        "median": 29.274074074074075,
+        "min": 24.39041095890411
+      },
+      "legacy_core_wrapper_p50_us": {
+        "max": 93,
+        "median": 85,
+        "min": 84
+      },
+      "legacy_core_wrapper_p95_us": {
+        "max": 124,
+        "median": 108,
+        "min": 103
+      },
+      "process_tree_rss_bytes": {
+        "median": 205721600
+      },
+      "provider_p50_us": {
+        "max": 222698,
+        "median": 209162,
+        "min": 208095
+      },
+      "provider_p95_us": {
+        "max": 249300,
+        "median": 220022,
+        "min": 219395
+      },
+      "recycle_cleanup_p50_us": null,
+      "recycle_cleanup_p95_us": null,
+      "recycle_startup_p50_us": null,
+      "samples": 5,
+      "steady_state_executions_per_second": {
+        "max": 4.899939404082703,
+        "median": 4.866429833748091,
+        "min": 4.499795109329355
+      },
+      "warm_request_p50_us": null,
+      "warm_request_p95_us": null,
+      "worker_startup_p50_us": null
+    },
+    "erlamsa_persistent": {
+      "accepted_fraction": {
+        "max": 0.6517796610169492,
+        "median": 0.632420091324201,
+        "min": 0.5270558159352364
+      },
+      "coverage": {
+        "max": 49,
+        "median": 48,
+        "min": 48
+      },
+      "direct_core_p50_us": 18,
+      "executions_per_second": {
+        "max": 389.67416305089773,
+        "median": 387.72293738500883,
+        "min": 373.7233019517168
+      },
+      "identity_check_p50_us": 21,
+      "input_bytes": {
+        "max": 227.14165782962178,
+        "median": 47.51126030424067,
+        "min": 28.96786090621707
+      },
+      "legacy_core_wrapper_p50_us": {
+        "max": 42,
+        "median": 41,
+        "min": 40
+      },
+      "legacy_core_wrapper_p95_us": {
+        "max": 58,
+        "median": 51,
+        "min": 49
+      },
+      "process_tree_rss_bytes": {
+        "median": 207101952
+      },
+      "provider_p50_us": {
+        "max": 329,
+        "median": 320,
+        "min": 316
+      },
+      "provider_p95_us": {
+        "max": 1134,
+        "median": 968,
+        "min": 935
+      },
+      "recycle_cleanup_p50_us": 16629,
+      "recycle_cleanup_p95_us": 16629,
+      "recycle_startup_p50_us": 212261,
+      "samples": 5,
+      "steady_state_executions_per_second": {
+        "max": 393.3283249526623,
+        "median": 391.157930806212,
+        "min": 377.177859659638
+      },
+      "warm_request_p50_us": 277,
+      "warm_request_p95_us": 838,
+      "worker_startup_p50_us": 211644.5
+    },
+    "hybrid": {
+      "accepted_fraction": {
+        "max": 0.6573426573426573,
+        "median": 0.6508264462809917,
+        "min": 0.6101694915254238
+      },
+      "coverage": {
+        "max": 48,
+        "median": 48,
+        "min": 47
+      },
+      "direct_core_p50_us": 14,
+      "executions_per_second": {
+        "max": 16.13595349278849,
+        "median": 15.718877088616715,
+        "min": 14.27504674245929
+      },
+      "identity_check_p50_us": 70,
+      "input_bytes": {
+        "max": 70.25158562367865,
+        "median": 49.735169491525426,
+        "min": 43.32577319587629
+      },
+      "legacy_core_wrapper_p50_us": {
+        "max": 87,
+        "median": 86,
+        "min": 83
+      },
+      "legacy_core_wrapper_p95_us": {
+        "max": 113,
+        "median": 107,
+        "min": 103
+      },
+      "process_tree_rss_bytes": {
+        "median": 205049856
+      },
+      "provider_p50_us": {
+        "max": 211722,
+        "median": 209996,
+        "min": 207309
+      },
+      "provider_p95_us": {
+        "max": 224938,
+        "median": 224108,
+        "min": 216991
+      },
+      "recycle_cleanup_p50_us": null,
+      "recycle_cleanup_p95_us": null,
+      "recycle_startup_p50_us": null,
+      "samples": 5,
+      "steady_state_executions_per_second": {
+        "max": 16.16598661749629,
+        "median": 15.766278816207787,
+        "min": 14.299716388958286
+      },
+      "warm_request_p50_us": null,
+      "warm_request_p95_us": null,
+      "worker_startup_p50_us": null
+    },
+    "hybrid_persistent": {
+      "accepted_fraction": {
+        "max": 0.6558105705511557,
+        "median": 0.643542199488491,
+        "min": 0.5925560759181662
+      },
+      "coverage": {
+        "max": 48,
+        "median": 48,
+        "min": 48
+      },
+      "direct_core_p50_us": 21,
+      "executions_per_second": {
+        "max": 412.8472439790278,
+        "median": 408.67736923141604,
+        "min": 402.0402676476304
+      },
+      "identity_check_p50_us": 25,
+      "input_bytes": {
+        "max": 75.55702075702075,
+        "median": 52.00503516624041,
+        "min": 44.26037301782927
+      },
+      "legacy_core_wrapper_p50_us": {
+        "max": 49,
+        "median": 47,
+        "min": 46
+      },
+      "legacy_core_wrapper_p95_us": {
+        "max": 61,
+        "median": 58,
+        "min": 56
+      },
+      "process_tree_rss_bytes": {
+        "median": 206118912
+      },
+      "provider_p50_us": {
+        "max": 384,
+        "median": 368,
+        "min": 362
+      },
+      "provider_p95_us": {
+        "max": 1211,
+        "median": 857,
+        "min": 726
+      },
+      "recycle_cleanup_p50_us": null,
+      "recycle_cleanup_p95_us": null,
+      "recycle_startup_p50_us": null,
+      "samples": 5,
+      "steady_state_executions_per_second": {
+        "max": 417.06565180691393,
+        "median": 412.44209886564425,
+        "min": 405.67501041935816
+      },
+      "warm_request_p50_us": 321,
+      "warm_request_p95_us": 584,
+      "worker_startup_p50_us": 219254
+    },
+    "native": {
+      "accepted_fraction": {
+        "max": 0.7291666666666666,
+        "median": 0.6925515055467512,
+        "min": 0.4572242633275849
+      },
+      "coverage": {
+        "max": 48,
+        "median": 48,
+        "min": 48
+      },
+      "direct_core_p50_us": null,
+      "executions_per_second": {
+        "max": 447.6998082579944,
+        "median": 441.09541991428483,
+        "min": 417.5194531177549
+      },
+      "identity_check_p50_us": null,
+      "input_bytes": {
+        "max": 94.66086826122816,
+        "median": 66.80185873605949,
+        "min": 47.03601953601954
+      },
+      "legacy_core_wrapper_p50_us": null,
+      "legacy_core_wrapper_p95_us": null,
+      "process_tree_rss_bytes": {
+        "median": 112664576
+      },
+      "provider_p50_us": null,
+      "provider_p95_us": null,
+      "recycle_cleanup_p50_us": null,
+      "recycle_cleanup_p95_us": null,
+      "recycle_startup_p50_us": null,
+      "samples": 5,
+      "steady_state_executions_per_second": {
+        "max": 448.3158639585011,
+        "median": 441.6727340698834,
+        "min": 418.05887694180484
+      },
+      "warm_request_p50_us": null,
+      "warm_request_p95_us": null,
+      "worker_startup_p50_us": null
+    },
+    "native_semantic": {
+      "accepted_fraction": {
+        "max": 0.7497130614431097,
+        "median": 0.6537150647580096,
+        "min": 0.5482625482625483
+      },
+      "coverage": {
+        "max": 48,
+        "median": 48,
+        "min": 48
+      },
+      "direct_core_p50_us": null,
+      "executions_per_second": {
+        "max": 439.65411878922407,
+        "median": 438.4464499537965,
+        "min": 431.238270937794
+      },
+      "identity_check_p50_us": null,
+      "input_bytes": {
+        "max": 78.57210114663225,
+        "median": 65.68301915360739,
+        "min": 50.94470953571158
+      },
+      "legacy_core_wrapper_p50_us": null,
+      "legacy_core_wrapper_p95_us": null,
+      "process_tree_rss_bytes": {
+        "median": 117940224
+      },
+      "provider_p50_us": null,
+      "provider_p95_us": null,
+      "recycle_cleanup_p50_us": null,
+      "recycle_cleanup_p95_us": null,
+      "recycle_startup_p50_us": null,
+      "samples": 5,
+      "steady_state_executions_per_second": {
+        "max": 440.2602004778768,
+        "median": 438.95897025272154,
+        "min": 432.06206495069733
+      },
+      "warm_request_p50_us": null,
+      "warm_request_p95_us": null,
+      "worker_startup_p50_us": null
+    },
+    "semantic_persistent": {
+      "accepted_fraction": {
+        "max": 0.7495502861815209,
+        "median": 0.6797812423475634,
+        "min": 0.624090541632983
+      },
+      "coverage": {
+        "max": 48,
+        "median": 48,
+        "min": 48
+      },
+      "direct_core_p50_us": 22,
+      "executions_per_second": {
+        "max": 416.3215778551435,
+        "median": 404.4698691242341,
+        "min": 400.9020577018903
+      },
+      "identity_check_p50_us": 26,
+      "input_bytes": {
+        "max": 58.39188438021123,
+        "median": 55.23904607922393,
+        "min": 39.87146361406378
+      },
+      "legacy_core_wrapper_p50_us": {
+        "max": 50,
+        "median": 49,
+        "min": 49
+      },
+      "legacy_core_wrapper_p95_us": {
+        "max": 63,
+        "median": 60,
+        "min": 58
+      },
+      "process_tree_rss_bytes": {
+        "median": 212992000
+      },
+      "provider_p50_us": {
+        "max": 388,
+        "median": 379,
+        "min": 373
+      },
+      "provider_p95_us": {
+        "max": 1124,
+        "median": 1036,
+        "min": 879
+      },
+      "recycle_cleanup_p50_us": null,
+      "recycle_cleanup_p95_us": null,
+      "recycle_startup_p50_us": null,
+      "samples": 5,
+      "steady_state_executions_per_second": {
+        "max": 419.74331494691177,
+        "median": 408.3372391629643,
+        "min": 404.61727002771323
+      },
+      "warm_request_p50_us": 330,
+      "warm_request_p95_us": 866,
+      "worker_startup_p50_us": 212425
+    }
+  },
+  "kind": "accepted_wall_time",
+  "limitations": [
+    "Single local query-string workload and one pinned OTP/ERTS build; no discovery advantage claim.",
+    "Stage profiling was disabled for acceptance throughput; diagnostic message, corpus persistence, and sampling were enabled equally in every mode.",
+    "Full campaign throughput includes startup, count-based recycle, and orderly shutdown; request percentiles distinguish warm requests from startup/recycle.",
+    "Memory is sampled; aggregate RSS double-counts shared pages and may miss short peaks."
+  ],
+  "native_off_median_change_percent": -0.5006706985262288,
+  "native_off_paired_changes": [
+    {
+      "seed": 17,
+      "throughput_change_percent": -0.5006706985262288
+    },
+    {
+      "seed": 29,
+      "throughput_change_percent": 0.8298407876697
+    },
+    {
+      "seed": 43,
+      "throughput_change_percent": -0.9843792119484274
+    },
+    {
+      "seed": 61,
+      "throughput_change_percent": -4.494493459714555
+    },
+    {
+      "seed": 89,
+      "throughput_change_percent": 19.839565897722956
+    }
+  ]
+}

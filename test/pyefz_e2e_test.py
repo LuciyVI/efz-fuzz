@@ -72,6 +72,7 @@ class RuntimeTests(unittest.TestCase):
                     "artifacts": os.environ["PYEFZ_ARTIFACTS"], "seeds": [b"ABC"],
                     "mutation_mode": "staged", "max_iterations": "infinity",
                     "mutation_provider": {"mode": "hybrid", "core_path": os.environ["PYEFZ_CORE_PATH"],
+                        "transport": "persistent", "max_requests": 100,
                         "weights": [["native", 0], ["erlamsa", 1]], "on_skip": "skip",
                         "limits": {"operations": 1}, "options": {"profile": "bytes",
                             "operators": [["byte_flip", 1]], "patterns": [["once", 1]]}},
@@ -88,12 +89,14 @@ class RuntimeTests(unittest.TestCase):
                 self.assertGreaterEqual(report["provider_stats"]["changed"], 2)
                 self.assertEqual(report["provider_stats"]["errors"], 0)
                 self.assertEqual(load_summary(out)["provider"]["mode"], "hybrid")
+                self.assertEqual(report["provider_stats"]["session"]["vm_starts"], 1)
                 spec = importlib.util.spec_from_file_location("efz_actual_tui", ROOT / "scripts/tui.py")
                 tui = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(tui)
                 rendered = "\n".join(tui.provider_lines(report))
                 self.assertIn(f'Requests {report["provider_stats"]["requests"]}', rendered)
                 self.assertIn("hybrid", rendered)
+                self.assertIn("VM starts 1", rendered)
 
     @unittest.skipUnless(os.environ.get("PYEFZ_ARTIFACTS") and
                          os.environ.get("PYEFZ_TARGET", "efz_example_target") == "efz_example_target",
