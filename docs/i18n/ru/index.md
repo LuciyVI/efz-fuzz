@@ -34,6 +34,7 @@
 - [Coverage tracking EFZ: аудит и сравнение с AFL++](coverage-tracking-audit.md)
 - [Контракт автоматического покрытия](coverage.md)
 - [Длительный Cowboy benchmark: ETS, bitmap-v2 и OTP-public](cowboy-long-benchmark.md)
+- [Харнессы потоков данных Cowboy](cowboy-harness-suite.md)
 - [Результаты DWARF/native coverage](dwarf-native-coverage-results.md)
 - [DWARF/native coverage: контрольная точка осуществимости](dwarf-native-coverage.md)
 - [EFZ: профиль производительности engine v2 (2026-10-04)](engine-performance-profile-v2.md)

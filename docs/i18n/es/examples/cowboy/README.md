@@ -2,6 +2,8 @@
 
 [English](../../../../../examples/cowboy/README.md) · [Русский](../../../ru/examples/cowboy/README.md) · **Español** · [简体中文](../../../zh-CN/examples/cowboy/README.md) · [Todos los idiomas](../../../README.md)
 
+El nuevo conjunto de once arneses verifica flujos de datos con Gleam desactivado, observación y feedback semantic-guided. Véanse los [arneses de flujo de datos de Cowboy](../../cowboy-harness-suite.md): las dependencias están fijadas en este repositorio y cada ejecución registra la cobertura de la biblioteca.
+
 `efz_cowboy_target:run/1` acepta **los bytes de la query string sin el `?` inicial**,
 por ejemplo `<<"q=hello+world&edit">>`, y llama a `cowboy_req:parse_qs/1`.
 El resultado es `{ok, Pairs}` o `{invalid, qs | limit_reached}` ante un rechazo

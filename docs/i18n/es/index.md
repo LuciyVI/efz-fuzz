@@ -34,6 +34,7 @@ Los informes históricos conservan la fecha, el entorno verificado, el alcance y
 - [Seguimiento de cobertura EFZ: auditoría y comparación con AFL++](coverage-tracking-audit.md)
 - [Contrato de cobertura automática](coverage.md)
 - [Benchmark largo de Cowboy: ETS, bitmap-v2 y OTP-public](cowboy-long-benchmark.md)
+- [Arneses de flujo de datos de Cowboy](cowboy-harness-suite.md)
 - [Resultados de cobertura DWARF/nativa](dwarf-native-coverage-results.md)
 - [Cobertura DWARF/nativa: punto de control de viabilidad](dwarf-native-coverage.md)
 - [EFZ: perfil de rendimiento del motor v2 (2026-10-04)](engine-performance-profile-v2.md)
