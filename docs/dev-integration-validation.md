@@ -73,3 +73,22 @@ this candidate are localized quick references with links to the English full
 contracts; full translations of the new technical guides are still pending.
 The remote recursive checkout gate also remains open while Git transport is
 unavailable. `main` was not changed.
+
+## Follow-up before the `dev` to `main` merge (2026-10-30)
+
+The paragraphs above preserve the original stage results. A later fresh GitHub
+checkout of published `dev` at `eceef451eca37ab7fa9c99c20165d47d087683d1`
+used `git clone --branch dev --single-branch --recurse-submodules` without a
+local URL rewrite or Git alternates. It fetched `vendor/erlamsa` directly from
+`LuciyVI/erlamsa` at the recorded gitlink
+`191f3d9d30d8932319b98f4af25d3dff9ddc5824`. In that checkout,
+`ERL_FLAGS='+S 2:2' rebar3 compile` and `rebar3 as erlamsa compile` both
+exited 0. Git transport worked with the proxy environment variables unset for
+those commands; no global proxy or credential configuration was changed.
+
+The separate `main` merge candidate has parents `db1add0bc47bc1011d55a4cb528b741a0b870f97`
+and `eceef451eca37ab7fa9c99c20165d47d087683d1`. Before this documentation
+note its tree matched `dev` exactly. On that candidate, compile, all 416 EUnit,
+all 3 CT, xref, Dialyzer, ordinary/Erlamsa/Gleam/combined builds, and 14
+combined-profile focused EUnit tests exited 0. The persistent target remains
+in a separate draft PR and is not part of this `main` merge.
